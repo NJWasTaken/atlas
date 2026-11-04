@@ -9,6 +9,7 @@ A dark, curiosity-first learning workspace. Sprint 1 includes a Next.js dashboar
 
 ## 1. Configure
 Copy `.env.example` to `.env` in the repository root. Change `JWT_SECRET` before using this beyond local development.
+Set `X_API_KEY` in `.env` to your API Ninjas key to enable the daily and on-demand quotes on the dashboard.
 
 ## 2. Start PostgreSQL
 ```bash

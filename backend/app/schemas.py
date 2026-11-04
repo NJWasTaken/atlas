@@ -14,6 +14,11 @@ class UserOutput(BaseModel):
     email: EmailStr
     model_config = ConfigDict(from_attributes=True)
 
+class QuoteOutput(BaseModel):
+    quote: str
+    author: str
+    work: str | None = None
+
 class SubjectCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     code: str | None = Field(default=None, max_length=32)

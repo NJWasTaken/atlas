@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 60
     frontend_origin: str = "http://localhost:3000"
+    x_api_key: str | None = None
 
     model_config = SettingsConfigDict(env_file="../.env", extra="ignore")
 
