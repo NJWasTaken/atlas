@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.db import Base, engine
 from app import models
-from app.routers import auth, quotes, subjects
+from app.routers import auth, quotes, subjects, calendar
 
 Base.metadata.create_all(bind=engine)
 
@@ -18,6 +18,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(quotes.router, prefix="/api/v1")
 app.include_router(subjects.router, prefix="/api/v1")
+app.include_router(calendar.router, prefix="/api/v1")
 
 @app.get("/health")
 def health():

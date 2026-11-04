@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowUpRight, BookOpen, Compass, GraduationCap, Library, LogOut, Orbit, Plus, Sparkles, X, ChevronRight, MoonStar } from "lucide-react";
 import { api, clearToken, getToken, setToken } from "../lib/api";
-import QuoteRipple from "./components/QuoteRipple";
+import DashboardCalendar from "./components/DashboardCalendar";
 
 type Subject = { id: number; name: string; code?: string | null; description?: string | null };
 type Quote = { quote: string; author: string; work?: string | null };
@@ -37,34 +37,30 @@ export default function Home() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState("");
-  const [quoteRipple, setQuoteRipple] = useState<{ id: number; x: number; y: number } | null>(null);
+  const [quotePhase, setQuotePhase] = useState<"idle" | "out" | "in">("idle");
 
   async function loadSubjects() { setSubjects(await api<Subject[]>("/subjects")); }
-  const loadQuote = useCallback(async (random = false, pulsePosition?: { x: number; y: number }) => {
+  const loadQuote = useCallback(async (random = false) => {
     setQuoteLoading(true);
     setQuoteError("");
-    if (random && pulsePosition) {
-      setQuoteRipple(current => ({
-        id: (current?.id ?? 0) + 1,
-        ...pulsePosition,
-      }));
+    if (random) {
+      setQuotePhase("out");
+      await new Promise(resolve => window.setTimeout(resolve, 190));
     }
     try {
-      setQuote(await api<Quote>(`/quotes/${random ? "random" : "daily"}`));
+      const next = await api<Quote>(`/quotes/${random ? "random" : "daily"}`);
+      setQuote(next);
+      if (random) {
+        setQuotePhase("in");
+        window.setTimeout(() => setQuotePhase("idle"), 620);
+      }
     } catch (e) {
       setQuoteError(e instanceof Error ? e.message : "Could not load a quote");
+      setQuotePhase("idle");
     } finally {
       setQuoteLoading(false);
     }
   }, []);
-  function requestAnotherQuote(element: HTMLElement, clientX?: number, clientY?: number) {
-    const bounds = element.getBoundingClientRect();
-    void loadQuote(true, {
-      x: clientX === undefined ? 0.5 : (clientX - bounds.left) / bounds.width,
-      y: clientY === undefined ? 0.5 : (clientY - bounds.top) / bounds.height,
-    });
-  }
-
   useEffect(() => {
     const saved = getToken();
     if (saved) setAuth(saved);
@@ -148,37 +144,34 @@ export default function Home() {
 
           {active==="Overview"&&<>
             <section
-              className="atlas-welcome atlas-quote-card"
+              className={`atlas-welcome atlas-quote-card${quoteLoading ? " is-changing" : ""}`}
               role="button"
               tabIndex={0}
               aria-label="Show another quote"
               aria-disabled={quoteLoading}
-              onClick={e => {
-                if (!quoteLoading) requestAnotherQuote(e.currentTarget, e.clientX, e.clientY);
-              }}
+              onClick={() => { if (!quoteLoading) void loadQuote(true); }}
               onKeyDown={e => {
                 if ((e.key === "Enter" || e.key === " ") && !quoteLoading) {
                   e.preventDefault();
-                  requestAnotherQuote(e.currentTarget);
+                  void loadQuote(true);
                 }
               }}
             >
-              <div className="atlas-welcome-copy">
+              <div className={`atlas-welcome-copy quote-${quotePhase}`}>
                 <p className="eyebrow">A NUGGET OF KNOWLEDGE, JUST FOR YOU</p>
                 <h2 className="atlas-quote-text" aria-live="polite">
                   {quote ? `“${quote.quote}”` : quoteLoading ? "Finding today's thought…" : "Today's thought is waiting."}
                 </h2>
                 {quote && <p className="atlas-quote-author">— {quote.author}{quote.work ? `, ${quote.work}` : ""}</p>}
                 {quoteError && <p className="atlas-quote-error" role="alert">{quoteError}</p>}
+                <p className="atlas-quote-hint">{quoteLoading ? "Turning the page…" : "Click anywhere to discover another thought"}</p>
               </div>
               <div className="atlas-orbit-art" aria-hidden="true">
                 <div className="orbit-ring one"/><div className="orbit-ring two"/><div className="orbit-ring three"/>
                 <div className="orbit-core"><Orbit size={32} strokeWidth={1}/></div>
                 <span className="orbit-star a">✦</span><span className="orbit-star b">·</span><span className="orbit-star c">✧</span>
               </div>
-              <div className="atlas-quote-ripple" aria-hidden="true">
-                <QuoteRipple trigger={quoteRipple}/>
-              </div>
+              <div className="atlas-quote-shimmer" aria-hidden="true"/>
             </section>
             <section className="atlas-overview-section">
               <div className="atlas-section-heading">
@@ -193,6 +186,7 @@ export default function Home() {
               </div>
               <SubjectGrid subjects={subjects} onDelete={deleteSubject}/>
             </section>
+            <section className="atlas-overview-section atlas-calendar-section"><DashboardCalendar /></section>
           </>}
 
           {active==="Academics"&&<section className="atlas-overview-section">

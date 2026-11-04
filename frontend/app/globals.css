@@ -119,3 +119,63 @@ main{position:relative;z-index:1}h1,h2,h3{margin:0;font-family:'Cormorant Garamo
  .atlas-section-heading{flex-direction:column;align-items:flex-start}.atlas-page-title{font-size:42px}.atlas-welcome-copy h2{font-size:clamp(26px,8vw,34px)}.atlas-welcome-copy{padding:27px 22px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+/* Atlas calendar + quote transition */
+.atlas-quote-card{isolation:isolate;transition:border-color .35s ease,box-shadow .35s ease}
+.atlas-quote-card:hover{border-color:rgba(223,194,139,.42);box-shadow:0 24px 70px rgba(0,0,0,.2),0 0 38px rgba(197,168,117,.045)}
+.atlas-welcome-copy{transition:opacity .24s ease,transform .38s cubic-bezier(.2,.7,.2,1),filter .3s ease}
+.atlas-welcome-copy.quote-out{opacity:0;transform:translateY(9px);filter:blur(3px)}
+.atlas-welcome-copy.quote-in{animation:atlas-quote-arrive .62s cubic-bezier(.16,1,.3,1) both}
+.atlas-quote-hint{margin-top:20px!important;color:rgba(197,168,117,.65)!important;font-size:8px!important;letter-spacing:.12em;text-transform:uppercase}
+.atlas-quote-shimmer{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse at 30% 50%,rgba(223,194,139,.12),transparent 55%)}
+.atlas-quote-card.is-changing .atlas-quote-shimmer{animation:atlas-quote-shimmer .8s ease both}
+@keyframes atlas-quote-arrive{0%{opacity:0;transform:translateY(13px);filter:blur(4px)}65%{opacity:1;filter:blur(0)}100%{opacity:1;transform:translateY(0);filter:blur(0)}}
+@keyframes atlas-quote-shimmer{0%{opacity:0;transform:scale(.94)}35%{opacity:1}100%{opacity:0;transform:scale(1.04)}}
+.atlas-calendar-section{margin-top:52px}
+.atlas-calendar-panel{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(250px,.8fr);border:1px solid rgba(197,168,117,.19);background:linear-gradient(135deg,rgba(15,32,51,.88),rgba(8,21,36,.83));box-shadow:0 22px 65px rgba(0,0,0,.13)}
+.atlas-calendar-main{min-width:0;padding:27px 29px 22px}
+.atlas-calendar-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
+.atlas-calendar-heading h2{margin-top:5px;color:var(--ivory);font-size:29px}
+.atlas-calendar-caption{margin-top:6px;color:#8997a9;font-size:10px}
+.atlas-calendar-controls{display:flex;align-items:center;gap:6px}
+.atlas-calendar-today,.atlas-calendar-arrow{height:31px;color:#b8c1cc;border:1px solid rgba(166,187,211,.15);background:rgba(4,13,24,.25);transition:all .2s}
+.atlas-calendar-today{padding:0 11px;font-size:9px}.atlas-calendar-arrow{display:grid;width:31px;place-items:center}
+.atlas-calendar-today:hover,.atlas-calendar-arrow:hover{color:var(--gold-hi);border-color:rgba(197,168,117,.45);background:rgba(197,168,117,.07)}
+.atlas-calendar-monthline{display:flex;align-items:center;justify-content:space-between;margin:25px 0 12px;padding-bottom:12px;border-bottom:1px solid rgba(166,187,211,.1)}
+.atlas-calendar-monthline h3{color:var(--ivory);font-size:23px}
+.atlas-calendar-monthline>span{display:flex;align-items:center;gap:7px;color:#71849a;font-size:7px;letter-spacing:.17em}
+.atlas-calendar-monthline>span i{width:5px;height:5px;border-radius:50%;background:#8fa98c}
+.atlas-calendar-monthline>span i.is-syncing{background:var(--gold);animation:breathe 1s infinite}
+.atlas-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.atlas-calendar-weekday{padding:7px 0;color:#75859a;text-align:center;font-size:7px;font-weight:600;letter-spacing:.13em}
+.atlas-calendar-day{position:relative;display:flex;align-items:center;justify-content:center;aspect-ratio:1;min-height:34px;color:#c0c8d1;border:1px solid transparent;background:rgba(255,255,255,.012);font-size:10px;transition:all .2s}
+.atlas-calendar-day:hover{color:var(--gold-hi);border-color:rgba(197,168,117,.25);background:rgba(197,168,117,.06);transform:translateY(-1px)}
+.atlas-calendar-day.outside{color:#526176;background:transparent}
+.atlas-calendar-day.today:before{content:"";position:absolute;inset:5px;border:1px solid rgba(197,168,117,.6);border-radius:50%;pointer-events:none}
+.atlas-calendar-day.selected{color:#142033;border-color:var(--gold);background:linear-gradient(135deg,#d9c18f,#b99a63);font-weight:700}
+.atlas-calendar-day.selected:before{border-color:rgba(20,32,51,.35)}
+.atlas-calendar-day.has-note:not(.selected){color:var(--gold-hi)}
+.atlas-calendar-day>i{position:absolute;bottom:5px;width:3px;height:3px;border-radius:50%;background:var(--gold-hi)}
+.atlas-calendar-day.selected>i{background:#172337}
+.atlas-calendar-legend{display:flex;gap:17px;margin-top:14px;color:#7f8da0;font-size:8px}
+.atlas-calendar-legend span{display:flex;align-items:center;gap:7px}.atlas-calendar-legend i{width:7px;height:7px;border-radius:50%}
+.atlas-calendar-legend .today-dot{border:1px solid var(--gold)}.atlas-calendar-legend .note-dot{background:var(--gold-hi)}
+.atlas-day-note{display:flex;flex-direction:column;min-width:0;padding:28px 25px;border-left:1px solid rgba(197,168,117,.14);background:linear-gradient(160deg,rgba(197,168,117,.035),transparent 55%)}
+.atlas-day-note-top{display:flex;align-items:center;gap:10px}
+.atlas-day-note-icon{display:grid;width:32px;height:32px;place-items:center;color:var(--gold-hi);border:1px solid rgba(197,168,117,.24);border-radius:50%;background:rgba(197,168,117,.06)}
+.atlas-day-note h3{margin-top:23px;color:var(--ivory);font-size:27px;line-height:1}
+.atlas-day-note-date{margin-top:5px;color:#8b99aa;font-size:10px}
+.atlas-day-note label{margin-top:24px;margin-bottom:8px;color:#aeb9c6;font-size:9px}
+.atlas-day-note textarea{width:100%;min-height:130px;resize:vertical;padding:12px;color:var(--ivory);border:1px solid rgba(166,187,211,.15);border-radius:2px;outline:none;background:rgba(4,13,24,.4);font:10px/1.7 'DM Sans',sans-serif}
+.atlas-day-note textarea:focus{border-color:rgba(197,168,117,.55);box-shadow:0 0 0 3px rgba(197,168,117,.06)}
+.atlas-day-note textarea::placeholder{color:#637286}
+.atlas-note-footer{display:flex;align-items:center;gap:10px;margin-top:9px}
+.atlas-note-footer>span{margin-right:auto;color:#64758a;font-size:8px}
+.atlas-note-save{min-height:33px;padding:0 11px;font-size:9px}
+.atlas-note-delete{display:grid;width:29px;height:29px;place-items:center;color:#9b8580;border:1px solid rgba(180,93,93,.18)}
+.atlas-note-delete:hover{color:#e6b2ad;border-color:rgba(180,93,93,.45)}
+.atlas-calendar-private{margin-top:auto;padding-top:21px;color:#697a8f;font-size:8px;line-height:1.7}
+.atlas-calendar-error{margin-top:9px;color:#e6b2ad;font-size:9px;line-height:1.5}
+.atlas-spin{animation:atlas-spin .8s linear infinite}@keyframes atlas-spin{to{transform:rotate(360deg)}}
+@media(max-width:1000px){.atlas-calendar-panel{grid-template-columns:minmax(0,1.2fr) minmax(230px,.8fr)}.atlas-calendar-main{padding:23px 20px}.atlas-day-note{padding:23px 19px}}
+@media(max-width:760px){.atlas-calendar-panel{grid-template-columns:1fr}.atlas-day-note{border-top:1px solid rgba(197,168,117,.14);border-left:0}.atlas-day-note textarea{min-height:100px}}
+@media(max-width:480px){.atlas-calendar-main{padding:20px 13px}.atlas-calendar-heading{flex-direction:column}.atlas-calendar-controls{align-self:flex-end;margin-top:-4px}.atlas-calendar-day{min-height:31px;font-size:9px}.atlas-day-note{padding:22px 18px}}
