@@ -1,9 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: dark; }
+:root {
+  color-scheme: dark;
+  --atlas-night: #08111f;
+  --atlas-deep: #0c1727;
+  --atlas-panel: #111f31;
+  --atlas-panel-raised: #17283c;
+  --atlas-line: rgba(200, 170, 114, 0.19);
+  --atlas-gold: #c8aa72;
+  --atlas-ivory: #f2ecdf;
+  --atlas-muted: #9ba9b9;
+}
+
 * { box-sizing: border-box; }
-body { margin: 0; background: #0B0D12; color: #F1F0EC; font-family: Arial, Helvetica, sans-serif; }
+html { min-height: 100%; scroll-behavior: smooth; }
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--atlas-ivory);
+  background:
+    radial-gradient(ellipse at 82% 4%, rgba(47, 75, 105, 0.22), transparent 36rem),
+    linear-gradient(145deg, #08111f 0%, #0b1626 48%, #091321 100%);
+  font-family: 'DM Sans', 'Avenir Next', Avenir, 'Segoe UI', sans-serif;
+  letter-spacing: 0.005em;
+  -webkit-font-smoothing: antialiased;
+}
+
+.atlas-celestial-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 18% 24%, rgba(45, 73, 105, 0.12), transparent 34rem),
+    radial-gradient(ellipse at 82% 74%, rgba(121, 94, 55, 0.07), transparent 30rem);
+}
+.atlas-celestial-background canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+.atlas-celestial-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(8,17,31,.18), transparent 28%, transparent 72%, rgba(8,17,31,.2)),
+    linear-gradient(180deg, rgba(8,17,31,.12), transparent 25%, transparent 72%, rgba(8,17,31,.32));
+}
+body > div:not(.atlas-celestial-background) { position: relative; z-index: 1; }
+main { position: relative; z-index: 1; }
+
+h1, h2, h3, .font-display {
+  font-family: 'Cormorant Garamond', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  letter-spacing: -0.025em;
+}
+h1, h2 { font-weight: 500; }
 button, input, textarea { font: inherit; }
-::selection { background: #D9B77955; }
+button { -webkit-tap-highlight-color: transparent; }
+input, textarea { color: var(--atlas-ivory); }
+input::placeholder, textarea::placeholder { color: #78899c; }
+::selection { color: #08111f; background: rgba(200, 170, 114,  0.72); }
+:focus-visible { outline: 2px solid var(--atlas-gold); outline-offset: 3px; }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: #08111f; }
+::-webkit-scrollbar-thumb { border: 2px solid #08111f; border-radius: 99px; background: #34465b; }
+::-webkit-scrollbar-thumb:hover { background: #52657a; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
