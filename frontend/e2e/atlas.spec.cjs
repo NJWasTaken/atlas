@@ -383,12 +383,18 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and pa
   await page.locator(".atlas-upload-button input").setInputFiles({name:"paper.pdf",mimeType:"application/pdf",buffer:Buffer.from("%PDF-1.4")});
   await expect(page.getByText("Research paper",{exact:true})).toBeVisible();
   await expect(page.locator(".atlas-pdf-page").first()).toBeVisible({timeout:15000}).catch(async error => { const alerts=await page.locator(".atlas-explore-alert").allTextContents(); const states=await page.locator(".atlas-explore-state").allTextContents(); throw new Error(`PDF reader did not load. Alerts: ${alerts.join(" | ")}. States: ${states.join(" | ")}. ${error.message}`); });
+  await expect.poll(async()=>page.locator(".atlas-pdf-canvas").first().evaluate((canvas)=>canvas.width)).toBeGreaterThan(0);
   await expect(page.locator("iframe")).toHaveCount(0);
   await page.locator('[data-page="3"]').scrollIntoViewIfNeeded();
   await expect(page.getByLabel("Current page")).toHaveValue("3");
+  await page.getByRole("button",{name:/Notes/}).click();
   await page.getByLabel("Your note").fill("Compare this result with the lecture discussion.");
   await page.getByRole("button",{name:"Save page note"}).click();
   await expect(page.getByText("Compare this result with the lecture discussion.")).toBeVisible();
+  await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);span.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
+  await page.getByLabel("Your note").fill("This passage is worth highlighting.");
+  await page.getByRole("button",{name:"Save highlight & note"}).click();
+  await expect(page.locator(".atlas-pdf-highlight")).toHaveCount(1);
   await page.getByRole("button",{name:/Bookmark/}).click();
   await page.getByRole("button",{name:/Saved/}).click();
   await expect(page.locator(".atlas-reader-bookmark").filter({hasText:"Page 3"})).toBeVisible();
