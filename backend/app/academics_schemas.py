@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import Literal
 
 Exposure = Literal["not_started", "studied"]
@@ -17,6 +17,14 @@ class TopicUpdate(BaseModel):
     parent_topic_id: int | None = None
     description: str | None = None
     position: int | None = None
+
+    @model_validator(mode="after")
+    def reject_null_required_fields(self):
+        if "title" in self.model_fields_set and self.title is None:
+            raise ValueError("title cannot be null")
+        if "position" in self.model_fields_set and self.position is None:
+            raise ValueError("position cannot be null")
+        return self
 
 class TopicOut(BaseModel):
     id: int
@@ -62,6 +70,14 @@ class ExamCreate(BaseModel):
 class ExamUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=160)
     exam_date: datetime | None = None
+
+    @model_validator(mode="after")
+    def reject_null_required_fields(self):
+        if "title" in self.model_fields_set and self.title is None:
+            raise ValueError("title cannot be null")
+        if "exam_date" in self.model_fields_set and self.exam_date is None:
+            raise ValueError("exam_date cannot be null")
+        return self
 
 class ExamOut(BaseModel):
     id: int
