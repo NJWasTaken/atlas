@@ -232,15 +232,17 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
         <div><button className="atlas-button atlas-primary" disabled={busy}>Save name</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setEditingItem(null)}>Cancel</button></div>
       </form>}
       {isOpen && <div className="atlas-topic-children">
-        {items.map(c=><div className={`atlas-concept-row ${selectedConcept?.id===c.id?"selected":""}`} key={c.id}>
-          <button onClick={()=>void chooseConcept(c)}><Brain size={14}/><span>{c.title}</span></button>
-          <button className="atlas-mini-action" onClick={()=>beginItemEdit("concept",c)} title="Rename concept" aria-label={`Rename ${c.title}`}><Pencil size={12}/></button>
-          <button className="atlas-mini-action danger" onClick={()=>removeConcept(c.id)} title="Delete concept"><Trash2 size={12}/></button>
-        </div>
-        {editingItem?.kind === "concept" && editingItem.id === c.id && <form className="atlas-inline-form atlas-edit-inline-form" onSubmit={saveItemEdit}>
-          <label>Rename concept<input autoFocus value={editTitle} onChange={e=>setEditTitle(e.target.value)} required maxLength={180}/></label>
-          <div><button className="atlas-button atlas-primary" disabled={busy}>Save name</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setEditingItem(null)}>Cancel</button></div>
-        </form>})}
+        {items.map(c=><div className="atlas-concept-entry" key={c.id}>
+          <div className={`atlas-concept-row ${selectedConcept?.id===c.id?"selected":""}`}>
+            <button onClick={()=>void chooseConcept(c)}><Brain size={14}/><span>{c.title}</span></button>
+            <button className="atlas-mini-action" onClick={()=>beginItemEdit("concept",c)} title="Rename concept" aria-label={`Rename ${c.title}`}><Pencil size={12}/></button>
+            <button className="atlas-mini-action danger" onClick={()=>removeConcept(c.id)} title="Delete concept"><Trash2 size={12}/></button>
+          </div>
+          {editingItem?.kind === "concept" && editingItem.id === c.id && <form className="atlas-inline-form atlas-edit-inline-form" onSubmit={saveItemEdit}>
+            <label>Rename concept<input autoFocus value={editTitle} onChange={e=>setEditTitle(e.target.value)} required maxLength={180}/></label>
+            <div><button className="atlas-button atlas-primary" disabled={busy}>Save name</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setEditingItem(null)}>Cancel</button></div>
+          </form>}
+        </div>)}
         {children.map(child=>renderTopic(child,depth+1))}
         {!items.length&&!children.length&&<p className="atlas-topic-empty">No concepts here yet. Add the first one.</p>}
       </div>}
