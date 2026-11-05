@@ -6,7 +6,13 @@ import { api, clearToken, getToken, setToken } from "../lib/api";
 import DashboardCalendar from "./components/DashboardCalendar";
 import AcademicsWorkspace from "./components/AcademicsWorkspace";
 
-type Subject = { id: number; name: string; code?: string | null; description?: string | null };
+type Subject = { id: number; name: string; code?: string | null; description?: string | null; term?: string | null };
+type OverviewData = {
+  subjects: {subject_id:number;subject_name:string;term:string|null;total_concepts:number;assessed_concepts:number}[];
+  upcoming_exams: {id:number;subject_id:number;title:string;exam_date:string}[];
+  continue_learning: {concept_id:number;title:string;topic_title:string;subject_id:number;subject_name:string;reason:"needs_practice"|"review_due"|"not_assessed";next_review_at:string|null}[];
+  recent_activity: {concept_title:string;subject_name:string;reviewed_at:string;understanding:string;recall:string}[];
+};
 type Quote = { quote: string; author: string; work?: string | null };
 type AuthMode = "login" | "register";
 const nav = [
@@ -29,11 +35,15 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [overview, setOverview] = useState<OverviewData | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [focusSubjectId, setFocusSubjectId] = useState<number | null>(null);
   const [active, setActive] = useState("Overview");
   const [showAdd, setShowAdd] = useState(false);
   const [subjectName, setSubjectName] = useState("");
   const [subjectCode, setSubjectCode] = useState("");
   const [subjectDescription, setSubjectDescription] = useState("");
+  const [subjectTerm, setSubjectTerm] = useState("");
   const [editingSubjectId, setEditingSubjectId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -43,6 +53,12 @@ export default function Home() {
   const [quotePhase, setQuotePhase] = useState<"idle" | "out" | "in">("idle");
 
   async function loadSubjects() { setSubjects(await api<Subject[]>("/subjects")); }
+  async function loadOverview() {
+    setOverviewLoading(true);
+    try { setOverview(await api<OverviewData>("/overview")); }
+    catch (e) { setError(e instanceof Error ? e.message : "Could not load your overview."); }
+    finally { setOverviewLoading(false); }
+  }
   const loadQuote = useCallback(async (random = false) => {
     setQuoteLoading(true);
     setQuoteError("");
@@ -69,7 +85,7 @@ export default function Home() {
     if (saved) setAuth(saved);
     setInitialized(true);
   }, []);
-  useEffect(() => { if (token) loadSubjects().catch(e => setError(e.message)); }, [token]);
+  useEffect(() => { if (token) { loadSubjects().catch(e => setError(e.message)); void loadOverview(); } }, [token]);
   useEffect(() => { if (token) void loadQuote(); }, [token, loadQuote]);
 
   async function authenticate(e: React.FormEvent) {
@@ -84,7 +100,7 @@ export default function Home() {
   }
   function openAddSubject() {
     setEditingSubjectId(null);
-    setSubjectName(""); setSubjectCode(""); setSubjectDescription("");
+    setSubjectName(""); setSubjectCode(""); setSubjectDescription(""); setSubjectTerm("");
     setShowAdd(true);
   }
   function openEditSubject(subject: Subject) {
@@ -92,18 +108,19 @@ export default function Home() {
     setSubjectName(subject.name);
     setSubjectCode(subject.code ?? "");
     setSubjectDescription(subject.description ?? "");
+    setSubjectTerm(subject.term ?? "");
     setShowAdd(true);
   }
   async function addSubject(e: React.FormEvent) {
     e.preventDefault(); setError(""); setBusy(true);
     try {
-      const payload = { name: subjectName.trim(), code: subjectCode.trim() || null, description: subjectDescription.trim() || null };
+      const payload = { name: subjectName.trim(), code: subjectCode.trim() || null, description: subjectDescription.trim() || null, term: subjectTerm.trim() || null };
       if (editingSubjectId !== null) {
         await api<Subject>(`/subjects/${editingSubjectId}`, { method: "PATCH", body: JSON.stringify(payload) });
       } else {
         await api<Subject>("/subjects", { method: "POST", body: JSON.stringify(payload) });
       }
-      setSubjectName(""); setSubjectCode(""); setSubjectDescription(""); setEditingSubjectId(null); setShowAdd(false); await loadSubjects();
+      setSubjectName(""); setSubjectCode(""); setSubjectDescription(""); setSubjectTerm(""); setEditingSubjectId(null); setShowAdd(false); await Promise.all([loadSubjects(),loadOverview()]);
     } catch (e) { setError(e instanceof Error ? e.message : "Could not save subject"); }
     finally { setBusy(false); }
   }
@@ -206,12 +223,29 @@ export default function Home() {
               </div>
               <SubjectGrid subjects={subjects} onDelete={deleteSubject} onEdit={openEditSubject}/>
             </section>
+            <section className="atlas-overview-section atlas-dashboard-intelligence">
+              <div className="atlas-section-heading"><div><p className="eyebrow">A LITTLE DIRECTION</p><h2>Your next study steps</h2><p className="atlas-section-subtitle">Suggestions based on your own progress, not guessed grades.</p></div><span className="atlas-overview-sync">{overviewLoading?"UPDATING":"FROM YOUR LEARNING RECORDS"}</span></div>
+              <div className="atlas-overview-intelligence-grid">
+                <section className="atlas-overview-card atlas-continue-card"><div className="atlas-overview-card-heading"><BookOpen size={16}/><h3>Continue learning</h3></div>
+                  {overview?.continue_learning.length ? overview.continue_learning.slice(0,5).map(item=><button key={item.concept_id} className="atlas-continue-item" onClick={()=>{setFocusSubjectId(item.subject_id);setActive("Academics");}}><span><strong>{item.title}</strong><small>{item.topic_title} · {item.subject_name}</small></span><em>{item.reason==="needs_practice"?"Needs practice":item.reason==="review_due"?"Review due":"Not assessed"}</em><ArrowUpRight size={14}/></button>) : <p className="atlas-overview-empty">{overviewLoading?"Gathering your study map…":"Nothing is asking for attention right now. Add concepts to your syllabus or review one to get started."}</p>}
+                </section>
+                <section className="atlas-overview-card"><div className="atlas-overview-card-heading"><CalendarDays size={16}/><h3>Coming up</h3></div>
+                  {overview?.upcoming_exams.length ? overview.upcoming_exams.slice(0,5).map(exam=><div className="atlas-upcoming-item" key={exam.id}><span><strong>{exam.title}</strong><small>{subjects.find(s=>s.id===exam.subject_id)?.name ?? "Subject"}</small></span><time>{new Date(exam.exam_date).toLocaleDateString(undefined,{month:"short",day:"numeric"})}</time></div>) : <p className="atlas-overview-empty">{overviewLoading?"Loading dates…":"No upcoming exams. Add an exam date in Academics when you have one."}</p>}
+                </section>
+                <section className="atlas-overview-card"><div className="atlas-overview-card-heading"><Sparkles size={16}/><h3>Recent reviews</h3></div>
+                  {overview?.recent_activity.length ? overview.recent_activity.slice(0,5).map((activity,i)=><div className="atlas-recent-item" key={activity.concept_title+activity.reviewed_at+i}><span><strong>{activity.concept_title}</strong><small>{activity.subject_name} · {activity.understanding.replace("_"," ")}</small></span><time>{new Date(activity.reviewed_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}</time></div>) : <p className="atlas-overview-empty">{overviewLoading?"Loading activity…":"Your review history will appear here as you check in on concepts."}</p>}
+                </section>
+                <section className="atlas-overview-card atlas-subject-progress-card"><div className="atlas-overview-card-heading"><GraduationCap size={16}/><h3>Concept map</h3></div>
+                  {overview?.subjects.length ? overview.subjects.map(item=><div className="atlas-subject-progress-item" key={item.subject_id}><span><strong>{item.subject_name}</strong><small>{item.term || "No term set"}</small></span><div><strong>{item.assessed_concepts}/{item.total_concepts}</strong><small>assessed</small></div></div>) : <p className="atlas-overview-empty">Add concepts to your subjects to see your learning map take shape.</p>}
+                </section>
+              </div>
+            </section>
             <section className="atlas-overview-section atlas-calendar-section"><DashboardCalendar /></section>
           </>}
 
           {active==="Academics"&&<section className="atlas-overview-section">
             <div className="atlas-section-heading"><div><p className="eyebrow">THE BUILDING BLOCKS</p><h2>Your subjects</h2><p className="atlas-section-subtitle">A home for syllabi, concepts and revision.</p></div><button className="atlas-button atlas-primary" onClick={openAddSubject}><Plus size={15}/> Add subject</button></div>
-            <AcademicsWorkspace subjects={subjects}/>
+            <AcademicsWorkspace subjects={subjects} focusSubjectId={focusSubjectId}/>
           </section>}
 
           {active==="Explore"&&<FeatureEmpty icon={<Sparkles size={23}/>} eyebrow="THE CURIOSITY PLAYGROUND" title={<>What have you been<br/><em>wondering about?</em></>} text="Exploration is on its way. For now, remember: your interests don't need to fit inside a syllabus." foot="A LITTLE SPACE FOR THE UNEXPECTED"/>}
@@ -224,6 +258,7 @@ export default function Home() {
           <div className="atlas-modal-heading"><div><p className="eyebrow">ACADEMICS</p><h2>{editingSubjectId === null ? "Add a subject" : "Edit subject"}</h2></div><button type="button" className="atlas-icon-button" onClick={()=>setShowAdd(false)} aria-label="Close"><X size={18}/></button></div>
           <label className="atlas-modal-label">Subject name<input autoFocus required value={subjectName} onChange={e=>setSubjectName(e.target.value)} placeholder="e.g. Machine Learning"/></label>
           <label className="atlas-modal-label">Course code <small>OPTIONAL</small><input value={subjectCode} onChange={e=>setSubjectCode(e.target.value)} placeholder="e.g. CS402"/></label>
+          <label className="atlas-modal-label">Term / semester <small>OPTIONAL</small><input value={subjectTerm} onChange={e=>setSubjectTerm(e.target.value)} placeholder="e.g. Semester 5 · Fall 2026" maxLength={60}/></label>
           <label className="atlas-modal-label">Description <small>OPTIONAL</small><textarea rows={3} value={subjectDescription} onChange={e=>setSubjectDescription(e.target.value)} placeholder="What does this subject cover?"/></label>
           <button disabled={busy} className="atlas-button atlas-primary atlas-full">{busy?"Saving…":editingSubjectId === null ? "Save subject" : "Save changes"}<ArrowUpRight size={16}/></button>
         </form>
@@ -240,7 +275,7 @@ function SubjectGrid({subjects,onDelete,onEdit}:{subjects:Subject[];onDelete:(id
   if(!subjects.length)return <div className="atlas-empty-subjects"><div className="atlas-empty-icon"><BookOpen size={19}/></div><p>Your map is waiting for its first pin.</p><span>Add a subject to begin building your academic space.</span></div>;
   return <div className="atlas-subject-grid">{subjects.map((s,i)=><article key={s.id} className="atlas-subject-card" style={{animationDelay:`${i*65}ms`}}>
     <div className="atlas-subject-card-top"><div className="atlas-subject-glyph"><BookOpen size={17}/></div><div className="atlas-subject-card-actions"><button onClick={()=>onEdit(s)} className="atlas-remove atlas-edit-subject">Edit</button><button onClick={()=>onDelete(s.id)} className="atlas-remove">Remove</button></div></div>
-    <p className="atlas-subject-code">{s.code||`SUBJECT ${String(i+1).padStart(2,"0")}`}</p><h3>{s.name}</h3><p className="atlas-subject-description">{s.description||"Syllabus and concepts will live here."}</p>
+    <p className="atlas-subject-code">{s.code||`SUBJECT ${String(i+1).padStart(2,"0")}`}</p><h3>{s.name}</h3>{s.term&&<p className="atlas-subject-term">{s.term}</p>}<p className="atlas-subject-description">{s.description||"Syllabus and concepts will live here."}</p>
     <div className="atlas-card-bottom"><span>YOUR ACADEMIC SPACE</span><ArrowUpRight size={14}/></div>
   </article>)}</div>;
 }
