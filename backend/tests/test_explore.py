@@ -53,3 +53,11 @@ def test_reject_invalid_pdf_and_non_pdf_upload(client):
     assert invalid.status_code == 422
     wrong_extension = client.post("/api/v1/explore/documents", headers=headers, files={"file": ("notes.txt", b"hello", "text/plain")})
     assert wrong_extension.status_code == 400
+
+
+def test_url_import_rejects_non_http_and_private_targets(client):
+    token = register(client, "url-reader@example.com")
+    headers = auth_headers(token)
+    unsupported = client.post("/api/v1/explore/documents/import-url", headers=headers, json={"url": "file:///etc/passwd"})
+    assert unsupported.status_code == 400
+    assert "public HTTP or HTTPS" in unsupported.json()["detail"]
