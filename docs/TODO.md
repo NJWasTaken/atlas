@@ -2,6 +2,10 @@
 
 This backlog is based on the [README roadmap](../README.md#roadmap) and the implementation currently present in the repository. The README is the product-level source for intended behavior; this list distinguishes that vision from unfinished code. Re-check both documents as features land.
 
+## Recently completed
+
+- [x] Fix concept-progress PATCH handling so omitted fields retain their stored values instead of being overwritten by schema defaults. Regression coverage remains part of the automated-test task below.
+
 ## Near-term: make the current slice dependable
 
 - [ ] Add automated backend tests for authentication, ownership boundaries, subject/topic/concept CRUD, topic hierarchy validation, progress updates, readiness counts, calendar notes, and exam CRUD.

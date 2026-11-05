@@ -67,6 +67,8 @@ The current entities are:
 
 `backend/app/academics_models.py` defines topic, concept, progress, and exam tables; `backend/app/models.py` defines users, subjects, and day notes. Foreign keys and ORM cascades connect the records. Progress is unique per user/concept, and confidence is constrained to 1–5 when supplied.
 
+Concept-progress updates use partial PATCH semantics: only fields explicitly supplied by the client are changed. Omitted exposure, understanding, recall, confidence, and notes values are preserved rather than reset to schema defaults.
+
 ### API surface currently mounted
 
 | Router | Current routes |
