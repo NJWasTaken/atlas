@@ -9,10 +9,10 @@ Atlas is intended to connect university coursework with independent learning and
 The current working slice includes:
 
 - Account registration, login, and sign-out.
-- A subject list with create, edit, and delete actions for subject name, course code, and description.
+- A subject list with create, edit, and delete actions for subject name, course code, description, optional term, and academic year; the Overview can filter subjects by term.
 - An Academics workspace for a subject: nested topics and concepts with inline renaming, concept self-assessments, readiness counts, and exam management.
-- An Overview calendar with monthly navigation, editable date notes, and exams shown on their dates. Exams can be edited or deleted from either the Academics workspace or the Overview calendar.
-- Daily and random quotations from an external API Ninjas quote service. The service requires a backend API key.
+- An Overview calendar with monthly and weekly navigation, editable date notes, and exams shown on their dates. Exams can be edited or deleted from either the Academics workspace or the Overview calendar. Calendar notes remain personal date notes; exams remain academic events.
+- Daily and random quotations from API Ninjas when configured, with a curated fallback and one-hour in-process cache for successful daily quotes so provider outages do not block the Overview.
 - A dark celestial visual treatment and a reduced-motion-aware animated background.
 
 Explore and My Universe are navigation destinations with placeholder content. Syllabus PDFs can be uploaded, parsed into an editable draft, and explicitly confirmed into the subject's topic/concept tree. There is no OCR for scanned PDFs, personal knowledge repository, revision scheduler, AI gateway, or data export yet.
@@ -67,7 +67,7 @@ The current entities are:
 | `ConceptProgress` | Per-user exposure, understanding, recall, confidence, notes, and review timestamps |
 | `Exam` | User-owned exam associated with a subject and a date/time |
 
-`backend/app/academics_models.py` defines topic, concept, progress, and exam tables. Topics and concepts include optional JSON source-page references for imported syllabus material; `backend/app/models.py` defines users, subjects, and day notes. Foreign keys and ORM cascades connect the records. Progress is unique per user/concept, and confidence is constrained to 1–5 when supplied.
+`backend/app/academics_models.py` defines topic, concept, progress, and exam tables. Topics and concepts include optional JSON source-page references for imported syllabus material; `backend/app/models.py` defines users, subjects (including optional term and academic year), and day notes. Foreign keys and ORM cascades connect the records. Progress is unique per user/concept, and confidence is constrained to 1–5 when supplied.
 
 Concept-progress updates use partial PATCH semantics: only fields explicitly supplied by the client are changed. Omitted exposure, understanding, recall, confidence, and notes values are preserved rather than reset to schema defaults.
 
@@ -99,7 +99,7 @@ The syllabus importer accepts PDF uploads up to 12 MB and 100 pages, extracts se
 
 ### Overview calendar
 
-`DashboardCalendar.tsx` requests day notes for the visible 42-day calendar grid and loads the user's exam list. Notes and exams remain separate data: notes are edited through `/calendar/{day}`, while exams are changed through `/exams/{exam_id}`. Exam markers are derived from exam dates; selecting a day displays its exam details and allows editing or deletion.
+`DashboardCalendar.tsx` requests day notes for the visible month grid (42 days) or selected week (7 days), and loads the user's exam list. Notes and exams remain separate data: notes are edited through `/calendar/{day}`, while exams are changed through `/exams/{exam_id}`. Exam markers are derived from exam dates; selecting a day displays its exam details and allows editing or deletion.
 
 ### Quotations and visual layer
 
