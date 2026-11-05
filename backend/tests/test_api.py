@@ -531,6 +531,7 @@ def test_syllabus_confirm_rejects_empty_draft_and_other_users(client: TestClient
     url = f"/api/v1/subjects/{subject['id']}/syllabus/confirm"
 
     assert client.post(url, headers=owner, json={"topics": []}).status_code == 422
+    assert client.post(url, headers=owner, json={"topics": [{"title": "   ", "concepts": []}]}).status_code == 422
     assert client.post(url, headers=other, json={"topics": [{"title": "Hidden", "concepts": []}]}).status_code == 404
 
 
@@ -562,3 +563,7 @@ def test_syllabus_pdf_parser_rejects_non_pdf_and_detects_page_references(monkeyp
     assert parsed["topics"][0]["source_pages"] == [1, 2]
     assert parsed["topics"][0]["concepts"][0] == {"title": "Overview", "source_pages": [1]}
     assert parsed["topics"][1]["title"] == "TREES"
+
+    monkeypatch.setattr(syllabus_import, "PdfReader", lambda *_args, **_kwargs: SimpleNamespace(is_encrypted=False, pages=[FakePage("")]))
+    with pytest.raises(ValueError, match="selectable text"):
+        syllabus_import.parse_syllabus_pdf(b"%PDF-scanned-image-only")
