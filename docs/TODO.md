@@ -40,7 +40,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 ## Home / Overview
 
-- [x] Expand the Overview with recent concept activity, continue-learning shortcuts, revision suggestions, upcoming exam summaries, and optional subject term filtering.
+- [x] Expand the Overview with aggregate concept readiness, recent concept activity, direct continue-learning shortcuts, revision suggestions, upcoming exam summaries, and optional subject term filtering.
 - [x] Add weekly calendar navigation/view and clarify that exams are academic events while day notes are personal date notes.
 - [x] Return curated quote fallbacks when the quote provider is unavailable or unconfigured, and cache successful daily quote responses for one hour.
 - [x] Add a calendar retry affordance and loading semantics; keep calendar errors local to the calendar panel.
