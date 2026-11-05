@@ -7,6 +7,7 @@ import {
   Search, StickyNote, Trash2, Upload, X,
 } from "lucide-react";
 import { api, apiBlob } from "../../lib/api";
+import PdfReaderWorkspace from "./PdfReaderWorkspace";
 
 type DocumentItem = {
   id:number; title:string; filename:string; source_url:string|null; page_count:number;
@@ -169,34 +170,22 @@ export default function ExploreWorkspace() {
         </>
       ) : (
         <div className="atlas-reader">
-          <header className="atlas-reader-header">
-            <button className="atlas-reader-back" onClick={()=>void closeReader()}><ArrowLeft size={15}/> Library</button>
-            <div className="atlas-reader-document-title"><FileText size={16}/><span>{selected.title}</span><small>PDF</small></div>
-            <button className="atlas-reader-mode" onClick={()=>setReaderMode(v=>!v)}><Maximize2 size={14}/>{readerMode?"Exit focus":"Focus mode"}</button>
-          </header>
-          {error&&<div className="atlas-explore-alert" role="alert">{error}<button onClick={()=>setError("")} aria-label="Dismiss"><X size={14}/></button></div>}
-          <div className="atlas-reader-toolbar">
-            <div className="atlas-reader-page-control"><button onClick={()=>goToPage(page-1)} disabled={page<=1} aria-label="Previous page"><ChevronLeft size={16}/></button><input aria-label="Current page" value={pageDraft} inputMode="numeric" onChange={e=>setPageDraft(e.target.value)} onBlur={()=>goToPage(Number(pageDraft)||page)} onKeyDown={e=>{if(e.key==="Enter")goToPage(Number(pageDraft)||page);}}/><span>/ {selected.page_count}</span><button onClick={()=>goToPage(page+1)} disabled={page>=selected.page_count} aria-label="Next page"><ChevronRight size={16}/></button></div>
-            <div className="atlas-reader-toolbar-divider"/>
-            <button className="atlas-reader-tool" onClick={()=>setZoom("page-width")} title="Fit width">Fit width</button><button className="atlas-reader-tool" onClick={()=>setZoom("page-fit")} title="Fit page">Fit page</button>
-            <div className="atlas-reader-zoom"><button onClick={()=>setZoom(v=>String(Math.max(50,(Number(v)||100)-10)))} aria-label="Zoom out"><Minus size={14}/></button><span>{zoom==="page-width"?"Width":zoom==="page-fit"?"Page":`${zoom}%`}</span><button onClick={()=>setZoom(v=>String(Math.min(200,(Number(v)||100)+10)))} aria-label="Zoom in"><Plus size={14}/></button></div>
-            <button className={`atlas-reader-tool ${bookmarks.some(mark=>mark.page_number===page)?"active":""}`} onClick={()=>void addBookmark()} disabled={saving} title="Bookmark this page"><Bookmark size={15}/> Bookmark</button>
-          </div>
-          <div className="atlas-reader-body">
-            <main className="atlas-pdf-stage">
-              {pdfUrl?<iframe key={viewerUrl} title={`PDF reader: ${selected.title}`} src={viewerUrl} className="atlas-pdf-frame"/>:<div className="atlas-explore-state"><LoaderCircle className="atlas-spin" size={20}/>Preparing your reader…</div>}
-              <div className="atlas-reader-status"><span>PAGE {page} OF {selected.page_count}</span><span>{Math.round(page/selected.page_count*100)}% THROUGH</span></div>
-            </main>
-            <aside className="atlas-reader-sidebar">
-              <div className="atlas-reader-tabs"><button className={panel==="notes"?"active":""} onClick={()=>setPanel("notes")}><StickyNote size={14}/> Notes <span>{annotations.length}</span></button><button className={panel==="bookmarks"?"active":""} onClick={()=>setPanel("bookmarks")}><Bookmark size={14}/> Bookmarks <span>{bookmarks.length}</span></button></div>
-              {panel==="notes"?<>
-                <form className="atlas-reader-note-form" onSubmit={saveNote}><p className="eyebrow">CAPTURE A THOUGHT</p><span>Page {page}</span><label>Passage <small>OPTIONAL · COPY TEXT FROM THE PDF AND PASTE HERE</small><textarea rows={3} value={selectedText} onChange={e=>setSelectedText(e.target.value)} placeholder="A sentence worth keeping…"/></label><label>Your note<textarea rows={4} required value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="What stood out? What do you want to investigate?"/></label><button className="atlas-button atlas-primary atlas-full" disabled={saving||!noteText.trim()}>{saving?"Saving…":"Save note"}<Check size={14}/></button></form>
-                <div className="atlas-reader-list-heading">YOUR NOTES</div>
-                {annotations.length?annotations.map(note=><article className="atlas-reader-note" key={note.id}><button className="atlas-reader-note-page" onClick={()=>goToPage(note.page_number)}>PAGE {note.page_number} <ArrowUpRight size={11}/></button>{note.selected_text&&<blockquote>{note.selected_text}</blockquote>}<p>{note.note}</p><button className="atlas-reader-note-delete" onClick={()=>void removeNote(note.id)} aria-label="Delete note"><Trash2 size={12}/></button></article>):<p className="atlas-reader-empty">Your page notes and saved passages will appear here.</p>}
-              </>:<><div className="atlas-reader-list-heading">BOOKMARKED PAGES</div>{bookmarks.length?bookmarks.map(mark=><article className="atlas-reader-bookmark" key={mark.id}><button onClick={()=>goToPage(mark.page_number)}><Bookmark size={13}/><span><strong>{mark.label}</strong><small>Page {mark.page_number}</small></span><ArrowUpRight size={13}/></button><button className="atlas-reader-note-delete" onClick={()=>void removeBookmark(mark.id)} aria-label="Remove bookmark"><Trash2 size={12}/></button></article>):<p className="atlas-reader-empty">Bookmark a page to find your way back to it.</p>}</>}
-              <div className="atlas-reader-sidebar-foot"><BookOpen size={13}/> Notes stay attached to this document.</div>
-            </aside>
-          </div>
+          <PdfReaderWorkspace
+            documentId={selected.id}
+            title={selected.title}
+            pageCount={selected.page_count}
+            pdfUrl={pdfUrl}
+            initialPage={page}
+            bookmarks={bookmarks}
+            annotations={annotations}
+            readerMode={readerMode}
+            onExit={()=>void closeReader()}
+            onToggleFocus={()=>setReaderMode(v=>!v)}
+            onProgressChange={goToPage}
+            onBookmarksChange={setBookmarks}
+            onAnnotationsChange={setAnnotations}
+            onError={setError}
+          />
         </div>
       )}
     </section>
