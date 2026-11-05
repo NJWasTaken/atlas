@@ -40,6 +40,20 @@ class ConceptCreate(BaseModel):
     description: str | None = None
     position: int = 0
 
+class ConceptUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=180)
+    description: str | None = None
+    position: int | None = None
+
+    @model_validator(mode="after")
+    def reject_null_required_fields(self):
+        if "title" in self.model_fields_set and self.title is None:
+            raise ValueError("title cannot be null")
+        if "position" in self.model_fields_set and self.position is None:
+            raise ValueError("position cannot be null")
+        return self
+
+
 class ConceptOut(BaseModel):
     id: int
     topic_id: int
