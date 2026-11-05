@@ -599,3 +599,18 @@ def test_subject_term_metadata_can_be_created_updated_and_cleared(client: TestCl
     assert cleared.status_code == 200
     assert cleared.json()["term"] is None
     assert cleared.json()["academic_year"] is None
+
+
+def test_quote_endpoints_fall_back_when_provider_is_not_configured(client: TestClient, monkeypatch):
+    from app.routers import quotes
+
+    monkeypatch.setattr(quotes.settings, "x_api_key", None)
+    headers = auth_headers(register(client, "quote-fallback@example.com"))
+
+    daily = client.get("/api/v1/quotes/daily", headers=headers)
+    random = client.get("/api/v1/quotes/random", headers=headers)
+    assert daily.status_code == 200
+    assert daily.json()["quote"]
+    assert daily.json()["author"]
+    assert random.status_code == 200
+    assert random.json()["quote"]
