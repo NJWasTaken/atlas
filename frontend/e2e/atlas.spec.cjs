@@ -32,6 +32,10 @@ function installApiMock(page) {
     });
     if (path === "/quotes/daily" || path === "/quotes/random") return json({ quote:"Curiosity is a compass.", author:"Atlas" });
     if (path === "/exams" && method === "GET") return json(state.exams);
+    if (path === "/exams" && method === "POST") { const exam={id:nextId++,...body}; state.exams.push(exam); return created(exam); }
+    const examPath=path.match(/^\\/exams\\/(\\d+)$/);
+    if (examPath && method === "PATCH") { const index=state.exams.findIndex(e=>e.id===Number(examPath[1])); state.exams[index]={...state.exams[index],...body}; return json(state.exams[index]); }
+    if (examPath && method === "DELETE") { state.exams=state.exams.filter(e=>e.id!==Number(examPath[1])); return empty(); }
     if (path.startsWith("/calendar?") || (path === "/calendar" && method === "GET")) {
       return json(Object.entries(state.notes).map(([day,note])=>({day,note})).filter(row=>row.day>=url.searchParams.get("start")&&row.day<=url.searchParams.get("end")));
     }
@@ -128,4 +132,34 @@ test("calendar offers a weekly view and saves a day note", async ({ page }) => {
   await page.getByLabel("Leave something for this day").fill("Review lecture notes");
   await page.getByRole("button",{name:"Save note"}).click();
   await expect(page.getByText("Saved",{exact:true})).toBeVisible();
+});
+
+
+test("student can create, edit and delete an exam from Academics and Overview", async ({ page }) => {
+  installApiMock(page);
+  page.on("dialog", dialog => dialog.accept());
+  await signIn(page);
+  await page.getByRole("button",{name:/Add subject/}).first().click();
+  await page.getByLabel("Subject name").fill("Computer Networks");
+  await page.getByRole("button",{name:"Save subject"}).click();
+  await page.getByRole("button",{name:"Academics"}).click();
+
+  await page.getByTitle("Add exam").click();
+  await page.getByLabel("Exam title").fill("Networks midterm");
+  const examDate = new Date(Date.now()+60*60*1000);
+  const localDate = new Date(examDate.getTime()-examDate.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  await page.getByLabel("Exam date").fill(localDate);
+  await page.getByRole("button",{name:"Add exam"}).click();
+  await expect(page.getByText("Networks midterm",{exact:true})).toBeVisible();
+
+  await page.getByLabel("Edit Networks midterm").click();
+  await page.getByLabel("Exam title").fill("Networks final");
+  await page.getByRole("button",{name:"Save changes"}).click();
+  await expect(page.getByText("Networks final",{exact:true})).toBeVisible();
+
+  await page.getByLabel("Delete Networks final").click();
+  await expect(page.getByText("No exam dates yet.",{exact:false})).toBeVisible();
+
+  await page.getByRole("button",{name:"Overview"}).click();
+  await expect(page.getByText("No upcoming exams.",{exact:false})).toBeVisible();
 });
