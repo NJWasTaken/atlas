@@ -135,3 +135,7 @@
 .atlas-overview-inline-error{color:#d6a6a2}
 @media(max-width:1000px){.atlas-overview-activity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.atlas-overview-secondary-grid{grid-template-columns:1fr}.atlas-overview-activity-card{min-height:130px}}
+
+.atlas-calendar-error{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.atlas-calendar-error button{flex:0 0 auto;padding:5px 9px;color:#e9d4a6;border:1px solid rgba(197,168,117,.24);font-size:9px}
+.atlas-calendar-error button:hover{border-color:rgba(197,168,117,.5);background:rgba(197,168,117,.07)}
