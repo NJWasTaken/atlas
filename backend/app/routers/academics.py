@@ -179,6 +179,8 @@ def restore_syllabus_version(subject_id: int, version_id: int, db: Session = Dep
     if not version:
         raise HTTPException(404, "Syllabus version not found")
 
+    save_syllabus_version(db, subject_id, user.id, "Before restoring version " + str(version.version_number))
+    db.flush()
     current_topics = list(db.scalars(select(Topic).where(Topic.subject_id == subject_id)))
     for topic in current_topics:
         db.delete(topic)
