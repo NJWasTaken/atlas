@@ -16,7 +16,7 @@ type Progress = {
   recall: "not_assessed" | "needs_practice" | "comfortable";
   confidence: number | null; notes: string | null; last_reviewed?: string | null; next_review_at?: string | null;
 };
-type Readiness = { subject_id: number; total_concepts: number; strong: number; developing: number; weak: number; not_assessed: number; recommendations: {reason:string;count:number;message:string}[] };
+type Readiness = { subject_id: number; total_concepts: number; strong: number; developing: number; weak: number; not_assessed: number; next_exam?:{title:string;exam_date:string;days_until:number}|null; items?:{concept_id:number;title:string;topic_title:string;reason:string;next_review_at:string|null;priority:"high"|"normal";days_until_exam:number|null}[]; recommendations: {reason:string;count:number;message:string}[] };
 type Exam = { id:number; subject_id:number; title:string; exam_date:string };
 type SyllabusVersion = { id:number; subject_id:number; version_name:string; created_at:string };
 type ConceptReview = { id:number; concept_id:number; understanding:string; recall:string; confidence:number|null; reviewed_at:string; next_review_at:string };
@@ -228,7 +228,10 @@ export default function AcademicsWorkspace({ subjects, focusSubjectId = null }: 
         exposure:progress.exposure, understanding:progress.understanding, recall:progress.recall,
         confidence:progress.confidence, notes:progress.notes
       })});
-      setProgress(saved); if(subjectId!==null) await loadWorkspace(subjectId);
+      setProgress(saved);
+      const history = await api<ConceptReview[]>(`/concepts/${selectedConcept.id}/reviews`);
+      setReviews(history);
+      if(subjectId!==null) await loadWorkspace(subjectId);
       setNotice("Progress saved. Nice work showing up.");
     } catch(e) { setError(e instanceof Error ? e.message : "Could not save progress."); }
     finally { setBusy(false); }
@@ -439,6 +442,8 @@ export default function AcademicsWorkspace({ subjects, focusSubjectId = null }: 
             <ReadinessBar label="Not assessed" value={readiness.not_assessed} total={readiness.total_concepts} tone="lilac"/>
           </div><p className="atlas-readiness-foot">This is a count of your self-assessments, not a predicted grade or exam score.</p>
           {readiness.recommendations.filter(r=>r.count>0).map(r=><p className="atlas-recommendation" key={r.reason}><span>{r.count}</span>{r.message}</p>)}
+          {readiness.next_exam && <p className="atlas-readiness-exam-context">Next exam: <strong>{readiness.next_exam.title}</strong> · {readiness.next_exam.days_until===0?"Today":`${readiness.next_exam.days_until} days away`}</p>}
+          {readiness.items?.length ? <div className="atlas-revision-suggestions"><p className="eyebrow">SUGGESTED NEXT REVIEWS</p>{readiness.items.slice(0,6).map(item=><button type="button" key={item.concept_id} onClick={()=>{const concept=concepts.find(c=>c.id===item.concept_id);if(concept)void chooseConcept(concept);}}><span><strong>{item.title}</strong><small>{item.topic_title} · {item.reason.replaceAll("_"," ")}</small></span>{item.priority==="high"&&<em>Exam soon</em>}</button>)}</div> : null}
         </>}
       </section>
       <section className="atlas-academics-panel atlas-exams-panel">
