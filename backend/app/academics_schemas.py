@@ -118,7 +118,7 @@ class SyllabusConceptDraft(BaseModel):
 
 class SyllabusTopicDraft(BaseModel):
     title: str = Field(min_length=1, max_length=180)
-    source_pages: list[int] = Field(default_factory=list, max_length=100)
+    source_pages: list[Annotated[int, Field(ge=1, le=100)]] = Field(default_factory=list, max_length=100)
     concepts: list[SyllabusConceptDraft] = Field(default_factory=list, max_length=100)
 
     @field_validator("title")
