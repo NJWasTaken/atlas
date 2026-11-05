@@ -184,6 +184,9 @@ test("student can build a chapter and concept manually, then save a review", asy
   await page.getByText("Dijkstra's algorithm",{exact:true}).click();
   await page.getByRole("button",{name:/Save progress/}).click();
   await expect(page.getByText(/Next suggested review/)).toBeVisible();
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByTitle("Delete concept").click();
+  await expect(page.getByRole("status").filter({ hasText: "Concept and its progress deleted." })).toBeVisible();
 });
 
 test("calendar offers a weekly view and saves a day note", async ({ page }) => {
@@ -291,6 +294,7 @@ test("calendar note deletion is confirmed and mutation errors do not offer a mis
   await page.locator(".atlas-note-save").click();
   await expect(page.getByRole("status").filter({ hasText: "Day note saved." })).toBeVisible();
   const originalDay = await page.locator(".atlas-calendar-day[aria-pressed=true]").getAttribute("aria-label");
+  await page.getByLabel("Edit day note").click();
   await page.getByLabel("Leave something for this day").fill("");
   page.once("dialog", dialog => dialog.dismiss());
   await page.locator(".atlas-note-save").click();
