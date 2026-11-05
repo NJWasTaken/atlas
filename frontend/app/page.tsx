@@ -244,12 +244,12 @@ export default function Home() {
                 </div>
               </section>
             </section>
-            <section className="atlas-overview-section atlas-calendar-section"><DashboardCalendar /></section>
+            <section className="atlas-overview-section atlas-calendar-section"><DashboardCalendar onDataChange={loadOverview} /></section>
           </>}
 
           {active==="Academics"&&<section className="atlas-overview-section">
             <div className="atlas-section-heading"><div><p className="eyebrow">THE BUILDING BLOCKS</p><h2>Your subjects</h2><p className="atlas-section-subtitle">A home for syllabi, concepts and revision.</p></div><button className="atlas-button atlas-primary" onClick={openAddSubject}><Plus size={15}/> Add subject</button></div>
-            <AcademicsWorkspace subjects={subjects} initialSubjectId={academicsFocus?.subjectId} focusConceptId={academicsFocus?.conceptId} onFocusHandled={handleAcademicsFocusHandled}/>
+            <AcademicsWorkspace subjects={subjects} initialSubjectId={academicsFocus?.subjectId} focusConceptId={academicsFocus?.conceptId} onFocusHandled={handleAcademicsFocusHandled} onOverviewRefresh={loadOverview}/>
           </section>}
 
           {active==="Explore"&&<FeatureEmpty icon={<Sparkles size={23}/>} eyebrow="THE CURIOSITY PLAYGROUND" title={<>What have you been<br/><em>wondering about?</em></>} text="Exploration is on its way. For now, remember: your interests don't need to fit inside a syllabus." foot="A LITTLE SPACE FOR THE UNEXPECTED"/>}
