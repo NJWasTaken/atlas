@@ -31,3 +31,5 @@ class Settings(BaseSettings):
             if not self.allowed_origins or any("*" in origin for origin in self.allowed_origins):
                 raise ValueError("FRONTEND_ORIGIN must contain explicit trusted origins in production.")
         return self
+
+settings = Settings()
