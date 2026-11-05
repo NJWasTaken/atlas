@@ -55,7 +55,7 @@ export default function DashboardCalendar() {
   const anchor = view === "month" ? first : selectedAnchor;
   const start = view === "month" ? shift(first,-((first.getDay()+6)%7)) : shift(anchor,-((anchor.getDay()+6)%7));
   const days = Array.from({length:view === "month" ? 42 : 7},(_,i)=>shift(start,i));
-  const from = keyOf(days[0]), to = keyOf(days[41]);
+  const from = keyOf(days[0]), to = keyOf(days[days.length - 1]);
   const examsByDay = useMemo(() => {
     const grouped: Record<string, Exam[]> = {};
     for (const exam of exams) {
