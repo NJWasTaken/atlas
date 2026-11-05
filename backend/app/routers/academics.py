@@ -25,6 +25,7 @@ def owned_subject(db: Session, subject_id: int, user_id: int):
 
 
 def save_syllabus_version(db: Session, subject_id: int, user_id: int, label: str):
+    db.flush()
     topic_rows = list(db.scalars(
         select(Topic).where(Topic.subject_id == subject_id).order_by(Topic.position, Topic.id)
     ))
