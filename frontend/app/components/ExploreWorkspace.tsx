@@ -129,6 +129,15 @@ export default function ExploreWorkspace() {
     try {await api<void>(`/explore/documents/${selected.id}/annotations/${id}`,{method:"DELETE"});setAnnotations(current=>current.filter(item=>item.id!==id));}
     catch(e){setError(e instanceof Error?e.message:"Could not remove note.");}
   }
+  async function closeReader() {
+    if(selected) {
+      try {
+        const updated=await api<DocumentItem>(`/explore/documents/${selected.id}`,{method:"PATCH",body:JSON.stringify({last_page:page})});
+        setDocuments(current=>current.map(doc=>doc.id===updated.id?updated:doc));
+      } catch(e) { setError(e instanceof Error?e.message:"Could not save your reading position."); return; }
+    }
+    setSelected(null);setPdfUrl("");setError("");
+  }
   async function deleteDocument(item:DocumentItem) {
     if(!window.confirm(`Remove "${item.title}" and its reading notes?`))return;
     try {await api<void>(`/explore/documents/${item.id}`,{method:"DELETE"});setDocuments(current=>current.filter(doc=>doc.id!==item.id));if(selected?.id===item.id){setSelected(null);setPdfUrl("");}}
@@ -162,7 +171,7 @@ export default function ExploreWorkspace() {
       ) : (
         <div className="atlas-reader">
           <header className="atlas-reader-header">
-            <button className="atlas-reader-back" onClick={()=>{setSelected(null);setPdfUrl("");setError("");}}><ArrowLeft size={15}/> Library</button>
+            <button className="atlas-reader-back" onClick={()=>void closeReader()}><ArrowLeft size={15}/> Library</button>
             <div className="atlas-reader-document-title"><FileText size={16}/><span>{selected.title}</span><small>PDF</small></div>
             <button className="atlas-reader-mode" onClick={()=>setReaderMode(v=>!v)}><Maximize2 size={14}/>{readerMode?"Exit focus":"Focus mode"}</button>
           </header>
