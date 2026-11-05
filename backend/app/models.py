@@ -18,6 +18,8 @@ class Subject(Base):
     name: Mapped[str] = mapped_column(String(120))
     code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    term: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    academic_year: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     owner: Mapped[User] = relationship(back_populates="subjects")
 
