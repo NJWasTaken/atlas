@@ -123,7 +123,7 @@ pip install -r requirements.txt
 python -m pytest
 ```
 
-The initial API suite covers authentication, duplicate registration, subject ownership, topic hierarchy validation, partial concept-progress PATCH behavior, readiness counts, calendar-note ownership/range validation, and exam CRUD/ownership. These tests provide a fast regression layer; PostgreSQL-specific integration behavior and broader remaining CRUD edge cases still need coverage. The suite has been added but has not yet been executed in this environment.
+The initial API suite covers authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation, partial concept-progress PATCH behavior, readiness counts, calendar-note ownership/range validation, and exam CRUD/ownership. These tests provide a fast regression layer; PostgreSQL-specific integration behavior and broader remaining CRUD edge cases still need coverage. The suite has been added but has not yet been executed in this environment.
 
 ## File guide
 
