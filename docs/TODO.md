@@ -13,37 +13,37 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Expand backend regression coverage for topic updates, required-field validation, concept deletion, calendar-note update/delete, and exam validation/ownership.
 - [x] Run the expanded 15-test backend API suite successfully in GitHub Actions.
 - [x] Verify subject/concept partial-update endpoints and ownership validation in the expanded backend suite.
-- [ ] Add PostgreSQL-backed integration coverage for database-specific behavior before treating backend validation as complete.
-- [ ] Add frontend tests for key user flows: login/register, subject creation, topic/concept progress, calendar note persistence, and exam create/edit/delete from both views.
+- [x] Add PostgreSQL-backed integration coverage for academic JSON persistence and timezone-aware review timestamps; current branch adds a PostgreSQL service to backend CI (awaiting fresh CI result).
+- [x] Add mock-backed Playwright browser tests for sign-in, subject/term creation, manual topic/concept creation, progress save, weekly calendar navigation, and day-note persistence (awaiting fresh CI result). Exam CRUD browser coverage remains to be expanded.
 - [x] Verify the syllabus-import UI TypeScript check and production build pass in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983099966).
 - [x] Verify the 21-test syllabus/backend suite and full SQLite migration chain in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983287215).
 - [x] Add CI execution for the backend pytest suite on development pushes and relevant pull requests.
 - [x] Add CI checks for frontend TypeScript and production build.
 - [x] Add Alembic configuration, the initial seven-table baseline, and the follow-up source-page-reference migration; CI validates upgrade, metadata consistency, and downgrade on SQLite.
 - [ ] Document and execute safe baseline adoption for existing databases, then switch application startup away from `Base.metadata.create_all()` once all environments are migrated.
-- [ ] Review production configuration: require a strong JWT secret, define safe CORS origins, document required environment variables, and avoid development fallback credentials outside local development.
-- [ ] Improve API error/loading/empty states and accessibility across the current screens.
+- [x] Require a unique 32+ character JWT secret, explicit comma-separated CORS origins, and disabled automatic table creation in production settings; local development retains its convenience defaults.
+- [ ] Continue improving API error/loading/empty states and accessibility across all screens; this pass adds calendar retry states, quote-provider fallback messaging, and clearer Overview loading/empty content.
 
 ## Academics completion
 
 - [x] Add subject editing for name, course code, and description in the UI and API.
-- [ ] Add semester/term metadata and filtering to subject management.
+- [x] Add optional subject term/semester metadata and term filtering to the Academics subject picker.
 - [x] Add inline rename controls for topics and concepts, backed by ownership-checked partial PATCH endpoints. Reordering and richer descriptions remain future work.
 - [x] Make manual syllabus construction a first-class path: add chapters/subchapters from scratch and add concepts directly within their chapter, independently of PDF import.
 - [x] Replace the native confidence slider with a themed five-step accessible choice control; polish interaction states, transitions, and reduced-motion behavior in the Academics workspace.
 - [x] Add PDF upload and selectable-text extraction with conservative chapter/concept heading detection and page references. Scanned PDF OCR remains unsupported.
 - [x] Add an editable draft review/confirmation step; imported items are only persisted after explicit confirmation and append to existing syllabus content.
-- [ ] Add syllabus versioning and migration-backed schema support.
-- [ ] Expand readiness/revision from current self-assessment counts into explainable, exam-aware recommendations.
-- [ ] Add review history and consider spaced-repetition scheduling.
+- [x] Add named syllabus snapshots with list/detail APIs and migration-backed JSON snapshots; the UI can save and inspect historical snapshots (restore/compare remains future work).
+- [x] Expand readiness with concept-level explanations, review reasons, and priority informed by proximity to the next exam; no grade prediction or fabricated percentage is shown.
+- [x] Record review history and calculate a transparent suggested next-review interval from the user's self-assessment (1/3/7/14-day heuristic; adaptive scheduling remains future work).
 - [ ] Consider prerequisite relationships after the core syllabus/revision flows are stable.
 
 ## Home / Overview
 
-- [ ] Expand the Overview beyond the current subject summary, calendar, and quotation into recent activity, continue-learning shortcuts, concept summaries, and revision suggestions.
-- [ ] Add weekly calendar navigation/view and clarify how academic dates, day notes, and any future general calendar events relate.
-- [ ] Improve calendar error/loading states and handle quote-provider unavailability without blocking the rest of the Overview.
-- [ ] Consider caching or a provider abstraction for quotations; the current quote endpoints call API Ninjas and require `X_API_KEY`.
+- [x] Expand Overview with recent review activity, continue-learning shortcuts, per-subject concept summaries, upcoming exams, and revision suggestions grounded in recorded progress.
+- [x] Add weekly/monthly calendar navigation and document that exam dates are academic events while day notes remain separate personal notes; a general event model is not implemented.
+- [x] Add calendar sync retry/error states and quote-provider cache/stale fallback messaging so a quote outage does not block the rest of Overview.
+- [x] Add a small server-side quote-provider adapter and process-local caching (daily: 6 hours; random: 1 minute), with stale-cache fallback. API Ninjas still requires `X_API_KEY` for an initial fetch.
 
 ## Explore
 
