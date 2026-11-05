@@ -39,11 +39,11 @@ The App Router entry is `frontend/app/page.tsx`. It handles authentication state
 
 `frontend/lib/api.ts` is the shared JSON request helper. It reads the bearer token from browser local storage, adds it to requests, disables fetch caching, and turns non-success responses into errors. The API base URL comes from `NEXT_PUBLIC_API_URL`, defaulting to `http://localhost:8000/api/v1`.
 
-The API is called directly from client components. The browser does not connect to PostgreSQL.
+The API is called directly from client components. The browser does not connect to PostgreSQL. The Overview calls `/api/v1/overview` for recent concept check-ins, continue-learning shortcuts, explainable revision candidates, and upcoming exams. Subject term filtering is client-side over the authenticated subject list.
 
 ### Backend
 
-`backend/app/main.py` creates the FastAPI application, configures CORS, creates database tables at startup, and mounts the routers under `/api/v1`. The health check is `/health`.
+`backend/app/main.py` creates the FastAPI application, configures CORS from explicit allowed origins, and mounts the routers under `/api/v1`. In development it retains the `create_all()` startup convenience; production startup does not create tables and expects Alembic migrations to be applied before launch. The health check is `/health`.
 
 Each protected route obtains the current user through `backend/app/security.py`. Subject, topic, concept, progress, exam, and calendar operations are scoped to that user directly or through ownership checks. SQLAlchemy sessions are supplied through `backend/app/db.py`.
 
@@ -51,7 +51,7 @@ Each protected route obtains the current user through `backend/app/security.py`.
 
 The database URL is supplied by settings and targets PostgreSQL by default. `docker-compose.yml` runs a local PostgreSQL 16 container with a persistent named volume. Alembic revision `0002_source_pages` adds nullable JSON page-reference columns to topics and concepts; backend CI validates the full migration chain on SQLite.
 
-Existing models use integer primary keys. `Base.metadata.create_all()` remains enabled at application startup for backward-compatible local development; it creates missing tables but does not manage schema changes. Alembic is now configured with an initial baseline migration covering the current seven tables. The backend CI workflow upgrades an empty SQLite database through both revisions, checks the final schema against SQLAlchemy metadata, and downgrades it again. The full migration chain and 21 API tests passed in [run #41983287215](https://github.com/NJWasTaken/atlas/actions/runs/41983287215). The application has not yet switched startup to Alembic, so do not remove `create_all()` until existing databases have been safely adopted.
+Existing models use integer primary keys. `Base.metadata.create_all()` remains enabled at application startup for backward-compatible local development; it creates missing tables but does not manage schema changes. Alembic is now configured with an initial baseline migration covering the current seven tables. The backend CI workflow upgrades an empty SQLite database through both revisions, checks the final schema against SQLAlchemy metadata, and downgrades it again. The full migration chain and 21 API tests passed in [run #41983287215](https://github.com/NJWasTaken/atlas/actions/runs/41983287215). Production startup now leaves schema management to Alembic and does not run `create_all()`. Development keeps the old convenience behavior. Existing databases still require verified backup/schema comparison and explicit Alembic stamping/upgrades before production deployment.
 
 For a fresh database, run `cd backend && python -m alembic upgrade head` before starting the API. For a database already created by the old `create_all()` flow, take a verified backup and compare its schema to the baseline first; only then mark it as already at the baseline with `python -m alembic stamp 0001_initial`. **Do not run `upgrade head` against an existing un-stamped database**: the initial migration creates the tables and is not an in-place schema repair.
 
@@ -60,7 +60,7 @@ The current entities are:
 | Entity | Purpose |
 |---|---|
 | `User` | Account email, password hash, and owned subjects |
-| `Subject` | A user's subject name, optional code/description |
+| `Subject` | A user's subject name, optional code/description, term, and academic year |
 | `DayNote` | One note per user and calendar date |
 | `Topic` | Subject syllabus node with optional parent topic |
 | `Concept` | Learning item belonging to a topic |
@@ -80,8 +80,9 @@ Concept-progress updates use partial PATCH semantics: only fields explicitly sup
 | Calendar notes | `GET /calendar?start=…&end=…`, `PUT /calendar/{day}`, `DELETE /calendar/{day}` |
 | Quotes | `GET /quotes/daily`, `GET /quotes/random` |
 | Academics | Subject topic listing/creation; topic update/deletion; subject concept listing; concept creation/update/deletion; syllabus PDF draft extraction and explicit confirmation; progress get/update; subject readiness; exam list/create/update/delete |
+| Overview | Authenticated recent concept activity, continue-learning candidates, revision suggestions, and upcoming exams |
 
-All API routes are mounted under `/api/v1` except `/health`. The calendar range is limited to 63 days. Quote endpoints require authentication and return a service error if the API Ninjas key is not configured or the provider cannot be reached.
+All API routes are mounted under `/api/v1` except `/health`. The calendar range is limited to 63 days. Quote endpoints require authentication; API Ninjas is used when configured, otherwise a curated fallback is returned. Successful daily provider responses are cached in-process for one hour.
 
 Subject updates use a partial PATCH contract with user ownership checks. The subject modal supports editing name, course code, and description. The Academics workspace supports manual chapter/subchapter creation, contextual concept creation within a chapter, inline renaming, and PDF import as an alternative. The manual builder and importer are separate entry points; both persist through the existing topic/concept APIs. Topic and concept edits use partial PATCH requests, preserving fields not included in the request. Concept confidence uses a five-step themed choice control rather than the browser-native range slider, with reduced-motion-aware transitions and visible keyboard focus.
 
@@ -99,7 +100,7 @@ The syllabus importer accepts PDF uploads up to 12 MB and 100 pages, extracts se
 
 ### Overview calendar
 
-`DashboardCalendar.tsx` requests day notes for the visible month grid (42 days) or selected week (7 days), and loads the user's exam list. Notes and exams remain separate data: notes are edited through `/calendar/{day}`, while exams are changed through `/exams/{exam_id}`. Exam markers are derived from exam dates; selecting a day displays its exam details and allows editing or deletion.
+`DashboardCalendar.tsx` requests day notes for the visible month grid (42 days) or selected week (7 days), and loads the user's exam list. A retry control re-runs both calendar data requests. Notes and exams remain separate data: notes are personal date notes edited through `/calendar/{day}`, while exams are academic events changed through `/exams/{exam_id}`. Exam markers are derived from exam dates; selecting a day displays its exam details and allows editing or deletion.
 
 ### Quotations and visual layer
 
@@ -153,7 +154,9 @@ This list covers the tracked project source, documentation, and configuration fi
 | `TODO.md` | Ordered implementation backlog derived from the README and checked against the code currently present. |
 | `pytest.ini` | Backend pytest import path and test discovery configuration. |
 | `tests/conftest.py` | Isolated in-memory database fixture and authenticated API test helpers. |
-| `tests/test_api.py` | Backend API regression tests for authentication, ownership, academics, calendar, and exams. |
+| `tests/test_api.py` | Backend API regression tests for authentication, ownership, academics, calendar, exams, quote fallback, and Overview data. |
+| `tests/test_postgres_integration.py` | PostgreSQL-specific JSON persistence and constraint integration coverage. |
+| `tests/test_config.py` | Production settings validation tests. |
 
 ### `backend/`
 
@@ -182,6 +185,7 @@ This list covers the tracked project source, documentation, and configuration fi
 | `app/routers/calendar.py` | Authenticated date-note list, upsert, and delete endpoints, including range validation. |
 | `app/routers/quotes.py` | Authenticated daily/random quote endpoints and the server-side API Ninjas client. |
 | `app/routers/academics.py` | Ownership-checked topic/concept/progress/readiness/exam operations and syllabus draft/confirm endpoints. |
+| `app/routers/overview.py` | User-scoped recent learning activity, continue-learning candidates, revision suggestions, and upcoming exam summary. |
 
 ### `frontend/`
 
