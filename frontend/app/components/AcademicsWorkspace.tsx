@@ -209,6 +209,40 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
     finally { setBusy(false); }
   }
 
+
+  async function createSyllabusSnapshot() {
+    if(subjectId===null) return;
+    setBusy(true); setError("");
+    try {
+      const version = await api<SyllabusVersion>("/subjects/" + subjectId + "/syllabus/versions", {
+        method:"POST", body:JSON.stringify({label:"Manual checkpoint"})
+      });
+      setVersions(old=>[version,...old]);
+      setShowVersionHistory(true);
+      setNotice("Syllabus checkpoint saved.");
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not save a syllabus checkpoint."); }
+    finally { setBusy(false); }
+  }
+
+  async function inspectSyllabusVersion(versionId:number) {
+    if(subjectId===null) return;
+    try {
+      setSelectedVersion(await api<SyllabusVersionDetail>("/subjects/" + subjectId + "/syllabus/versions/" + versionId));
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not open this version."); }
+  }
+
+  async function restoreSyllabusVersion(version:SyllabusVersion) {
+    if(subjectId===null || !confirm("Restore version " + version.version_number + "? Your current syllabus will be saved as a new version first.")) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await api("/subjects/" + subjectId + "/syllabus/versions/" + version.id + "/restore",{method:"POST"});
+      setSelectedVersion(null);
+      await loadWorkspace(subjectId);
+      setNotice("Syllabus restored. The previous version is kept in history.");
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not restore this syllabus version."); }
+    finally { setBusy(false); }
+  }
+
   async function addExam(e: React.FormEvent) {
     e.preventDefault(); if(subjectId===null || !examDate) return;
     setBusy(true); setError("");
