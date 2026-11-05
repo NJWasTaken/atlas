@@ -15,7 +15,7 @@ The current working slice includes:
 - Daily and random quotations from API Ninjas when configured, with curated fallbacks, per-endpoint in-process caching (daily: six hours; random: one minute), and stale-cache fallback so provider outages do not block the Overview.
 - A dark celestial visual treatment and a reduced-motion-aware animated background.
 
-Explore and My Universe are navigation destinations with placeholder content. Syllabus PDFs can be uploaded, parsed into an editable draft, and explicitly confirmed into the subject's topic/concept tree. Structural syllabus changes create version snapshots that can be inspected and restored. Concept check-ins are recorded as review history and receive a simple next-review interval based on understanding and recall. There is no OCR for scanned PDFs, adaptive spaced-repetition algorithm, personal knowledge repository, AI gateway, or data export yet.
+Explore and My Universe are navigation destinations with placeholder content. Syllabus PDFs can be uploaded, parsed into an editable draft, and explicitly confirmed into the subject's topic/concept tree. Structural syllabus changes create version snapshots that can be inspected and restored. Concept check-ins are recorded as review history and receive a simple next-review interval based on understanding and recall. Saving a check-in refreshes subject readiness and Overview data without clearing the currently selected concept or its review panel. There is no OCR for scanned PDFs, adaptive spaced-repetition algorithm, personal knowledge repository, AI gateway, or data export yet.
 
 ## System shape
 
