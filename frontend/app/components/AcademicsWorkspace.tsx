@@ -28,7 +28,7 @@ type SyllabusDraft = { file_name:string; page_count:number; extracted_characters
 
 const blankProgress: Progress = { concept_id: 0, exposure:"not_started", understanding:"not_assessed", recall:"not_assessed", confidence:null, notes:"" };
 
-export default function AcademicsWorkspace({ subjects, initialSubjectId, focusConceptId, onFocusHandled }: { subjects: Subject[]; initialSubjectId?:number; focusConceptId?:number; onFocusHandled?:()=>void }) {
+export default function AcademicsWorkspace({ subjects, initialSubjectId, focusConceptId, onFocusHandled, onOverviewRefresh }: { subjects: Subject[]; initialSubjectId?:number; focusConceptId?:number; onFocusHandled?:()=>void; onOverviewRefresh?:()=>void }) {
   const [subjectId, setSubjectId] = useState<number | null>(initialSubjectId ?? subjects[0]?.id ?? null);
   const [termFilter, setTermFilter] = useState("all");
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -103,6 +103,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
     try {
       await api<Topic>(`/subjects/${subjectId}/topics`, { method:"POST", body:JSON.stringify({title:topicTitle.trim(), parent_topic_id:parentId, position:topics.length}) });
       setTopicTitle(""); setParentId(null); setAddingTopic(false); await loadWorkspace(subjectId);
+      onOverviewRefresh?.();
       setNotice("Topic added to your syllabus.");
     } catch (e) { setError(e instanceof Error ? e.message : "Could not add topic."); }
     finally { setBusy(false); }
@@ -114,6 +115,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
     try {
       await api<Concept>(`/topics/${addingConcept}/concepts`, {method:"POST",body:JSON.stringify({title:conceptTitle.trim(),position:(conceptsByTopic.get(addingConcept)?.length ?? 0)})});
       setConceptTitle(""); setAddingConcept(null); if(subjectId!==null) await loadWorkspace(subjectId);
+      onOverviewRefresh?.();
       setNotice("Concept added.");
     } catch(e) { setError(e instanceof Error ? e.message : "Could not add concept."); }
     finally { setBusy(false); }
@@ -159,6 +161,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
       );
       setImportDraft(null);
       await loadWorkspace(subjectId);
+      onOverviewRefresh?.();
       setNotice("Added " + result.topics_created + " chapters and " + result.concepts_created + " concepts to your syllabus.");
     } catch(e) { setError(e instanceof Error ? e.message : "Could not add the reviewed syllabus."); }
     finally { setBusy(false); }
@@ -185,6 +188,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
       }
       setEditingItem(null);
       if (subjectId !== null) await loadWorkspace(subjectId);
+      onOverviewRefresh?.();
       setNotice(`${editingItem.kind === "topic" ? "Topic" : "Concept"} updated.`);
     } catch(e) {
       setError(e instanceof Error ? e.message : "Could not update this item.");
@@ -247,6 +251,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
       setProgress(saved);
       setReviews(await api<Review[]>(`/concepts/${selectedConcept.id}/reviews`));
       if(subjectId!==null) await loadWorkspace(subjectId);
+      onOverviewRefresh?.();
       setNotice("Progress saved. Nice work showing up.");
     } catch(e) { setError(e instanceof Error ? e.message : "Could not save progress."); }
     finally { setBusy(false); }
@@ -292,7 +297,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
     setBusy(true); setError("");
     try {
       await api<Exam>("/exams",{method:"POST",body:JSON.stringify({subject_id:subjectId,title:examTitle,exam_date:new Date(examDate).toISOString()})});
-      setExamTitle("End-semester examination"); setExamDate(""); setAddingExam(false); await loadWorkspace(subjectId);
+      setExamTitle("End-semester examination"); setExamDate(""); setAddingExam(false); await loadWorkspace(subjectId); onOverviewRefresh?.();
     } catch(e) { setError(e instanceof Error ? e.message : "Could not add exam."); }
     finally { setBusy(false); }
   }
@@ -325,6 +330,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
       });
       cancelExamEdit();
       if(subjectId!==null) await loadWorkspace(subjectId);
+      onOverviewRefresh?.();
       setNotice("Exam updated.");
     } catch(e) { setError(e instanceof Error ? e.message : "Could not update exam."); }
     finally { setBusy(false); }
