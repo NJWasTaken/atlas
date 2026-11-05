@@ -12,13 +12,14 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Run the initial 10-test backend API suite successfully in GitHub Actions.
 - [x] Expand backend regression coverage for topic updates, required-field validation, concept deletion, calendar-note update/delete, and exam validation/ownership.
 - [x] Run the expanded 15-test backend API suite successfully in GitHub Actions.
-- [x] Verify the concept-edit endpoint and 16-test API suite in GitHub Actions.
+- [x] Verify subject/concept partial-update endpoints and ownership validation in the expanded backend suite.
 - [ ] Add PostgreSQL-backed integration coverage for database-specific behavior before treating backend validation as complete.
 - [ ] Add frontend tests for key user flows: login/register, subject creation, topic/concept progress, calendar note persistence, and exam create/edit/delete from both views.
-- [x] Verify the frontend TypeScript check and production build pass in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983099966).
+- [x] Verify the syllabus-import UI TypeScript check and production build pass in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983099966).
+- [x] Verify the 21-test syllabus/backend suite and full SQLite migration chain in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983072998).
 - [x] Add CI execution for the backend pytest suite on development pushes and relevant pull requests.
 - [x] Add CI checks for frontend TypeScript and production build.
-- [x] Add Alembic configuration and an initial migration baseline matching the current seven-table schema; CI validates upgrade, metadata consistency, and downgrade on SQLite.
+- [x] Add Alembic configuration, the initial seven-table baseline, and the follow-up source-page-reference migration; CI validates upgrade, metadata consistency, and downgrade on SQLite.
 - [ ] Document and execute safe baseline adoption for existing databases, then switch application startup away from `Base.metadata.create_all()` once all environments are migrated.
 - [ ] Review production configuration: require a strong JWT secret, define safe CORS origins, document required environment variables, and avoid development fallback credentials outside local development.
 - [ ] Improve API error/loading/empty states and accessibility across the current screens.
