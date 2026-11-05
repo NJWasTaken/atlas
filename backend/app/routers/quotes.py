@@ -1,6 +1,7 @@
 import json
 import logging
 import random
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -15,6 +16,21 @@ from app.security import get_current_user
 
 router = APIRouter(prefix="/quotes", tags=["quotes"])
 logger = logging.getLogger(__name__)
+FALLBACK_QUOTES = (
+    QuoteOutput(quote="The important thing is not to stop questioning.", author="Albert Einstein"),
+    QuoteOutput(quote="It always seems impossible until it is done.", author="Nelson Mandela"),
+    QuoteOutput(quote="Somewhere, something incredible is waiting to be known.", author="Carl Sagan"),
+    QuoteOutput(quote="The beautiful thing about learning is that nobody can take it away from you.", author="B.B. King"),
+    QuoteOutput(quote="Nothing in life is to be feared; it is only to be understood.", author="Marie Curie"),
+)
+_quote_cache: dict[str, tuple[float, QuoteOutput]] = {}
+QUOTE_CACHE_SECONDS = 3600
+
+
+def fallback_quote(randomize: bool) -> QuoteOutput:
+    return random.choice(FALLBACK_QUOTES) if randomize else FALLBACK_QUOTES[0]
+
+
 RANDOM_QUOTE_CATEGORIES = (
     "success",
     "wisdom",
