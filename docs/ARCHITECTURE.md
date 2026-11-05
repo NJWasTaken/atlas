@@ -15,7 +15,7 @@ The current working slice includes:
 - Daily and random quotations from API Ninjas when configured, with a curated fallback and one-hour in-process cache for successful daily quotes so provider outages do not block the Overview.
 - A dark celestial visual treatment and a reduced-motion-aware animated background.
 
-Explore and My Universe are navigation destinations with placeholder content. Syllabus PDFs can be uploaded, parsed into an editable draft, and explicitly confirmed into the subject's topic/concept tree. There is no OCR for scanned PDFs, personal knowledge repository, revision scheduler, AI gateway, or data export yet.
+Explore and My Universe are navigation destinations with placeholder content. Syllabus PDFs can be uploaded, parsed into an editable draft, and explicitly confirmed into the subject's topic/concept tree. Structural syllabus changes create version snapshots that can be inspected and restored. Concept check-ins are recorded as review history and receive a simple next-review interval based on understanding and recall. There is no OCR for scanned PDFs, adaptive spaced-repetition algorithm, personal knowledge repository, AI gateway, or data export yet.
 
 ## System shape
 
@@ -49,11 +49,11 @@ Each protected route obtains the current user through `backend/app/security.py`.
 
 ### Persistence and schema
 
-The database URL is supplied by settings and targets PostgreSQL by default. `docker-compose.yml` runs a local PostgreSQL 16 container with a persistent named volume. Alembic revision `0002_source_pages` adds nullable JSON page-reference columns to topics and concepts; backend CI validates the full migration chain on SQLite.
+The database URL is supplied by settings and targets PostgreSQL by default. `docker-compose.yml` runs a local PostgreSQL 16 container with a persistent named volume. Alembic revisions `0002_source_pages`, `0003_subject_term`, and `0004_syllabus_versions_reviews` add source-page metadata, subject term/year metadata, and syllabus-version/review-scheduling tables. CI validates the migration chain on SQLite and PostgreSQL.
 
-Existing models use integer primary keys. `Base.metadata.create_all()` remains enabled at application startup for backward-compatible local development; it creates missing tables but does not manage schema changes. Alembic is now configured with an initial baseline migration covering the current seven tables. The backend CI workflow upgrades an empty SQLite database through both revisions, checks the final schema against SQLAlchemy metadata, and downgrades it again. The full migration chain and 21 API tests passed in [run #41983287215](https://github.com/NJWasTaken/atlas/actions/runs/41983287215). Production startup now leaves schema management to Alembic and does not run `create_all()`. Development keeps the old convenience behavior. Existing databases still require verified backup/schema comparison and explicit Alembic stamping/upgrades before production deployment.
+Existing models use integer primary keys. Alembic revision `0001_initial` is the seven-table baseline, followed by the source-page, subject-term, and syllabus-version/review-history revisions. Production startup does not call `Base.metadata.create_all()`; migrations must be applied before the API starts. Development retains `create_all()` for local convenience. Existing databases still require a verified backup, schema comparison, and explicit Alembic stamping/upgrades before production deployment. The earlier SQLite baseline and 21-test suite passed in [run #41983287215](https://github.com/NJWasTaken/atlas/actions/runs/41983287215); the expanded PostgreSQL workflow is now configured and its result is pending.
 
-For a fresh database, run `cd backend && python -m alembic upgrade head` before starting the API. For a database already created by the old `create_all()` flow, take a verified backup and compare its schema to the baseline first; only then mark it as already at the baseline with `python -m alembic stamp 0001_initial`. **Do not run `upgrade head` against an existing un-stamped database**: the initial migration creates the tables and is not an in-place schema repair.
+For a fresh database, run `cd backend && python -m alembic upgrade head` before starting the API. For a database already created by the old `create_all()` flow, take a verified backup and compare its schema carefully. If it matches the original seven-table baseline without the later migration columns, stamp `0001_initial` and then upgrade to head. If it already contains later migration columns/tables, stamp only the exact revision that its schema demonstrably matches. **Do not run `upgrade head` against an existing un-stamped database**: the initial migration creates tables and is not an in-place schema repair. This adoption has not been executed against any existing user database.
 
 The current entities are:
 
@@ -64,12 +64,14 @@ The current entities are:
 | `DayNote` | One note per user and calendar date |
 | `Topic` | Subject syllabus node with optional parent topic |
 | `Concept` | Learning item belonging to a topic |
-| `ConceptProgress` | Per-user exposure, understanding, recall, confidence, notes, and review timestamps |
+| `ConceptProgress` | Per-user exposure, understanding, recall, confidence, notes, last review, and suggested next-review timestamp |
+| `ConceptReview` | Immutable per-user snapshots of each concept check-in |
+| `SyllabusVersion` | Numbered JSON snapshots of a subject's topic/concept tree, with restore history |
 | `Exam` | User-owned exam associated with a subject and a date/time |
 
-`backend/app/academics_models.py` defines topic, concept, progress, and exam tables. Topics and concepts include optional JSON source-page references for imported syllabus material; `backend/app/models.py` defines users, subjects (including optional term and academic year), and day notes. Foreign keys and ORM cascades connect the records. Progress is unique per user/concept, and confidence is constrained to 1–5 when supplied.
+`backend/app/academics_models.py` defines topic, concept, progress, review-history, syllabus-version, and exam tables. Topics and concepts include optional JSON source-page references for imported syllabus material; `backend/app/models.py` defines users, subjects (including optional term and academic year), and day notes. Foreign keys and ORM cascades connect the records. Progress is unique per user/concept, and confidence is constrained to 1–5 when supplied.
 
-Concept-progress updates use partial PATCH semantics: only fields explicitly supplied by the client are changed. Omitted exposure, understanding, recall, confidence, and notes values are preserved rather than reset to schema defaults.
+Concept-progress updates use partial PATCH semantics: only fields explicitly supplied by the client are changed. Omitted exposure, understanding, recall, confidence, and notes values are preserved rather than reset to schema defaults. Each successful check-in creates a `ConceptReview` snapshot and calculates `next_review_at`: weak/needs-practice gets 2 days, developing 4 days, strong 7 days, and strong plus comfortable recall 14 days (unassessed defaults to 1 day). This is a transparent heuristic, not an adaptive learning model.
 
 ### API surface currently mounted
 
@@ -96,7 +98,7 @@ The root page restores a token from local storage, shows registration/login when
 
 `AcademicsWorkspace.tsx` loads the selected subject's topics, concepts, readiness summary, and exams. Topic nesting is represented by `parent_topic_id`. Topics and concepts can be renamed inline; edits are saved through ownership-checked PATCH endpoints. Concept progress is stored per user. Exam changes use the same persistent exam endpoints used by the Overview calendar.
 
-The syllabus importer accepts PDF uploads up to 12 MB and 100 pages, extracts selectable text with `pypdf`, and uses conservative heading/bullet heuristics to suggest top-level chapters and concepts. The API returns an ephemeral draft with warnings and page references; the upload itself is not stored. The user can rename/remove/add chapters and concepts in the review UI. A separate manual builder supports creating chapters and nested chapters from scratch, while each expanded chapter has its own contextual add-concept form. Only the separate confirm endpoint persists the reviewed structure. Confirmed page references are stored as nullable JSON arrays on topics and concepts and shown in the syllabus tree. Scanned/image-only PDFs are rejected with a clear OCR-not-supported message; OCR, complex multi-column layouts, and version history remain future work. Import appends to the existing syllabus rather than replacing it.
+The syllabus importer accepts PDF uploads up to 12 MB and 100 pages, extracts selectable text with `pypdf`, and uses conservative heading/bullet heuristics to suggest top-level chapters and concepts. The API returns an ephemeral draft with warnings and page references; the upload itself is not stored. The user can rename/remove/add chapters and concepts in the review UI. A separate manual builder supports creating chapters and nested chapters from scratch, while each expanded chapter has its own contextual add-concept form. Only the separate confirm endpoint persists the reviewed structure. Confirmed page references are stored as nullable JSON arrays on topics and concepts and shown in the syllabus tree. Each structural change and confirmed import records a numbered snapshot; users can inspect versions and restore an older tree, with both the pre-restore state and restored state retained in history. Scanned/image-only PDFs are rejected with a clear OCR-not-supported message; OCR and complex multi-column layouts remain future work. Import appends to the existing syllabus rather than replacing it.
 
 ### Overview calendar
 
@@ -104,7 +106,7 @@ The syllabus importer accepts PDF uploads up to 12 MB and 100 pages, extracts se
 
 ### Quotations and visual layer
 
-Daily/random quote requests are proxied by the backend to API Ninjas, keeping the provider key out of the browser. The global celestial background is rendered by `CelestialBackground.tsx`; the separate `QuoteRipple.tsx` component exists but is not part of the current page composition.
+Daily/random quote requests are proxied by the backend to API Ninjas when configured, keeping the provider key out of the browser. Curated fallbacks keep the Overview usable without the provider; successful daily quotes are cached for one hour in the API process. The global celestial background is rendered by `CelestialBackground.tsx`; the separate `QuoteRipple.tsx` component exists but is not part of the current page composition.
 
 ## Configuration and local development
 
@@ -154,7 +156,9 @@ This list covers the tracked project source, documentation, and configuration fi
 | `TODO.md` | Ordered implementation backlog derived from the README and checked against the code currently present. |
 | `pytest.ini` | Backend pytest import path and test discovery configuration. |
 | `tests/conftest.py` | Isolated in-memory database fixture and authenticated API test helpers. |
-| `tests/test_api.py` | Backend API regression tests for authentication, ownership, academics, calendar, exams, quote fallback, and Overview data. |
+| `tests/test_api.py` | 26 API regression tests for authentication, ownership, academics, calendar, exams, quote fallback, Overview data, review history, and syllabus version restore. |
+| `tests/test_config.py` | Production settings validation tests. |
+| `tests/test_postgres_integration.py` | PostgreSQL-specific JSON persistence and constraint integration coverage. |
 | `tests/test_postgres_integration.py` | PostgreSQL-specific JSON persistence and constraint integration coverage. |
 | `tests/test_config.py` | Production settings validation tests. |
 
@@ -170,6 +174,8 @@ This list covers the tracked project source, documentation, and configuration fi
 | `migrations/env.py` | Connects Alembic to application settings and SQLAlchemy model metadata. |
 | `migrations/versions/0001_initial_schema.py` | Initial schema baseline for users, subjects, day notes, topics, concepts, progress, and exams. |
 | `migrations/versions/0002_source_pages.py` | Adds nullable JSON page-reference columns to topics and concepts. |
+| `migrations/versions/0003_subject_term.py` | Adds optional term and academic-year fields to subjects. |
+| `migrations/versions/0004_syllabus_versions_reviews.py` | Adds syllabus snapshots, concept review history, and next-review scheduling. |
 | `migrations/script.py.mako` | Template for future versioned schema revisions. |
 | `app/models.py` | Core `User`, `Subject`, and `DayNote` ORM models. |
 | `app/academics_models.py` | `Topic`, `Concept`, `ConceptProgress`, and `Exam` ORM models and relationships, including imported source-page references. |
@@ -184,7 +190,8 @@ This list covers the tracked project source, documentation, and configuration fi
 | `app/routers/subjects.py` | Authenticated subject listing, creation, editing, and deletion. |
 | `app/routers/calendar.py` | Authenticated date-note list, upsert, and delete endpoints, including range validation. |
 | `app/routers/quotes.py` | Authenticated daily/random quote endpoints and the server-side API Ninjas client. |
-| `app/routers/academics.py` | Ownership-checked topic/concept/progress/readiness/exam operations and syllabus draft/confirm endpoints. |
+| `app/routers/academics.py` | Ownership-checked topic/concept/progress/review-history/readiness/exam and syllabus version/draft/confirm/restore endpoints. |
+| `app/routers/overview.py` | User-scoped recent learning activity, continue-learning candidates, revision suggestions, and upcoming exam summary. |
 | `app/routers/overview.py` | User-scoped recent learning activity, continue-learning candidates, revision suggestions, and upcoming exam summary. |
 
 ### `frontend/`
@@ -213,7 +220,7 @@ This list covers the tracked project source, documentation, and configuration fi
 
 - The application is a prototype, not yet a production deployment architecture.
 - Authentication tokens are stored in browser local storage; refresh/revocation flows are not implemented.
-- Startup `create_all()` is not a substitute for versioned database migrations. Alembic baseline scaffolding is present and CI-validated, but startup still uses `create_all()` pending a safe existing-database adoption plan.
-- A pytest-based backend API suite and GitHub Actions workflow now exist, and the expanded 15-test suite has passed in CI. Frontend TypeScript/build CI is configured; automated frontend interaction tests and PostgreSQL-backed integration tests are still outstanding.
-- The Overview calendar currently provides a monthly grid and date notes; it is not a full event-planning system or weekly calendar.
+- Startup `create_all()` is not a substitute for versioned database migrations. Production does not run it; local development still does. Existing database baseline adoption remains an operator task requiring a verified backup and schema comparison.
+- The backend suite now contains 26 API tests, four production-configuration tests, and one PostgreSQL integration test. GitHub Actions validates SQLite and PostgreSQL migration chains and runs the PostgreSQL service test. The expanded workflow result is pending; the earlier 21-test SQLite suite passed in CI. Frontend TypeScript/build CI is configured, but frontend interaction tests remain outstanding.
+- The Overview provides monthly and weekly calendar views, date notes, exam events, recent learning activity, revision nudges, and upcoming exams; it is not a general-purpose event planner.
 - Explore, My Universe, syllabus document ingestion, AI integrations, and data export remain future work.
