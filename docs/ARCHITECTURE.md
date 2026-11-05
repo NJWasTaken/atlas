@@ -123,7 +123,7 @@ pip install -r requirements.txt
 python -m pytest
 ```
 
-The initial API suite covers authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation, partial concept-progress PATCH behavior, readiness counts, calendar-note ownership/range validation, and exam CRUD/ownership. These tests provide a fast regression layer; PostgreSQL-specific integration behavior and broader remaining CRUD edge cases still need coverage. A GitHub Actions workflow runs this suite on pushes to `main` and `work/**`, and on pull requests targeting `main` when backend files change. The initial 10-test suite passed in [GitHub Actions run #41979038349](https://github.com/NJWasTaken/atlas/actions/runs/41979038349). This is the first green baseline; it does not replace broader CRUD edge-case or PostgreSQL integration coverage.
+The 15-test API suite covers authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation and updates, required-field validation, partial concept-progress PATCH behavior, readiness counts, concept deletion, calendar-note CRUD/ownership/range validation, and exam CRUD/ownership/validation. These tests provide a fast regression layer; PostgreSQL-specific integration behavior and broader remaining CRUD edge cases still need coverage. A GitHub Actions workflow runs this suite on pushes to `main` and `work/**`, and on pull requests targeting `main` when backend files change. The initial 10-test suite passed in [GitHub Actions run #41979038349](https://github.com/NJWasTaken/atlas/actions/runs/41979038349). The expanded 15-test suite is awaiting its CI run; the earlier green result does not yet validate these additions.
 
 ## File guide
 
@@ -136,6 +136,7 @@ This list covers the tracked project source, documentation, and configuration fi
 | `.env.example` | Names and development examples for database, JWT, frontend API URL, and quote-provider settings. Copy to ignored `.env` and replace unsafe development values for real use. |
 | `.gitignore` | Excludes local environment files, dependencies, build output, caches, and other generated/local files. |
 | `docker-compose.yml` | Starts the local PostgreSQL service and named data volume. |
+| `.github/workflows/backend-tests.yml` | Runs the backend pytest suite on development pushes and relevant pull requests. |
 | `README.md` | Product vision, requirements, data/API design, roadmap, setup instructions, and representative project structure. |
 
 ### `docs/`
@@ -145,7 +146,6 @@ This list covers the tracked project source, documentation, and configuration fi
 | `ARCHITECTURE.md` | Current implementation and file guide; this document. |
 | `MODULE_A_IMPLEMENTATION.md` | Notes for the first Academics backend slice, including endpoints, schema compatibility, and suggested next steps. Some next-slice bullets predate the current UI; use this architecture and `TODO.md` for current status. |
 | `TODO.md` | Ordered implementation backlog derived from the README and checked against the code currently present. |
-| `.github/workflows/backend-tests.yml` | Runs the backend pytest suite on development pushes and relevant pull requests. |
 | `pytest.ini` | Backend pytest import path and test discovery configuration. |
 | `tests/conftest.py` | Isolated in-memory database fixture and authenticated API test helpers. |
 | `tests/test_api.py` | Backend API regression tests for authentication, ownership, academics, calendar, and exams. |
