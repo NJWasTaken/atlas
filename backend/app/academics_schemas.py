@@ -1,6 +1,6 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Literal
+from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
+from typing import Annotated, Literal
 
 Exposure = Literal["not_started", "studied"]
 Understanding = Literal["not_assessed", "weak", "developing", "strong"]
@@ -18,12 +18,21 @@ class TopicUpdate(BaseModel):
     description: str | None = None
     position: int | None = None
 
+    @model_validator(mode="after")
+    def reject_null_required_fields(self):
+        if "title" in self.model_fields_set and self.title is None:
+            raise ValueError("title cannot be null")
+        if "position" in self.model_fields_set and self.position is None:
+            raise ValueError("position cannot be null")
+        return self
+
 class TopicOut(BaseModel):
     id: int
     subject_id: int
     parent_topic_id: int | None
     title: str
     description: str | None
+    source_pages: list[int] | None = None
     position: int
     model_config = ConfigDict(from_attributes=True)
 
@@ -32,11 +41,26 @@ class ConceptCreate(BaseModel):
     description: str | None = None
     position: int = 0
 
+class ConceptUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=180)
+    description: str | None = None
+    position: int | None = None
+
+    @model_validator(mode="after")
+    def reject_null_required_fields(self):
+        if "title" in self.model_fields_set and self.title is None:
+            raise ValueError("title cannot be null")
+        if "position" in self.model_fields_set and self.position is None:
+            raise ValueError("position cannot be null")
+        return self
+
+
 class ConceptOut(BaseModel):
     id: int
     topic_id: int
     title: str
     description: str | None
+    source_pages: list[int] | None = None
     position: int
     model_config = ConfigDict(from_attributes=True)
 
@@ -63,9 +87,48 @@ class ExamUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=160)
     exam_date: datetime | None = None
 
+    @model_validator(mode="after")
+    def reject_null_required_fields(self):
+        if "title" in self.model_fields_set and self.title is None:
+            raise ValueError("title cannot be null")
+        if "exam_date" in self.model_fields_set and self.exam_date is None:
+            raise ValueError("exam_date cannot be null")
+        return self
+
 class ExamOut(BaseModel):
     id: int
     subject_id: int
     title: str
     exam_date: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+class SyllabusConceptDraft(BaseModel):
+    title: str = Field(min_length=1, max_length=180)
+    source_pages: list[Annotated[int, Field(ge=1, le=100)]] = Field(default_factory=list, max_length=100)
+
+    @field_validator("title")
+    @classmethod
+    def clean_title(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("title cannot be blank")
+        return value
+
+
+class SyllabusTopicDraft(BaseModel):
+    title: str = Field(min_length=1, max_length=180)
+    source_pages: list[Annotated[int, Field(ge=1, le=100)]] = Field(default_factory=list, max_length=100)
+    concepts: list[SyllabusConceptDraft] = Field(default_factory=list, max_length=100)
+
+    @field_validator("title")
+    @classmethod
+    def clean_title(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("title cannot be blank")
+        return value
+
+
+class SyllabusConfirm(BaseModel):
+    topics: list[SyllabusTopicDraft] = Field(min_length=1, max_length=80)

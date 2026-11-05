@@ -80,3 +80,84 @@
 .atlas-academics-empty-icon{display:grid;width:48px;height:48px;place-items:center;border:1px solid rgba(133,181,229,.25);border-radius:50%;background:rgba(133,181,229,.07)}
 @media(max-width:950px){.atlas-academics-columns{grid-template-columns:1fr}.atlas-summary-stats{gap:13px}}
 @media(max-width:650px){.atlas-academics-toolbar,.atlas-academics-summary{align-items:stretch;flex-direction:column}.atlas-academics-toolbar label{min-width:0}.atlas-summary-stats{justify-content:flex-start}.atlas-academics-bottom{grid-template-columns:1fr}.atlas-academics-panel{padding:16px}.atlas-topic-count{display:none}.atlas-topic-title{font-size:13px}}
+
+.atlas-edit-inline-form{margin:4px 4px 10px 35px;padding:12px}
+.atlas-concept-entry{border-left:1px solid rgba(133,181,229,.18)}
+.atlas-concept-entry .atlas-edit-inline-form{margin:4px 4px 8px 12px}
+.atlas-edit-inline-form input{width:100%}
+
+
+.atlas-syllabus-heading-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.atlas-upload-button{position:relative;display:inline-flex;align-items:center;gap:7px;cursor:pointer}
+.atlas-upload-button input{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+.atlas-upload-button:focus-within{outline:2px solid var(--atlas-blue);outline-offset:3px}
+.atlas-import-review{display:grid;gap:13px;margin:0 0 16px;padding:17px;border:1px solid rgba(120,199,183,.3);background:linear-gradient(145deg,rgba(19,48,59,.42),rgba(12,28,46,.9))}
+.atlas-import-review-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.atlas-import-review-heading h4{margin-top:5px;color:#f0eadd;font:500 25px 'Cormorant Garamond',serif}
+.atlas-import-review-heading p:not(.eyebrow){margin-top:5px;color:#8fa2b4;font-size:10px}
+.atlas-import-explainer,.atlas-import-footnote{color:#a8b6c3;font-size:11px;line-height:1.6}
+.atlas-import-warning{display:flex;align-items:flex-start;gap:8px;padding:9px 10px;color:#e6c28e;border:1px solid rgba(230,194,142,.2);background:rgba(230,194,142,.06);font-size:10px;line-height:1.5}
+.atlas-import-warning svg{flex:0 0 auto;margin-top:1px}
+.atlas-import-draft-list{display:grid;gap:9px;max-height:520px;overflow:auto;padding-right:3px}
+.atlas-import-topic{display:grid;gap:8px;padding:12px;border:1px solid rgba(166,187,211,.14);background:rgba(5,18,31,.42)}
+.atlas-import-topic-title{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:end;gap:8px}
+.atlas-import-topic-title label{display:grid;gap:5px;min-width:0}
+.atlas-import-topic-title label span{color:var(--atlas-blue);font-size:8px;font-weight:700;letter-spacing:.13em}
+.atlas-import-topic-title input,.atlas-import-concept input{width:100%;min-width:0;min-height:35px;padding:7px 9px;color:#eee8dc;border:1px solid rgba(166,187,211,.2);border-radius:2px;background:#0b1c2e;font:12px 'DM Sans',sans-serif}
+.atlas-source-page,.atlas-import-concept>span{color:#8294a8;font-size:9px;white-space:nowrap}
+.atlas-import-concept{display:grid;grid-template-columns:minmax(0,1fr) auto 26px;align-items:center;gap:7px;padding-left:14px}
+.atlas-import-concept input{min-height:32px;font-size:11px}
+.atlas-import-add-concept{display:inline-flex;align-items:center;gap:5px;justify-self:start;margin-left:14px;padding:5px 2px;color:var(--atlas-teal);font-size:10px}
+.atlas-import-review-actions{display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap;padding-top:11px;border-top:1px solid rgba(166,187,211,.12)}
+.atlas-import-review-actions>div{display:flex;gap:7px;flex-wrap:wrap}
+.atlas-import-footnote{color:#7f90a3;font-size:9px}
+.atlas-topic-source{color:#7189a0;font-size:9px;white-space:nowrap}
+.atlas-concept-source{color:#7189a0;font-size:9px;white-space:nowrap}
+@media(max-width:650px){
+ .atlas-syllabus-heading-actions{align-items:flex-start;flex-direction:column}
+ .atlas-import-topic-title{grid-template-columns:minmax(0,1fr) auto}
+ .atlas-source-page{grid-column:1;grid-row:2}
+ .atlas-import-topic-title>.atlas-mini-action{grid-column:2;grid-row:1}
+ .atlas-import-review-actions{align-items:stretch;flex-direction:column}
+ .atlas-import-review-actions>div{justify-content:flex-end}
+}
+
+.atlas-topic-source{flex:0 0 auto}
+.atlas-concept-source{margin-right:7px}
+
+
+/* Manual syllabus building and interaction polish */
+.atlas-syllabus-heading-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.atlas-manual-topic-form{margin:0 0 15px;border-color:rgba(120,199,183,.28);background:linear-gradient(135deg,rgba(18,48,57,.36),rgba(9,24,40,.82))}
+.atlas-manual-form-intro{display:grid;gap:4px}
+.atlas-manual-form-intro strong{color:#eee8dc;font:500 21px 'Cormorant Garamond',serif}
+.atlas-manual-form-intro span{color:#93a6b8;font-size:11px;line-height:1.5}
+.atlas-add-concept-form{margin:6px 4px 12px 32px;padding:12px}
+.atlas-add-concept-form input{width:100%}
+.atlas-syllabus-empty .atlas-button{margin-top:5px}
+.atlas-confidence-control{display:grid;gap:9px;padding:14px;border:1px solid rgba(133,181,229,.16);background:linear-gradient(135deg,rgba(18,38,57,.75),rgba(10,24,40,.85))}
+.atlas-confidence-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.atlas-confidence-heading label{color:#c4ced7;font-size:12px;font-weight:600}
+.atlas-confidence-value{color:var(--atlas-teal);font-size:12px;font-weight:700}
+.atlas-confidence-control>p{color:#8498ab;font-size:10px;line-height:1.5}
+.atlas-confidence-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.atlas-confidence-options button{display:grid;justify-items:center;gap:4px;min-width:0;padding:9px 3px;color:#a5b4c2;border:1px solid rgba(166,187,211,.16);background:rgba(255,255,255,.025);transition:background .2s ease,border-color .2s ease,color .2s ease,transform .2s ease}
+.atlas-confidence-options button>span{display:grid;width:25px;height:25px;place-items:center;border:1px solid rgba(166,187,211,.2);border-radius:50%;font-size:11px;font-weight:700}
+.atlas-confidence-options button small{font-size:9px}
+.atlas-confidence-options button:hover{transform:translateY(-2px);border-color:rgba(120,199,183,.42);color:#e8eee9}
+.atlas-confidence-options button.active{color:#dff4ed;border-color:rgba(120,199,183,.58);background:rgba(120,199,183,.13);box-shadow:inset 0 0 0 1px rgba(120,199,183,.12)}
+.atlas-confidence-options button.active>span{color:#08251f;border-color:var(--atlas-teal);background:var(--atlas-teal)}
+.atlas-confidence-scale{display:flex;justify-content:space-between;color:#70859a;font-size:9px}
+.atlas-academics-workspace .atlas-button,.atlas-academics-workspace .atlas-mini-action,.atlas-topic-toggle{transition:transform .18s ease,border-color .2s ease,background .2s ease,color .2s ease,box-shadow .2s ease}
+.atlas-academics-workspace .atlas-button:hover:not(:disabled){transform:translateY(-1px)}
+.atlas-academics-workspace .atlas-button:active:not(:disabled),.atlas-mini-action:active{transform:translateY(0) scale(.97)}
+.atlas-academics-workspace button:focus-visible,.atlas-academics-workspace input:focus-visible,.atlas-academics-workspace select:focus-visible,.atlas-academics-workspace textarea:focus-visible{outline:2px solid rgba(120,199,183,.78);outline-offset:2px}
+.atlas-topic-node{animation:atlas-soft-enter .32s ease both}
+.atlas-import-review,.atlas-manual-topic-form,.atlas-progress-form{animation:atlas-soft-enter .28s ease both}
+.atlas-concept-row{transition:background .2s ease,border-color .2s ease}
+.atlas-inline-form input,.atlas-inline-form select,.atlas-progress-form select,.atlas-progress-form textarea{transition:border-color .2s ease,box-shadow .2s ease}
+.atlas-inline-form input:focus,.atlas-inline-form select:focus,.atlas-progress-form select:focus,.atlas-progress-form textarea:focus{border-color:rgba(120,199,183,.55);box-shadow:0 0 0 3px rgba(120,199,183,.08);outline:none}
+.atlas-readiness-track i{transition:width .55s cubic-bezier(.2,.75,.25,1)}
+@keyframes atlas-soft-enter{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:520px){.atlas-confidence-options{gap:4px}.atlas-confidence-options button{padding:8px 1px}.atlas-confidence-options button small{font-size:8px}.atlas-add-concept-form{margin-left:10px}}
+@media(prefers-reduced-motion:reduce){.atlas-academics-workspace *, .atlas-academics-workspace *::before,.atlas-academics-workspace *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}

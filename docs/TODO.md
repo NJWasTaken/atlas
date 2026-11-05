@@ -8,20 +8,31 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 ## Near-term: make the current slice dependable
 
-- [ ] Add automated backend tests for authentication, ownership boundaries, subject/topic/concept CRUD, topic hierarchy validation, progress updates, readiness counts, calendar notes, and exam CRUD.
+- [x] Establish an isolated pytest/FastAPI test harness and add backend API regression tests for authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation, partial progress PATCH behavior, readiness counts, calendar-note ownership/range validation, and exam CRUD/ownership.
+- [x] Run the initial 10-test backend API suite successfully in GitHub Actions.
+- [x] Expand backend regression coverage for topic updates, required-field validation, concept deletion, calendar-note update/delete, and exam validation/ownership.
+- [x] Run the expanded 15-test backend API suite successfully in GitHub Actions.
+- [x] Verify subject/concept partial-update endpoints and ownership validation in the expanded backend suite.
+- [ ] Add PostgreSQL-backed integration coverage for database-specific behavior before treating backend validation as complete.
 - [ ] Add frontend tests for key user flows: login/register, subject creation, topic/concept progress, calendar note persistence, and exam create/edit/delete from both views.
-- [ ] Add CI checks for frontend TypeScript/build and backend tests.
-- [ ] Introduce Alembic migrations before changing deployed database schemas; replace startup-only `Base.metadata.create_all()` as the schema-evolution mechanism.
+- [x] Verify the syllabus-import UI TypeScript check and production build pass in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983099966).
+- [x] Verify the 21-test syllabus/backend suite and full SQLite migration chain in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983287215).
+- [x] Add CI execution for the backend pytest suite on development pushes and relevant pull requests.
+- [x] Add CI checks for frontend TypeScript and production build.
+- [x] Add Alembic configuration, the initial seven-table baseline, and the follow-up source-page-reference migration; CI validates upgrade, metadata consistency, and downgrade on SQLite.
+- [ ] Document and execute safe baseline adoption for existing databases, then switch application startup away from `Base.metadata.create_all()` once all environments are migrated.
 - [ ] Review production configuration: require a strong JWT secret, define safe CORS origins, document required environment variables, and avoid development fallback credentials outside local development.
 - [ ] Improve API error/loading/empty states and accessibility across the current screens.
 
 ## Academics completion
 
-- [ ] Complete subject management with edit/update support and semester/term metadata; the API currently supports listing, creating, and deleting subjects.
-- [ ] Add UI controls to rename/reorder topics and edit concepts; topic update exists in the API, but the workspace UI does not expose it.
-- [ ] Add syllabus editing/import workflows. Manual topic and concept entry exists, but there is no syllabus document upload or extraction.
-- [ ] Implement PDF upload and text extraction, identify headings/hierarchy, and retain page references.
-- [ ] Add a draft review/confirmation step before imported syllabus data is saved.
+- [x] Add subject editing for name, course code, and description in the UI and API.
+- [ ] Add semester/term metadata and filtering to subject management.
+- [x] Add inline rename controls for topics and concepts, backed by ownership-checked partial PATCH endpoints. Reordering and richer descriptions remain future work.
+- [x] Make manual syllabus construction a first-class path: add chapters/subchapters from scratch and add concepts directly within their chapter, independently of PDF import.
+- [x] Replace the native confidence slider with a themed five-step accessible choice control; polish interaction states, transitions, and reduced-motion behavior in the Academics workspace.
+- [x] Add PDF upload and selectable-text extraction with conservative chapter/concept heading detection and page references. Scanned PDF OCR remains unsupported.
+- [x] Add an editable draft review/confirmation step; imported items are only persisted after explicit confirmation and append to existing syllabus content.
 - [ ] Add syllabus versioning and migration-backed schema support.
 - [ ] Expand readiness/revision from current self-assessment counts into explainable, exam-aware recommendations.
 - [ ] Add review history and consider spaced-repetition scheduling.

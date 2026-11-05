@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import String, Text, DateTime, ForeignKey, Integer, UniqueConstraint, CheckConstraint
+from sqlalchemy import String, Text, DateTime, ForeignKey, Integer, UniqueConstraint, CheckConstraint, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
@@ -11,6 +11,7 @@ class Topic(Base):
     title: Mapped[str] = mapped_column(String(180), nullable=False)
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_pages: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     parent = relationship("Topic", remote_side="Topic.id", back_populates="children")
     children = relationship("Topic", back_populates="parent", cascade="all, delete-orphan")
@@ -22,6 +23,7 @@ class Concept(Base):
     topic_id: Mapped[int] = mapped_column(ForeignKey("topics.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(180), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_pages: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     topic = relationship("Topic", back_populates="concepts")
     progress = relationship("ConceptProgress", cascade="all, delete-orphan", back_populates="concept")

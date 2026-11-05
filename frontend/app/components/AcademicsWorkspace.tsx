@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen, ChevronDown, ChevronRight, Plus, Trash2, Pencil, Brain, Target,
-  CalendarDays, RefreshCw, Check, AlertCircle, Layers3, Sparkles
+  CalendarDays, RefreshCw, Check, AlertCircle, Layers3, Sparkles, FileUp, X
 } from "lucide-react";
 import { api } from "../../lib/api";
 
 type Subject = { id: number; name: string; code?: string | null; description?: string | null };
-type Topic = { id: number; subject_id: number; parent_topic_id: number | null; title: string; description?: string | null; position: number };
-type Concept = { id: number; topic_id: number; title: string; description?: string | null; position: number };
+type Topic = { id: number; subject_id: number; parent_topic_id: number | null; title: string; description?: string | null; source_pages?: number[] | null; position: number };
+type Concept = { id: number; topic_id: number; title: string; description?: string | null; source_pages?: number[] | null; position: number };
 type Progress = {
   id?: number; concept_id: number; exposure: "not_started" | "studied";
   understanding: "not_assessed" | "weak" | "developing" | "strong";
@@ -18,6 +18,9 @@ type Progress = {
 };
 type Readiness = { subject_id: number; total_concepts: number; strong: number; developing: number; weak: number; not_assessed: number; recommendations: {reason:string;count:number;message:string}[] };
 type Exam = { id:number; subject_id:number; title:string; exam_date:string };
+type DraftConcept = { title:string; source_pages:number[] };
+type DraftTopic = { title:string; source_pages:number[]; concepts:DraftConcept[] };
+type SyllabusDraft = { file_name:string; page_count:number; extracted_characters:number; topics:DraftTopic[]; warnings:string[] };
 
 const blankProgress: Progress = { concept_id: 0, exposure:"not_started", understanding:"not_assessed", recall:"not_assessed", confidence:null, notes:"" };
 
@@ -32,6 +35,8 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
   const [expanded, setExpanded] = useState<number[]>([]);
   const [topicTitle, setTopicTitle] = useState("");
   const [conceptTitle, setConceptTitle] = useState("");
+  const [editingItem, setEditingItem] = useState<{kind:"topic"|"concept";id:number}|null>(null);
+  const [editTitle, setEditTitle] = useState("");
   const [examTitle, setExamTitle] = useState("End-semester examination");
   const [examDate, setExamDate] = useState("");
   const [editingExamId, setEditingExamId] = useState<number | null>(null);
@@ -42,6 +47,8 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [importDraft, setImportDraft] = useState<SyllabusDraft | null>(null);
+  const [uploadingSyllabus, setUploadingSyllabus] = useState(false);
 
   const subject = subjects.find(s => s.id === subjectId) ?? null;
   const topicMap = useMemo(() => new Map(topics.map(t => [t.id, t])), [topics]);
@@ -93,6 +100,78 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
       setNotice("Concept added.");
     } catch(e) { setError(e instanceof Error ? e.message : "Could not add concept."); }
     finally { setBusy(false); }
+  }
+
+  async function uploadSyllabus(file: File) {
+    if (subjectId === null) return;
+    if (file.size > 12 * 1024 * 1024) { setError("This PDF is larger than the 12 MB upload limit."); return; }
+    setUploadingSyllabus(true); setError(""); setNotice("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const draft = await api<SyllabusDraft>("/subjects/" + subjectId + "/syllabus/draft", {method:"POST",body:form});
+      setImportDraft(draft);
+      setNotice("Draft extracted. Review every section before adding it to your syllabus.");
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not read this PDF."); }
+    finally { setUploadingSyllabus(false); }
+  }
+
+  function updateDraftTopic(index:number, changes:Partial<DraftTopic>) {
+    setImportDraft(current => current ? {...current,topics:current.topics.map((topic,i)=>i===index?{...topic,...changes}:topic)} : current);
+  }
+
+  function updateDraftConcept(topicIndex:number, conceptIndex:number, changes:Partial<DraftConcept>) {
+    setImportDraft(current => current ? {...current,topics:current.topics.map((topic,i)=>i===topicIndex?{...topic,concepts:topic.concepts.map((concept,j)=>j===conceptIndex?{...concept,...changes}:concept)}:topic)} : current);
+  }
+
+  function addDraftTopic() {
+    setImportDraft(current => current ? {...current,topics:[...current.topics,{title:"New chapter",source_pages:[],concepts:[]}]} : current);
+  }
+
+  function addDraftConcept(topicIndex:number) {
+    setImportDraft(current => current ? {...current,topics:current.topics.map((topic,i)=>i===topicIndex?{...topic,concepts:[...topic.concepts,{title:"New concept",source_pages:[]}]}:topic)} : current);
+  }
+
+  async function confirmSyllabusImport() {
+    if (subjectId === null || !importDraft?.topics.length) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await api<{topics_created:number;concepts_created:number}>(
+        "/subjects/" + subjectId + "/syllabus/confirm",
+        {method:"POST",body:JSON.stringify({topics:importDraft.topics})}
+      );
+      setImportDraft(null);
+      await loadWorkspace(subjectId);
+      setNotice("Added " + result.topics_created + " chapters and " + result.concepts_created + " concepts to your syllabus.");
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not add the reviewed syllabus."); }
+    finally { setBusy(false); }
+  }
+
+  function beginItemEdit(kind: "topic" | "concept", item: Topic | Concept) {
+    setEditingItem({kind, id:item.id});
+    setEditTitle(item.title);
+    setError("");
+  }
+
+  async function saveItemEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingItem || !editTitle.trim()) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const path = editingItem.kind === "topic" ? "topics" : "concepts";
+      const updated = await api<Topic | Concept>(`/${path}/${editingItem.id}`, {
+        method:"PATCH",
+        body:JSON.stringify({title:editTitle.trim()})
+      });
+      if (editingItem.kind === "concept" && selectedConcept?.id === editingItem.id) {
+        setSelectedConcept(updated as Concept);
+      }
+      setEditingItem(null);
+      if (subjectId !== null) await loadWorkspace(subjectId);
+      setNotice(`${editingItem.kind === "topic" ? "Topic" : "Concept"} updated.`);
+    } catch(e) {
+      setError(e instanceof Error ? e.message : "Could not update this item.");
+    } finally { setBusy(false); }
   }
 
   async function chooseConcept(concept: Concept) {
@@ -193,28 +272,46 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
         </button>
         <Layers3 size={15} className="atlas-topic-icon"/>
         <span className="atlas-topic-title">{topic.title}</span>
+        {topic.source_pages?.length ? <span className="atlas-topic-source">p. {topic.source_pages.join(", ")}</span> : null}
         <span className="atlas-topic-count">{items.length} concepts</span>
-        <button className="atlas-mini-action" onClick={()=>setAddingConcept(topic.id)} title="Add concept"><Plus size={14}/></button>
+        <button className="atlas-mini-action" onClick={()=>{setAddingConcept(topic.id);setExpanded(old=>old.includes(topic.id)?old:[...old,topic.id]);}} title="Add concept"><Plus size={14}/></button>
+        <button className="atlas-mini-action" onClick={()=>beginItemEdit("topic",topic)} title="Rename topic" aria-label={`Rename ${topic.title}`}><Pencil size={13}/></button>
         <button className="atlas-mini-action danger" onClick={()=>removeTopic(topic.id)} title="Delete topic"><Trash2 size={13}/></button>
       </div>
+      {editingItem?.kind === "topic" && editingItem.id === topic.id && <form className="atlas-inline-form atlas-edit-inline-form" onSubmit={saveItemEdit}>
+        <label>Rename topic<input autoFocus value={editTitle} onChange={e=>setEditTitle(e.target.value)} required maxLength={180}/></label>
+        <div><button className="atlas-button atlas-primary" disabled={busy}>Save name</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setEditingItem(null)}>Cancel</button></div>
+      </form>}
       {isOpen && <div className="atlas-topic-children">
-        {items.map(c=><div className={`atlas-concept-row ${selectedConcept?.id===c.id?"selected":""}`} key={c.id}>
-          <button onClick={()=>void chooseConcept(c)}><Brain size={14}/><span>{c.title}</span></button>
-          <button className="atlas-mini-action danger" onClick={()=>removeConcept(c.id)} title="Delete concept"><Trash2 size={12}/></button>
+        {items.map(c=><div className="atlas-concept-entry" key={c.id}>
+          <div className={`atlas-concept-row ${selectedConcept?.id===c.id?"selected":""}`}>
+            <button onClick={()=>void chooseConcept(c)}><Brain size={14}/><span>{c.title}</span></button>
+            {c.source_pages?.length ? <small className="atlas-concept-source">p. {c.source_pages.join(", ")}</small> : null}
+            <button className="atlas-mini-action" onClick={()=>beginItemEdit("concept",c)} title="Rename concept" aria-label={`Rename ${c.title}`}><Pencil size={12}/></button>
+            <button className="atlas-mini-action danger" onClick={()=>removeConcept(c.id)} title="Delete concept"><Trash2 size={12}/></button>
+          </div>
+          {editingItem?.kind === "concept" && editingItem.id === c.id && <form className="atlas-inline-form atlas-edit-inline-form" onSubmit={saveItemEdit}>
+            <label>Rename concept<input autoFocus value={editTitle} onChange={e=>setEditTitle(e.target.value)} required maxLength={180}/></label>
+            <div><button className="atlas-button atlas-primary" disabled={busy}>Save name</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setEditingItem(null)}>Cancel</button></div>
+          </form>}
         </div>)}
         {children.map(child=>renderTopic(child,depth+1))}
         {!items.length&&!children.length&&<p className="atlas-topic-empty">No concepts here yet. Add the first one.</p>}
       </div>}
+      {isOpen && addingConcept===topic.id && <form className="atlas-inline-form atlas-add-concept-form" onSubmit={addConcept}>
+        <label>New concept<input autoFocus value={conceptTitle} onChange={e=>setConceptTitle(e.target.value)} placeholder="e.g. Backpropagation" required maxLength={180}/></label>
+        <div><button className="atlas-button atlas-primary" disabled={busy}>{busy?"Saving…":"Add concept"}<Check size={14}/></button><button type="button" className="atlas-button atlas-secondary" onClick={()=>{setAddingConcept(null);setConceptTitle("");}}>Cancel</button></div>
+      </form>}
     </div>;
   }
 
-  if (!subjects.length) return <div className="atlas-academics-empty"><div className="atlas-academics-empty-icon"><BookOpen size={24}/></div><h3>Start with a subject</h3><p>Add a subject first, then build its syllabus chapter by chapter. You can keep it manual for now; PDF import comes next.</p></div>;
+  if (!subjects.length) return <div className="atlas-academics-empty"><div className="atlas-academics-empty-icon"><BookOpen size={24}/></div><h3>Start with a subject</h3><p>Add a subject first, then build its syllabus manually or import a PDF and review the suggested chapters before saving.</p></div>;
 
   return <div className="atlas-academics-workspace">
-    {error && <div className="atlas-academics-alert"><AlertCircle size={15}/>{error}<button onClick={()=>setError("")}>Dismiss</button></div>}
-    {notice && <div className="atlas-academics-notice"><Check size={15}/>{notice}<button onClick={()=>setNotice("")}>×</button></div>}
+    {error && <div className="atlas-academics-alert" role="alert"><AlertCircle size={15}/>{error}<button onClick={()=>setError("")}>Dismiss</button></div>}
+    {notice && <div className="atlas-academics-notice" role="status"><Check size={15}/>{notice}<button onClick={()=>setNotice("")}>×</button></div>}
     <div className="atlas-academics-toolbar">
-      <label><span>WORKING IN</span><select value={subjectId ?? ""} onChange={e=>{setSubjectId(Number(e.target.value));setSelectedConcept(null);}}>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}{s.code?` · ${s.code}`:""}</option>)}</select></label>
+      <label><span>WORKING IN</span><select value={subjectId ?? ""} onChange={e=>{setSubjectId(Number(e.target.value));setSelectedConcept(null);setImportDraft(null);}}>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}{s.code?` · ${s.code}`:""}</option>)}</select></label>
       <div className="atlas-academics-actions"><button className="atlas-button atlas-secondary" onClick={()=>void loadWorkspace(subjectId!)}><RefreshCw size={14}/> Refresh</button><button className="atlas-button atlas-primary" onClick={()=>{setParentId(null);setAddingTopic(true);}}><Plus size={14}/> Add chapter</button></div>
     </div>
 
@@ -225,10 +322,45 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
 
     <div className="atlas-academics-columns">
       <section className="atlas-academics-panel atlas-syllabus-panel">
-        <div className="atlas-panel-heading"><div><p className="eyebrow">THE KNOWLEDGE MAP</p><h3>Chapters & concepts</h3></div><span className="atlas-panel-tag">FILL IN YOUR SYLLABUS HERE</span></div>
-        {roots.length ? roots.map(t=>renderTopic(t)) : <div className="atlas-syllabus-empty"><BookOpen size={22}/><strong>Your syllabus is a blank page.</strong><span>Add your first chapter to start shaping it.</span></div>}
-        {addingTopic && <form className="atlas-inline-form" onSubmit={addTopic}><label>Chapter or topic title<input autoFocus value={topicTitle} onChange={e=>setTopicTitle(e.target.value)} placeholder="e.g. Neural Networks" required/></label><label>Nested under<select value={parentId??""} onChange={e=>setParentId(e.target.value?Number(e.target.value):null)}><option value="">Top-level chapter</option>{topics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></label><div><button className="atlas-button atlas-primary" disabled={busy}>Save topic</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setAddingTopic(false)}>Cancel</button></div></form>}
-        {addingConcept!==null && <form className="atlas-inline-form" onSubmit={addConcept}><label>Concept title<input autoFocus value={conceptTitle} onChange={e=>setConceptTitle(e.target.value)} placeholder="e.g. Backpropagation" required/></label><div><button className="atlas-button atlas-primary" disabled={busy}>Save concept</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setAddingConcept(null)}>Cancel</button></div></form>}
+        <div className="atlas-panel-heading"><div><p className="eyebrow">THE KNOWLEDGE MAP</p><h3>Chapters & concepts</h3></div><div className="atlas-syllabus-heading-actions">
+          <button type="button" className="atlas-button atlas-secondary" onClick={()=>{setParentId(null);setTopicTitle("");setAddingTopic(true);}}><Plus size={14}/> Build manually</button>
+          <label className="atlas-button atlas-secondary atlas-upload-button"><FileUp size={14}/>{uploadingSyllabus?"Reading PDF…":"Import from PDF"}<input type="file" accept="application/pdf,.pdf" disabled={uploadingSyllabus||busy} onChange={e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value="";if(file)void uploadSyllabus(file);}}/></label>
+        </div></div>
+        {addingTopic && <form className="atlas-inline-form atlas-manual-topic-form" onSubmit={addTopic}>
+          <div className="atlas-manual-form-intro"><strong>Build your syllabus</strong><span>Add a chapter or nest it under an existing one. You can add concepts as you go.</span></div>
+          <label>Chapter or subchapter title<input autoFocus value={topicTitle} onChange={e=>setTopicTitle(e.target.value)} placeholder="e.g. Neural Networks" required maxLength={180}/></label>
+          <label>Parent chapter<select value={parentId??""} onChange={e=>setParentId(e.target.value?Number(e.target.value):null)}><option value="">Top-level chapter</option>{topics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></label>
+          <div><button className="atlas-button atlas-primary" disabled={busy}>{busy?"Saving…":"Add chapter"}<Check size={14}/></button><button type="button" className="atlas-button atlas-secondary" onClick={()=>{setAddingTopic(false);setTopicTitle("");setParentId(null);}}>Cancel</button></div>
+        </form>}
+        {importDraft && <section className="atlas-import-review">
+          <div className="atlas-import-review-heading">
+            <div><p className="eyebrow">NOT SAVED YET</p><h4>Review your syllabus draft</h4><p>{importDraft.file_name} · {importDraft.page_count} pages · {importDraft.topics.length} detected chapters</p></div>
+            <button className="atlas-mini-action" onClick={()=>setImportDraft(null)} title="Discard draft" aria-label="Discard draft"><X size={16}/></button>
+          </div>
+          {importDraft.warnings.map((warning,i)=><p className="atlas-import-warning" key={i}><AlertCircle size={14}/>{warning}</p>)}
+          <p className="atlas-import-explainer">Check the detected headings, rename anything odd, and remove anything that doesn't belong. Page references are kept when you confirm.</p>
+          <div className="atlas-import-draft-list">
+            {importDraft.topics.map((topic,i)=><article className="atlas-import-topic" key={i}>
+              <div className="atlas-import-topic-title">
+                <label><span>CHAPTER {i+1}</span><input value={topic.title} onChange={e=>updateDraftTopic(i,{title:e.target.value})} maxLength={180}/></label>
+                <span className="atlas-source-page">{topic.source_pages.length ? "PDF p. " + topic.source_pages.join(", ") : "Added manually"}</span>
+                <button className="atlas-mini-action danger" onClick={()=>setImportDraft(current=>current?{...current,topics:current.topics.filter((_,j)=>j!==i)}:current)} title="Remove chapter" aria-label={"Remove " + topic.title}><Trash2 size={14}/></button>
+              </div>
+              {topic.concepts.map((concept,j)=><div className="atlas-import-concept" key={j}>
+                <input value={concept.title} onChange={e=>updateDraftConcept(i,j,{title:e.target.value})} maxLength={180} aria-label={"Concept " + (j+1) + " in " + topic.title}/>
+                <span>{concept.source_pages.length ? "p. " + concept.source_pages.join(", ") : "Manual"}</span>
+                <button className="atlas-mini-action danger" onClick={()=>updateDraftTopic(i,{concepts:topic.concepts.filter((_,k)=>k!==j)})} title="Remove concept" aria-label="Remove concept"><X size={13}/></button>
+              </div>)}
+              <button className="atlas-import-add-concept" onClick={()=>addDraftConcept(i)}><Plus size={13}/> Add concept</button>
+            </article>)}
+          </div>
+          <div className="atlas-import-review-actions">
+            <button className="atlas-button atlas-secondary" onClick={addDraftTopic}><Plus size={14}/> Add chapter</button>
+            <div><button className="atlas-button atlas-secondary" onClick={()=>setImportDraft(null)} disabled={busy}>Discard</button><button className="atlas-button atlas-primary" onClick={()=>void confirmSyllabusImport()} disabled={busy||!importDraft.topics.length||importDraft.topics.some(t=>!t.title.trim()||t.concepts.some(x=>!x.title.trim()))}>{busy?"Adding…":"Add to syllabus"}<Check size={14}/></button></div>
+          </div>
+          <p className="atlas-import-footnote">This adds the reviewed items alongside any chapters already in this subject. It does not replace your existing syllabus.</p>
+        </section>}
+        {roots.length ? roots.map(t=>renderTopic(t)) : <div className="atlas-syllabus-empty"><BookOpen size={22}/><strong>Your syllabus is a blank page.</strong><span>Start from scratch with a chapter, or bring in an existing syllabus PDF.</span><button type="button" className="atlas-button atlas-primary" onClick={()=>{setParentId(null);setTopicTitle("");setAddingTopic(true);}}><Plus size={14}/> Add your first chapter</button></div>}
       </section>
 
       <section className="atlas-academics-panel atlas-progress-panel">
@@ -238,7 +370,14 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
           <label>Exposure<select value={progress.exposure} onChange={e=>setProgress({...progress,exposure:e.target.value as Progress["exposure"]})}><option value="not_started">Not started</option><option value="studied">I've studied this</option></select></label>
           <label>Understanding<select value={progress.understanding} onChange={e=>setProgress({...progress,understanding:e.target.value as Progress["understanding"]})}><option value="not_assessed">Not assessed</option><option value="weak">Weak — needs a rethink</option><option value="developing">Developing — getting there</option><option value="strong">Strong — I can explain it</option></select></label>
           <label>Recall<select value={progress.recall} onChange={e=>setProgress({...progress,recall:e.target.value as Progress["recall"]})}><option value="not_assessed">Not assessed</option><option value="needs_practice">Needs practice</option><option value="comfortable">Comfortable</option></select></label>
-          <label>Confidence <strong className="atlas-confidence-value">{progress.confidence===null?"—":`${progress.confidence}/5`}</strong><input type="range" min="1" max="5" value={progress.confidence??3} onChange={e=>setProgress({...progress,confidence:Number(e.target.value)})}/></label>
+          <div className="atlas-confidence-control">
+            <div className="atlas-confidence-heading"><label>Confidence</label><strong className="atlas-confidence-value">{progress.confidence===null?"Not rated":`${progress.confidence} / 5`}</strong></div>
+            <p>How sure are you that you could explain this without looking at your notes?</p>
+            <div className="atlas-confidence-options" role="group" aria-label="Confidence level">
+              {[1,2,3,4,5].map(value=><button key={value} type="button" aria-pressed={progress.confidence===value} className={progress.confidence===value?"active":""} onClick={()=>setProgress({...progress,confidence:value})}><span>{value}</span><small>{["Unsure","Shaky","Okay","Good","Solid"][value-1]}</small></button>)}
+            </div>
+            <div className="atlas-confidence-scale"><span>Still learning</span><span>Could teach it</span></div>
+          </div>
           <label>Personal notes<textarea rows={3} value={progress.notes??""} onChange={e=>setProgress({...progress,notes:e.target.value})} placeholder="What clicked? What still feels fuzzy?"/></label>
           <button className="atlas-button atlas-primary atlas-full" disabled={busy}><Check size={14}/> Save progress</button>
         </form> : <div className="atlas-progress-empty"><Brain size={25}/><strong>Pick a concept to check in with yourself.</strong><span>Track understanding and recall separately. Being exposed to a topic isn't the same as knowing it.</span></div>}

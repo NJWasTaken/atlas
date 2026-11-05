@@ -179,3 +179,10 @@ main{position:relative;z-index:1}h1,h2,h3{margin:0;font-family:'Cormorant Garamo
 @media(max-width:1000px){.atlas-calendar-panel{grid-template-columns:minmax(0,1.2fr) minmax(230px,.8fr)}.atlas-calendar-main{padding:23px 20px}.atlas-day-note{padding:23px 19px}}
 @media(max-width:760px){.atlas-calendar-panel{grid-template-columns:1fr}.atlas-day-note{border-top:1px solid rgba(197,168,117,.14);border-left:0}.atlas-day-note textarea{min-height:100px}}
 @media(max-width:480px){.atlas-calendar-main{padding:20px 13px}.atlas-calendar-heading{flex-direction:column}.atlas-calendar-controls{align-self:flex-end;margin-top:-4px}.atlas-calendar-day{min-height:31px;font-size:9px}.atlas-day-note{padding:22px 18px}}
+
+.atlas-subject-card-actions{display:flex;align-items:center;gap:12px}
+.atlas-subject-card .atlas-edit-subject{color:var(--atlas-blue)}
+.atlas-subject-card .atlas-edit-subject:hover{color:#b8d6f3}
+.atlas-modal-label textarea{width:100%;min-height:76px;padding:11px 12px;color:var(--ivory);border:1px solid var(--cool);border-radius:0;background:rgba(6,17,29,.55);font:11px/1.6 'DM Sans',sans-serif;resize:vertical}
+.atlas-modal-label textarea:focus{outline:none;border-color:rgba(133,181,229,.6)}
+.atlas-subject-card .atlas-remove{opacity:1}
