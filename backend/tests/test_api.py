@@ -500,6 +500,7 @@ def test_syllabus_pdf_draft_is_review_only_and_user_scoped(client: TestClient, m
 def test_syllabus_confirm_persists_reviewed_items_and_page_references(client: TestClient):
     headers = auth_headers(register(client, "syllabus-confirm@example.com"))
     subject = client.post("/api/v1/subjects", headers=headers, json={"name": "Operating Systems"}).json()
+    existing = client.post(f"/api/v1/subjects/{subject['id']}/topics", headers=headers, json={"title": "Existing manual chapter"}).json()
     response = client.post(
         f"/api/v1/subjects/{subject['id']}/syllabus/confirm",
         headers=headers,
@@ -519,7 +520,8 @@ def test_syllabus_confirm_persists_reviewed_items_and_page_references(client: Te
     concepts = client.get(f"/api/v1/subjects/{subject['id']}/concepts", headers=headers).json()
     assert topics[0]["source_pages"] == [1, 2]
     assert concepts[0]["source_pages"] == [2]
-    assert [topic["title"] for topic in topics] == ["Processes", "Memory management"]
+    assert [topic["title"] for topic in topics] == ["Existing manual chapter", "Processes", "Memory management"]
+    assert topics[1]["position"] > existing["position"]
 
 
 def test_syllabus_confirm_rejects_empty_draft_and_other_users(client: TestClient):
