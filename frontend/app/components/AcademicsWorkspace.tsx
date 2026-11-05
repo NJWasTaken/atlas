@@ -308,8 +308,9 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
     e.preventDefault(); if(subjectId===null || !examDate) return;
     setBusy(true); setError("");
     try {
-      await api<Exam>("/exams",{method:"POST",body:JSON.stringify({subject_id:subjectId,title:examTitle,exam_date:new Date(examDate).toISOString()})});
+      await api<Exam>("/exams",{method:"POST",body:JSON.stringify({subject_id:subjectId,title:examTitle.trim(),exam_date:new Date(examDate).toISOString()})});
       setExamTitle("End-semester examination"); setExamDate(""); setAddingExam(false); await loadWorkspace(subjectId); onOverviewRefresh?.();
+      setNotice("Exam added to your calendar.");
     } catch(e) { setError(e instanceof Error ? e.message : "Could not add exam."); }
     finally { setBusy(false); }
   }
@@ -361,14 +362,30 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
   }
 
   async function removeTopic(id:number) {
-    if(!confirm("Delete this topic, its nested topics, concepts and progress?")) return;
-    try { await api<void>(`/topics/${id}`,{method:"DELETE"}); if(subjectId!==null) await loadWorkspace(subjectId); if(selectedConcept && topics.some(t=>t.id===id)) setSelectedConcept(null); }
-    catch(e) { setError(e instanceof Error ? e.message : "Could not delete topic."); }
+    const topic = topics.find(item=>item.id===id);
+    if(!topic || !window.confirm(`Delete "${topic.title}", its nested topics, concepts and progress?`)) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await api<void>(`/topics/${id}`,{method:"DELETE"});
+      if(subjectId!==null) await loadWorkspace(subjectId);
+      setSelectedConcept(null); setReviews([]); setPrerequisites([]); setPrerequisiteIds([]);
+      onOverviewRefresh?.();
+      setNotice("Topic and its nested learning items deleted.");
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not delete topic."); }
+    finally { setBusy(false); }
   }
   async function removeConcept(id:number) {
-    if(!confirm("Delete this concept and its progress?")) return;
-    try { await api<void>(`/concepts/${id}`,{method:"DELETE"}); if(subjectId!==null) await loadWorkspace(subjectId); if(selectedConcept?.id===id) setSelectedConcept(null); }
-    catch(e) { setError(e instanceof Error ? e.message : "Could not delete concept."); }
+    const concept = concepts.find(item=>item.id===id);
+    if(!concept || !window.confirm(`Delete "${concept.title}" and its progress?`)) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await api<void>(`/concepts/${id}`,{method:"DELETE"});
+      if(subjectId!==null) await loadWorkspace(subjectId);
+      if(selectedConcept?.id===id) { setSelectedConcept(null); setReviews([]); setPrerequisites([]); setPrerequisiteIds([]); }
+      onOverviewRefresh?.();
+      setNotice("Concept and its progress deleted.");
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not delete concept."); }
+    finally { setBusy(false); }
   }
 
   function renderTopic(topic: Topic, depth = 0): React.ReactNode {
@@ -386,7 +403,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
         <span className="atlas-topic-count">{items.length} concepts</span>
         <button className="atlas-mini-action" onClick={()=>{setAddingConcept(topic.id);setExpanded(old=>old.includes(topic.id)?old:[...old,topic.id]);}} title="Add concept"><Plus size={14}/></button>
         <button className="atlas-mini-action" onClick={()=>beginItemEdit("topic",topic)} title="Rename topic" aria-label={`Rename ${topic.title}`}><Pencil size={13}/></button>
-        <button className="atlas-mini-action danger" onClick={()=>removeTopic(topic.id)} title="Delete topic"><Trash2 size={13}/></button>
+        <button className="atlas-mini-action danger" onClick={()=>removeTopic(topic.id)} disabled={busy} title="Delete topic"><Trash2 size={13}/></button>
       </div>
       {editingItem?.kind === "topic" && editingItem.id === topic.id && <form className="atlas-inline-form atlas-edit-inline-form" onSubmit={saveItemEdit}>
         <label>Rename topic<input autoFocus value={editTitle} onChange={e=>setEditTitle(e.target.value)} required maxLength={180}/></label>
@@ -398,7 +415,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
             <button onClick={()=>void chooseConcept(c)}><Brain size={14}/><span>{c.title}</span></button>
             {c.source_pages?.length ? <small className="atlas-concept-source">p. {c.source_pages.join(", ")}</small> : null}
             <button className="atlas-mini-action" onClick={()=>beginItemEdit("concept",c)} title="Rename concept" aria-label={`Rename ${c.title}`}><Pencil size={12}/></button>
-            <button className="atlas-mini-action danger" onClick={()=>removeConcept(c.id)} title="Delete concept"><Trash2 size={12}/></button>
+            <button className="atlas-mini-action danger" onClick={()=>removeConcept(c.id)} disabled={busy} title="Delete concept"><Trash2 size={12}/></button>
           </div>
           {editingItem?.kind === "concept" && editingItem.id === c.id && <form className="atlas-inline-form atlas-edit-inline-form" onSubmit={saveItemEdit}>
             <label>Rename concept<input autoFocus value={editTitle} onChange={e=>setEditTitle(e.target.value)} required maxLength={180}/></label>
@@ -416,6 +433,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
   }
 
   if (!subjects.length) return <div className="atlas-academics-empty"><div className="atlas-academics-empty-icon"><BookOpen size={24}/></div><h3>Start with a subject</h3><p>Add a subject first, then build its syllabus manually or import a PDF and review the suggested chapters before saving.</p></div>;
+  if (!visibleSubjects.length) return <div className="atlas-academics-empty"><div className="atlas-academics-empty-icon"><BookOpen size={24}/></div><h3>No subjects in this term</h3><p>There are no subjects tagged with “{termFilter}”. Choose another term or clear the filter.</p><button type="button" className="atlas-button atlas-secondary" onClick={()=>setTermFilter("all")}>Show all terms</button></div>;
 
   return <div className="atlas-academics-workspace" aria-busy={workspaceLoading}>
     {workspaceError && <div className="atlas-academics-alert" role="alert"><AlertCircle size={15}/><span>Could not load this subject. {workspaceError}</span><button type="button" onClick={()=>void loadWorkspace(subjectId!)} disabled={workspaceLoading}>{workspaceLoading?"Retrying…":"Try again"}</button><button type="button" onClick={()=>setWorkspaceError("")}>Dismiss</button></div>}
@@ -427,7 +445,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
       <div className="atlas-academics-actions"><button className="atlas-button atlas-secondary" onClick={()=>void loadWorkspace(subjectId!)} disabled={workspaceLoading}><RefreshCw size={14}/> {workspaceLoading?"Loading…":"Refresh"}</button><button className="atlas-button atlas-secondary" onClick={()=>setShowVersionHistory(value=>!value)}>History ({versions.length})</button><button className="atlas-button atlas-primary" onClick={()=>{setParentId(null);setAddingTopic(true);}}><Plus size={14}/> Add chapter</button></div>
     </div>
 
-    {!visibleSubjects.length && <div className="atlas-academics-empty">No subjects in this term yet.</div>}
+    
 
     {showVersionHistory && <section className="atlas-syllabus-history"><div className="atlas-panel-heading"><div><p className="eyebrow">SYLLABUS TIMELINE</p><h3>Saved versions</h3></div><button type="button" className="atlas-mini-action" onClick={()=>setShowVersionHistory(false)} aria-label="Close version history"><X size={15}/></button></div>{versions.length ? versions.map(version=><div className="atlas-version-row" key={version.id}><span>v{version.version_number}</span><div><strong>{version.label}</strong><small>{new Date(version.created_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"})}</small></div><button type="button" className="atlas-button atlas-secondary" onClick={()=>void inspectSyllabusVersion(version.id)}>Inspect</button></div>) : <p className="atlas-topic-empty">Your syllabus changes will create a version history as you edit.</p>}{selectedVersion&&<div className="atlas-version-preview"><div><strong>Version {selectedVersion.version_number}</strong><button type="button" className="atlas-mini-action" onClick={()=>setSelectedVersion(null)} aria-label="Close preview"><X size={14}/></button></div>{selectedVersion.snapshot.topics.map(topic=><p key={topic.id}><span>{topic.title}</span><small>{topic.concepts.length} concepts</small></p>)}<button type="button" className="atlas-button atlas-secondary" disabled={busy} onClick={()=>void restoreSyllabusVersion(selectedVersion)}>Restore this version</button></div>}</section>}
 
