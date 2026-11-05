@@ -78,7 +78,7 @@ def overview_data(db: Session = Depends(get_db), user: User = Depends(get_curren
     if subject_ids:
         concept_rows = db.execute(
             select(Subject.id, Subject.name, Subject.term, func.count(Concept.id),
-                   func.sum(case((ConceptProgress.id.is_not(None), 1), else_=0)))
+                   func.sum(case((and_(ConceptProgress.id.is_not(None), ConceptProgress.understanding != "not_assessed"), 1), else_=0)))
             .outerjoin(Topic, Topic.subject_id == Subject.id)
             .outerjoin(Concept, Concept.topic_id == Topic.id)
             .outerjoin(ConceptProgress, and_(ConceptProgress.concept_id == Concept.id, ConceptProgress.user_id == user.id))
