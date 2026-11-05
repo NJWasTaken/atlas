@@ -696,6 +696,8 @@ def test_concept_reviews_record_history_and_schedule_next_review(client: TestCli
     assert first.status_code == 200
     assert first.json()["next_review_at"]
     first_due = datetime.fromisoformat(first.json()["next_review_at"].replace("Z", "+00:00"))
+    if first_due.tzinfo is None:
+        first_due = first_due.replace(tzinfo=timezone.utc)
     assert timedelta(days=1) <= first_due - datetime.now(timezone.utc) <= timedelta(days=3)
 
     second = client.patch(
@@ -705,6 +707,8 @@ def test_concept_reviews_record_history_and_schedule_next_review(client: TestCli
     )
     assert second.status_code == 200
     second_due = datetime.fromisoformat(second.json()["next_review_at"].replace("Z", "+00:00"))
+    if second_due.tzinfo is None:
+        second_due = second_due.replace(tzinfo=timezone.utc)
     assert timedelta(days=13) <= second_due - datetime.now(timezone.utc) <= timedelta(days=15)
 
     history = client.get(f"/api/v1/concepts/{concept['id']}/reviews", headers=owner)
