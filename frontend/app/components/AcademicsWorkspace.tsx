@@ -76,12 +76,14 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
   }, [concepts]);
   const roots = topics.filter(t => !t.parent_topic_id);
 
-  async function loadWorkspace(id: number) {
+  async function loadWorkspace(id: number, options: { preserveSelection?: boolean } = {}) {
     const requestId = ++workspaceRequest.current;
     setWorkspaceLoading(true);
     setWorkspaceError("");
     setTopics([]); setConcepts([]); setReadiness(null); setExams([]); setVersions([]);
-    setSelectedConcept(null); setReviews([]); setPrerequisites([]); setPrerequisiteIds([]);
+    if (!options.preserveSelection) {
+      setSelectedConcept(null); setReviews([]); setPrerequisites([]); setPrerequisiteIds([]);
+    }
     try {
       const [nextTopics, nextConcepts, nextReadiness, nextExams, nextVersions] = await Promise.all([
         api<Topic[]>(`/subjects/${id}/topics`),
@@ -262,7 +264,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
       })});
       setProgress(saved);
       setReviews(await api<Review[]>(`/concepts/${selectedConcept.id}/reviews`));
-      if(subjectId!==null) await loadWorkspace(subjectId);
+      if(subjectId!==null) await loadWorkspace(subjectId, { preserveSelection: true });
       onOverviewRefresh?.();
       setNotice("Progress saved. Nice work showing up.");
     } catch(e) { setError(e instanceof Error ? e.message : "Could not save progress."); }
