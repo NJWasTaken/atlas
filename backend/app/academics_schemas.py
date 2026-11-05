@@ -170,3 +170,24 @@ class SyllabusVersionCreate(BaseModel):
         if not value:
             raise ValueError("label cannot be blank")
         return value
+
+
+class PrerequisiteUpdate(BaseModel):
+    prerequisite_ids: list[int] = Field(default_factory=list, max_length=50)
+
+    @field_validator("prerequisite_ids")
+    @classmethod
+    def unique_prerequisites(cls, value: list[int]) -> list[int]:
+        if len(value) != len(set(value)):
+            raise ValueError("prerequisite_ids must be unique")
+        if any(item <= 0 for item in value):
+            raise ValueError("prerequisite IDs must be positive")
+        return value
+
+
+class PrerequisiteOut(BaseModel):
+    id: int
+    title: str
+    topic_title: str
+    understanding: str
+    recall: str
