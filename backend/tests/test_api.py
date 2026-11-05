@@ -518,7 +518,7 @@ def test_syllabus_confirm_persists_reviewed_items_and_page_references(client: Te
 
     topics = client.get(f"/api/v1/subjects/{subject['id']}/topics", headers=headers).json()
     concepts = client.get(f"/api/v1/subjects/{subject['id']}/concepts", headers=headers).json()
-    assert topics[0]["source_pages"] == [1, 2]
+    assert topics[1]["source_pages"] == [1, 2]
     assert concepts[0]["source_pages"] == [2]
     assert [topic["title"] for topic in topics] == ["Existing manual chapter", "Processes", "Memory management"]
     assert topics[1]["position"] > existing["position"]
@@ -553,7 +553,7 @@ def test_syllabus_pdf_parser_rejects_non_pdf_and_detects_page_references(monkeyp
         is_encrypted=False,
         pages=[
             FakePage("UNIT I: INTRODUCTION\n1.1 Overview\n1.2 Data structures\n- Arrays and lists"),
-            FakePage("UNIT II: TREES\n2.1 Binary trees\n- Traversals"),
+            FakePage("Continuation of introduction notes\nUNIT II: TREES\n2.1 Binary trees\n- Traversals"),
         ],
     )
     monkeypatch.setattr(syllabus_import, "PdfReader", lambda *_args, **_kwargs: fake_reader)
