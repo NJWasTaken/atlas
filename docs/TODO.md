@@ -8,7 +8,8 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 ## Near-term: make the current slice dependable
 
-- [ ] Add automated backend tests for authentication, ownership boundaries, subject/topic/concept CRUD, topic hierarchy validation, progress updates, readiness counts, calendar notes, and exam CRUD.
+- [x] Establish an isolated pytest/FastAPI test harness and add backend API regression tests for authentication, duplicate registration, subject ownership, topic hierarchy validation, partial progress PATCH behavior, readiness counts, calendar-note ownership/range validation, and exam CRUD/ownership.
+- [ ] Expand backend coverage for remaining topic/concept CRUD edge cases and PostgreSQL integration; run the current suite and add CI checks before treating backend validation as complete.
 - [ ] Add frontend tests for key user flows: login/register, subject creation, topic/concept progress, calendar note persistence, and exam create/edit/delete from both views.
 - [ ] Add CI checks for frontend TypeScript/build and backend tests.
 - [ ] Introduce Alembic migrations before changing deployed database schemas; replace startup-only `Base.metadata.create_all()` as the schema-evolution mechanism.
