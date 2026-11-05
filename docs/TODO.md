@@ -36,7 +36,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Add migration-backed syllabus snapshots, automatic version capture for structural edits/imports, version inspection, and restore with pre-restore checkpointing.
 - [x] Add exam-aware readiness context, due-review counts, and explainable priorities for weak, unassessed, recall-practice, and overdue concepts.
 - [x] Record each concept check-in in review history and calculate a transparent next-review interval from understanding and recall. This is a simple heuristic, not an adaptive SM-2 scheduler.
-- [ ] Consider prerequisite relationships after the core syllabus/revision flows are stable.
+- [x] Add same-subject concept prerequisites with ownership checks, self/cross-subject/cycle validation, a themed editor, and versioned restore support.
 
 ## Home / Overview
 
