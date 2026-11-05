@@ -375,12 +375,14 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and pa
     if(removeNote&&method==="DELETE"){const index=annotations.findIndex(x=>x.id===Number(removeNote[1]));if(index>=0)annotations.splice(index,1);return empty();}
     return route.fulfill({status:404,contentType:"application/json",body:JSON.stringify({detail:"Unmocked Explore request: "+method+" "+path})});
   });
+  page.on("console", message => { if(message.type()==="error") console.log("BROWSER CONSOLE:",message.text()); });
+  page.on("pageerror", error => console.log("BROWSER PAGE ERROR:",error.message));
   await signIn(page);
   await page.getByRole("button",{name:"Explore"}).click();
   await expect(page.getByRole("heading",{name:/Make room for/})).toBeVisible();
   await page.locator(".atlas-upload-button input").setInputFiles({name:"paper.pdf",mimeType:"application/pdf",buffer:Buffer.from("%PDF-1.4")});
   await expect(page.getByText("Research paper",{exact:true})).toBeVisible();
-  await expect(page.locator(".atlas-pdf-page").first()).toBeVisible();
+  await expect(page.locator(".atlas-pdf-page").first()).toBeVisible({timeout:15000}).catch(async error => { const alerts=await page.locator(".atlas-explore-alert").allTextContents(); const states=await page.locator(".atlas-explore-state").allTextContents(); throw new Error(`PDF reader did not load. Alerts: ${alerts.join(" | ")}. States: ${states.join(" | ")}. ${error.message}`); });
   await expect(page.locator("iframe")).toHaveCount(0);
   await page.locator('[data-page="3"]').scrollIntoViewIfNeeded();
   await expect(page.getByLabel("Current page")).toHaveValue("3");
