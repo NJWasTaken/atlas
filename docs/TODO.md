@@ -20,7 +20,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Add CI execution for the backend pytest suite on development pushes and relevant pull requests.
 - [x] Add CI checks for frontend TypeScript and production build.
 - [x] Add Alembic configuration, the initial seven-table baseline, and the follow-up source-page-reference migration; CI validates upgrade, metadata consistency, and downgrade on SQLite.
-- [ ] Document and execute safe baseline adoption for existing databases, then switch application startup away from `Base.metadata.create_all()` once all environments are migrated.
+- [ ] Complete verified backup/schema comparison and baseline stamping for existing database environments. Production startup now leaves schema management to Alembic and no longer runs `Base.metadata.create_all()`; local development retains the convenience behavior.
 - [x] Require a unique 32+ character JWT secret and explicit non-local CORS origins in production; disable startup create_all in production while retaining the local-development default.
 - [ ] Add frontend interaction tests for the key authenticated flows and continue the cross-screen API error/loading/empty-state and accessibility pass.
 
@@ -33,9 +33,9 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Replace the native confidence slider with a themed five-step accessible choice control; polish interaction states, transitions, and reduced-motion behavior in the Academics workspace.
 - [x] Add PDF upload and selectable-text extraction with conservative chapter/concept heading detection and page references. Scanned PDF OCR remains unsupported.
 - [x] Add an editable draft review/confirmation step; imported items are only persisted after explicit confirmation and append to existing syllabus content.
-- [ ] Add syllabus versioning and migration-backed schema support.
-- [ ] Expand readiness/revision from current self-assessment counts into explainable, exam-aware recommendations.
-- [ ] Add review history and consider spaced-repetition scheduling.
+- [x] Add migration-backed syllabus snapshots, automatic version capture for structural edits/imports, version inspection, and restore with pre-restore checkpointing.
+- [x] Add exam-aware readiness context, due-review counts, and explainable priorities for weak, unassessed, recall-practice, and overdue concepts.
+- [x] Record each concept check-in in review history and calculate a transparent next-review interval from understanding and recall. This is a simple heuristic, not an adaptive SM-2 scheduler.
 - [ ] Consider prerequisite relationships after the core syllabus/revision flows are stable.
 
 ## Home / Overview
