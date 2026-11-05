@@ -250,7 +250,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
   }
 
   async function restoreSyllabusVersion(version:SyllabusVersion) {
-    if(subjectId===null || !confirm("Restore version " + version.version_number + "? Your current syllabus will be saved as a new version first.")) return;
+    if(subjectId===null || !confirm("Restore version " + version.version_number + "? Your current syllabus will be checkpointed first. Concepts not present in that version will be removed along with their progress and review history.")) return;
     setBusy(true); setError(""); setNotice("");
     try {
       await api("/subjects/" + subjectId + "/syllabus/versions/" + version.id + "/restore",{method:"POST"});
