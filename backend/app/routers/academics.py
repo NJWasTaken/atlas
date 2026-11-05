@@ -168,6 +168,60 @@ def list_syllabus_versions(subject_id: int, db: Session = Depends(get_db), user:
     return list(db.scalars(select(SyllabusVersion).where(SyllabusVersion.subject_id == subject_id).order_by(SyllabusVersion.version_number.desc())))
 
 
+
+@router.post("/subjects/{subject_id}/syllabus/versions/{version_id}/restore")
+def restore_syllabus_version(subject_id: int, version_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    owned_subject(db, subject_id, user.id)
+    version = db.scalar(select(SyllabusVersion).where(
+        SyllabusVersion.id == version_id,
+        SyllabusVersion.subject_id == subject_id,
+    ))
+    if not version:
+        raise HTTPException(404, "Syllabus version not found")
+
+    current_topics = list(db.scalars(select(Topic).where(Topic.subject_id == subject_id)))
+    for topic in current_topics:
+        db.delete(topic)
+    db.flush()
+
+    remaining = list(version.snapshot.get("topics", []))
+    id_map = {}
+    while remaining:
+        made_progress = False
+        for item in remaining[:]:
+            old_parent = item.get("parent_topic_id")
+            if old_parent is not None and old_parent not in id_map:
+                continue
+            topic = Topic(
+                subject_id=subject_id,
+                parent_topic_id=id_map.get(old_parent),
+                title=item["title"],
+                description=item.get("description"),
+                position=item.get("position", 0),
+                source_pages=item.get("source_pages"),
+            )
+            db.add(topic)
+            db.flush()
+            id_map[item["id"]] = topic.id
+            for concept_data in item.get("concepts", []):
+                db.add(Concept(
+                    topic_id=topic.id,
+                    title=concept_data["title"],
+                    description=concept_data.get("description"),
+                    position=concept_data.get("position", 0),
+                    source_pages=concept_data.get("source_pages"),
+                ))
+            remaining.remove(item)
+            made_progress = True
+        if not made_progress:
+            db.rollback()
+            raise HTTPException(400, "This syllabus snapshot contains an invalid topic hierarchy")
+
+    save_syllabus_version(db, subject_id, user.id, "Restored version " + str(version.version_number))
+    db.commit()
+    return {"restored_version": version.version_number}
+
+
 @router.get("/subjects/{subject_id}/syllabus/versions/{version_id}", response_model=SyllabusVersionDetail)
 def get_syllabus_version(subject_id: int, version_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     owned_subject(db, subject_id, user.id)
@@ -326,6 +380,35 @@ def subject_readiness(subject_id: int, db: Session = Depends(get_db), user: User
     total = db.scalar(select(func.count(Concept.id)).join(Topic, Topic.id == Concept.topic_id).where(Topic.subject_id == subject_id)) or 0
     counts = {key: count for key, count in rows}
     assessed = sum(counts.values())
+    now = datetime.now(timezone.utc)
+    next_exam = db.scalar(
+        select(Exam)
+        .where(Exam.user_id == user.id, Exam.subject_id == subject_id, Exam.exam_date >= now)
+        .order_by(Exam.exam_date.asc())
+    )
+    due_count = db.scalar(
+        select(func.count(ConceptProgress.id))
+        .join(Concept, Concept.id == ConceptProgress.concept_id)
+        .join(Topic, Topic.id == Concept.topic_id)
+        .where(
+            Topic.subject_id == subject_id,
+            ConceptProgress.user_id == user.id,
+            ConceptProgress.next_review_at.is_not(None),
+            ConceptProgress.next_review_at <= now,
+        )
+    ) or 0
+    days_until_exam = max(0, (next_exam.exam_date.date() - now.date()).days) if next_exam else None
+    recommendations = [
+        {"reason": "weak_understanding", "count": counts.get("weak", 0), "message": "Revisit concepts marked as weak."},
+        {"reason": "not_assessed", "count": total - assessed + counts.get("not_assessed", 0), "message": "Assess concepts you have not reviewed yet."},
+        {"reason": "due_for_review", "count": due_count, "message": "These concepts have reached their suggested review date."},
+    ]
+    if next_exam and days_until_exam is not None and days_until_exam <= 14:
+        recommendations.append({
+            "reason": "upcoming_exam",
+            "count": counts.get("weak", 0) + due_count,
+            "message": next_exam.title + " is in " + str(days_until_exam) + " days. Prioritize weak and due concepts first.",
+        })
     return {
         "subject_id": subject_id,
         "total_concepts": total,
@@ -333,10 +416,13 @@ def subject_readiness(subject_id: int, db: Session = Depends(get_db), user: User
         "developing": counts.get("developing", 0),
         "weak": counts.get("weak", 0),
         "not_assessed": total - assessed + counts.get("not_assessed", 0),
-        "recommendations": [
-            {"reason": "weak_understanding", "count": counts.get("weak", 0), "message": "Revisit concepts marked as weak."},
-            {"reason": "not_assessed", "count": total - assessed + counts.get("not_assessed", 0), "message": "Assess concepts you have not reviewed yet."},
-        ]
+        "due_for_review": due_count,
+        "next_exam": {
+            "title": next_exam.title,
+            "exam_date": next_exam.exam_date,
+            "days_until": days_until_exam,
+        } if next_exam else None,
+        "recommendations": recommendations,
     }
 
 @router.get("/exams", response_model=list[ExamOut])
