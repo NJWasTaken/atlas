@@ -614,3 +614,51 @@ def test_quote_endpoints_fall_back_when_provider_is_not_configured(client: TestC
     assert daily.json()["author"]
     assert random.status_code == 200
     assert random.json()["quote"]
+
+
+def test_overview_summary_is_user_scoped_and_prioritizes_revision(client: TestClient):
+    owner = auth_headers(register(client, "overview-owner@example.com"))
+    other = auth_headers(register(client, "overview-other@example.com"))
+    subject = client.post(
+        "/api/v1/subjects", headers=owner, json={"name": "Algorithms"}
+    ).json()
+    topic = client.post(
+        f"/api/v1/subjects/{subject['id']}/topics",
+        headers=owner,
+        json={"title": "Graph theory"},
+    ).json()
+    weak = client.post(
+        f"/api/v1/topics/{topic['id']}/concepts",
+        headers=owner,
+        json={"title": "Dijkstra"},
+    ).json()
+    untouched = client.post(
+        f"/api/v1/topics/{topic['id']}/concepts",
+        headers=owner,
+        json={"title": "Bellman-Ford"},
+    ).json()
+    client.patch(
+        f"/api/v1/concepts/{weak['id']}/progress",
+        headers=owner,
+        json={"understanding": "weak", "recall": "needs_practice"},
+    )
+    client.post(
+        "/api/v1/exams",
+        headers=owner,
+        json={"subject_id": subject["id"], "title": "Final", "exam_date": "2026-12-01T09:00:00+00:00"},
+    )
+
+    summary = client.get("/api/v1/overview", headers=owner)
+    assert summary.status_code == 200
+    payload = summary.json()
+    assert payload["recent_activity"][0]["concept_id"] == weak["id"]
+    assert payload["revision_suggestions"][0]["concept_id"] == weak["id"]
+    assert payload["revision_suggestions"][0]["reason"] == ["weak_understanding", "recall_practice"]
+    assert any(item["concept_id"] == untouched["id"] for item in payload["revision_suggestions"])
+    assert payload["upcoming_exams"][0]["subject_name"] == "Algorithms"
+
+    hidden = client.get("/api/v1/overview", headers=other)
+    assert hidden.status_code == 200
+    assert hidden.json()["recent_activity"] == []
+    assert hidden.json()["revision_suggestions"] == []
+    assert hidden.json()["upcoming_exams"] == []
