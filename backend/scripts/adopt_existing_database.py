@@ -3,6 +3,7 @@
 Run from backend/:
     python -m scripts.adopt_existing_database
     python -m scripts.adopt_existing_database --backup-verified --apply
+
 The script never upgrades tables. It only stamps a detected compatible revision.
 """
 import argparse
@@ -26,6 +27,16 @@ BASELINE_COLUMNS = {
 }
 
 
+def columns(inspector: sa.Inspector, table: str) -> set[str]:
+    return {column["name"] for column in inspector.get_columns(table)} if table in inspector.get_table_names() else set()
+
+
+def require_columns(inspector: sa.Inspector, table: str, required: set[str]) -> None:
+    missing = required - columns(inspector, table)
+    if missing:
+        raise RuntimeError(f"Table {table} is missing required columns: {', '.join(sorted(missing))}")
+
+
 def detect_revision(engine: sa.Engine) -> str:
     inspector = sa.inspect(engine)
     tables = set(inspector.get_table_names())
@@ -35,30 +46,47 @@ def detect_revision(engine: sa.Engine) -> str:
     missing_tables = set(BASELINE_COLUMNS) - tables
     if missing_tables:
         raise RuntimeError(f"Database is missing baseline tables: {', '.join(sorted(missing_tables))}")
-
     for table, required in BASELINE_COLUMNS.items():
-        actual = {column["name"] for column in inspector.get_columns(table)}
-        missing = required - actual
-        if missing:
-            raise RuntimeError(f"Table {table} is missing baseline columns: {', '.join(sorted(missing))}")
+        require_columns(inspector, table, required)
 
-    topic_pages = "source_pages" in {column["name"] for column in inspector.get_columns("topics")}
-    concept_pages = "source_pages" in {column["name"] for column in inspector.get_columns("concepts")}
+    topic_pages = "source_pages" in columns(inspector, "topics")
+    concept_pages = "source_pages" in columns(inspector, "concepts")
     if topic_pages != concept_pages:
         raise RuntimeError("Only one source_pages column exists. This is a partial schema; inspect and repair it manually.")
 
-    subject_term = "term" in {column["name"] for column in inspector.get_columns("subjects")}
-    progress_next = "next_review_at" in {column["name"] for column in inspector.get_columns("concept_progress")}
+    subject_columns = columns(inspector, "subjects")
+    has_term = "term" in subject_columns
+    has_year = "academic_year" in subject_columns
+    has_next_review = "next_review_at" in columns(inspector, "concept_progress")
     has_versions = "syllabus_versions" in tables
     has_reviews = "concept_reviews" in tables
-    planning_flags = {subject_term, progress_next, has_versions, has_reviews}
-    if len(planning_flags) != 1:
+    has_prerequisites = "concept_prerequisites" in tables
+
+    if has_term != has_year:
+        raise RuntimeError("Subject term/year metadata is only partially present; inspect the schema manually.")
+
+    planning_flags = {has_term, has_next_review, has_versions, has_reviews, has_prerequisites}
+    if len(planning_flags) > 1:
         raise RuntimeError("Academic-planning schema is only partially present. Do not stamp automatically; compare the schema manually.")
 
-    if all(planning_flags):
+    if has_versions:
+        require_columns(inspector, "syllabus_versions", {"id", "subject_id", "version_number", "label", "snapshot", "created_by", "created_at"})
+        require_columns(inspector, "concept_reviews", {"id", "user_id", "concept_id", "reviewed_at", "exposure", "understanding", "recall", "confidence", "notes"})
+    if has_prerequisites:
+        require_columns(inspector, "concept_prerequisites", {"id", "concept_id", "prerequisite_concept_id", "created_at"})
+
+    if has_prerequisites:
         if not topic_pages:
-            raise RuntimeError("Academic-planning tables exist but source_pages is missing. The migration chain is incomplete; inspect manually.")
-        return "0003_academic_planning"
+            raise RuntimeError("Prerequisites exist but source_pages is missing. The migration chain is incomplete.")
+        return "0005_concept_prerequisites"
+    if has_versions:
+        if not topic_pages:
+            raise RuntimeError("Academic-planning tables exist but source_pages is missing. The migration chain is incomplete.")
+        return "0004_syllabus_versions_reviews"
+    if has_term:
+        if not topic_pages:
+            raise RuntimeError("Subject metadata exists but source_pages is missing. The migration chain is incomplete.")
+        return "0003_subject_term"
     if topic_pages:
         return "0002_source_pages"
     return "0001_initial"
