@@ -8,6 +8,10 @@ import AcademicsWorkspace from "./components/AcademicsWorkspace";
 
 type Subject = { id: number; name: string; code?: string | null; description?: string | null; term?: string | null; academic_year?: string | null };
 type Quote = { quote: string; author: string; work?: string | null };
+type OverviewActivity = { concept_id:number; concept_title:string; topic_title:string; subject_id:number; subject_name:string; understanding:string; recall:string; last_reviewed:string };
+type OverviewSuggestion = { concept_id:number; concept_title:string; topic_title:string; subject_id:number; subject_name:string; reason:string[]; priority:number; days_until_exam:number|null; exam_title:string|null };
+type OverviewExam = { id:number; subject_id:number; subject_name:string; title:string; exam_date:string; days_until:number };
+type OverviewData = { recent_activity:OverviewActivity[]; continue_learning:OverviewActivity[]; revision_suggestions:OverviewSuggestion[]; upcoming_exams:OverviewExam[] };
 type AuthMode = "login" | "register";
 const nav = [
   { label: "Overview", icon: Orbit },
@@ -29,6 +33,9 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [overview, setOverview] = useState<OverviewData | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewError, setOverviewError] = useState("");
   const [active, setActive] = useState("Overview");
   const [showAdd, setShowAdd] = useState(false);
   const [subjectName, setSubjectName] = useState("");
@@ -73,6 +80,15 @@ export default function Home() {
     setInitialized(true);
   }, []);
   useEffect(() => { if (token) loadSubjects().catch(e => setError(e.message)); }, [token]);
+  useEffect(() => {
+    if (!token) return;
+    let live = true;
+    setOverviewLoading(true);
+    api<OverviewData>("/overview").then(data => { if(live) { setOverview(data); setOverviewError(""); } })
+      .catch(e => { if(live) setOverviewError(e instanceof Error ? e.message : "Could not load your learning overview"); })
+      .finally(() => { if(live) setOverviewLoading(false); });
+    return () => { live = false; };
+  }, [token]);
   useEffect(() => { if (token) void loadQuote(); }, [token, loadQuote]);
 
   async function authenticate(e: React.FormEvent) {
@@ -211,6 +227,14 @@ export default function Home() {
               </div>
               <div className="atlas-subject-filter"><label htmlFor="atlas-subject-filter">SHOW</label><select id="atlas-subject-filter" value={subjectFilter} onChange={e=>setSubjectFilter(e.target.value)}><option value="all">All subjects</option>{Array.from(new Set(subjects.map(s=>s.term).filter((term): term is string => Boolean(term)))).sort().map(term=><option key={term} value={term}>{term}</option>)}</select></div>
               <SubjectGrid subjects={subjects.filter(s=>subjectFilter==="all"||s.term===subjectFilter)} onDelete={deleteSubject} onEdit={openEditSubject}/>
+              <section className="atlas-overview-learning" aria-label="Learning overview">
+                <div className="atlas-overview-section-heading"><div><p className="eyebrow">YOUR LEARNING THREAD</p><h2>Pick up where you left off</h2><p>Small steps add up. Continue from the concepts you last checked in with.</p></div></div>
+                {overviewError ? <p className="atlas-overview-inline-error" role="status">Your learning summary is temporarily unavailable. Your subjects and calendar are still here.</p> : overviewLoading && !overview ? <p className="atlas-overview-muted">Gathering your recent learning…</p> : overview?.continue_learning.length ? <div className="atlas-overview-activity-grid">{overview.continue_learning.map(item=><button key={item.concept_id} className="atlas-overview-activity-card" onClick={()=>setActive("Academics")}><span>{item.subject_name}</span><strong>{item.concept_title}</strong><small>{item.topic_title} · {new Date(item.last_reviewed).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</small><i>Continue learning <ArrowUpRight size={13}/></i></button>)}</div> : <p className="atlas-overview-muted">Your first concept check-in will show up here. Open Academics and start with any concept.</p>}
+                <div className="atlas-overview-secondary-grid">
+                  <section className="atlas-overview-mini-panel"><div><p className="eyebrow">A GENTLE NUDGE</p><h3>Worth a revisit</h3></div>{overview?.revision_suggestions.length ? overview.revision_suggestions.slice(0,4).map(item=><button key={item.concept_id} onClick={()=>setActive("Academics")} className="atlas-overview-suggestion"><span><strong>{item.concept_title}</strong><small>{item.subject_name} · {item.topic_title}</small></span><i>{item.days_until_exam!==null?`Exam in ${item.days_until_exam}d`:"Review"} <ArrowUpRight size={12}/></i></button>) : <p className="atlas-overview-muted">No revision suggestions yet. Add concepts and record how they feel.</p>}</section>
+                  <section className="atlas-overview-mini-panel"><div><p className="eyebrow">ON THE HORIZON</p><h3>Coming up</h3></div>{overview?.upcoming_exams.length ? overview.upcoming_exams.slice(0,4).map(exam=><div key={exam.id} className="atlas-overview-exam"><span>{new Date(exam.exam_date).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</span><div><strong>{exam.title}</strong><small>{exam.subject_name}</small></div><i>{exam.days_until===0?"Today":`${exam.days_until}d`}</i></div>) : <p className="atlas-overview-muted">No upcoming exams on your calendar.</p>}</section>
+                </div>
+              </section>
             </section>
             <section className="atlas-overview-section atlas-calendar-section"><DashboardCalendar /></section>
           </>}
