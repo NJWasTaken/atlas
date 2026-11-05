@@ -15,7 +15,7 @@ The current working slice includes:
 - Daily and random quotations from API Ninjas when configured, with curated fallbacks, a six-hour in-process cache for the daily quote, fresh provider requests for each random-quote interaction, and last-known-quote fallback so provider outages do not block the Overview.
 - A dark celestial visual treatment and a reduced-motion-aware animated background.
 
-Explore and My Universe are navigation destinations with placeholder content. Syllabus PDFs can be uploaded, parsed into an editable draft, and explicitly confirmed into the subject's topic/concept tree. Structural syllabus changes create version snapshots that can be inspected and restored. Concept check-ins are recorded as review history and receive a simple next-review interval based on understanding and recall. Saving a check-in refreshes subject readiness and Overview data without clearing the currently selected concept or its review panel. There is no OCR for scanned PDFs, adaptive spaced-repetition algorithm, personal knowledge repository, AI gateway, or data export yet.
+Explore now includes a private PDF library and reading workspace. PDFs can be uploaded or imported from a public HTTP(S) URL (12 MB limit), are stored in the database, and are accessible only to their owner. The reader uses the browser's native PDF renderer inside a dedicated workspace, with Atlas-managed library search, page navigation, zoom/fit controls, reading position, page bookmarks, and page-linked notes that may include a copied passage. Browser PDF viewers provide built-in text search, thumbnails, and document outline where supported. Password-protected PDFs and scanned-document OCR are not supported. Direct in-reader highlight overlays are not yet implemented. My Universe remains a placeholder. Syllabus PDFs can be uploaded, parsed into an editable draft, and explicitly confirmed into the subject's topic/concept tree. Structural syllabus changes create version snapshots that can be inspected and restored. Concept check-ins are recorded as review history and receive a simple next-review interval based on understanding and recall. Saving a check-in refreshes subject readiness and Overview data without clearing the currently selected concept or its review panel. There is no OCR for scanned PDFs, adaptive spaced-repetition algorithm, personal knowledge repository, AI gateway, or data export yet.
 
 ## System shape
 
@@ -202,6 +202,7 @@ This list covers the tracked project source, documentation, and configuration fi
 | `app/routers/quotes.py` | Authenticated daily/random quote endpoints, per-endpoint TTL caching, curated fallbacks, and stale-cache recovery. |
 | `app/routers/academics.py` | Ownership-checked topic/concept/progress/review-history/readiness/exam and syllabus version/draft/confirm/restore endpoints. |
 | `app/routers/overview.py` | User-scoped recent learning activity, continue-learning candidates, revision suggestions, and upcoming exam summary. |
+| `app/routers/explore.py` | Private PDF upload/URL import, document listing and delivery, reading progress, bookmarks, and page-linked notes with ownership checks. |
 
 ### `frontend/`
 
@@ -235,4 +236,4 @@ This list covers the tracked project source, documentation, and configuration fi
 - The backend suite includes API, configuration, quote-cache, migration-adoption, and PostgreSQL integration coverage. GitHub Actions validates the SQLite and PostgreSQL migration chains and runs Playwright browser flows after the frontend typecheck/build. The existing-database adoption helper remains an explicit operator action requiring a verified backup; it has not been run against a user database.
 - The Overview provides monthly and weekly calendar views, date notes, exam events, recent learning activity, revision nudges, and upcoming exams; it is not a general-purpose event planner.
 - Home, Academics, and the calendar expose explicit loading/error/retry feedback for their primary data requests. This is a focused reliability pass, not yet a complete accessibility or responsive audit of every control and screen.
-- Explore, My Universe, scanned-PDF OCR, adaptive spaced repetition, AI integrations, and data export remain future work.
+- Explore's discovery sessions, saved questions/discoveries, contextual prompts, learning paths, academic links, and AI handoff remain future work. My Universe, scanned-PDF OCR, direct PDF highlight overlays, adaptive spaced repetition, direct AI integrations, and data export are also not implemented.
