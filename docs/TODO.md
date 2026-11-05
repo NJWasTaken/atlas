@@ -13,37 +13,39 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Expand backend regression coverage for topic updates, required-field validation, concept deletion, calendar-note update/delete, and exam validation/ownership.
 - [x] Run the expanded 15-test backend API suite successfully in GitHub Actions.
 - [x] Verify subject/concept partial-update endpoints and ownership validation in the expanded backend suite.
-- [ ] Add PostgreSQL-backed integration coverage for database-specific behavior before treating backend validation as complete.
-- [ ] Add frontend tests for key user flows: login/register, subject creation, topic/concept progress, calendar note persistence, and exam create/edit/delete from both views.
+- [x] Configure a PostgreSQL 16 CI service, Alembic upgrade/check/downgrade validation, and integration coverage for JSON persistence and database constraints.
+- [x] Add Playwright browser tests for sign-in, subject/term creation and filtering, manual chapter/concept creation, progress saves, weekly calendar notes, and exam create/edit/delete across Academics and Overview.
 - [x] Verify the syllabus-import UI TypeScript check and production build pass in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983099966).
 - [x] Verify the 21-test syllabus/backend suite and full SQLite migration chain in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983287215).
 - [x] Add CI execution for the backend pytest suite on development pushes and relevant pull requests.
 - [x] Add CI checks for frontend TypeScript and production build.
-- [x] Add Alembic configuration, the initial seven-table baseline, and the follow-up source-page-reference migration; CI validates upgrade, metadata consistency, and downgrade on SQLite.
-- [ ] Document and execute safe baseline adoption for existing databases, then switch application startup away from `Base.metadata.create_all()` once all environments are migrated.
-- [ ] Review production configuration: require a strong JWT secret, define safe CORS origins, document required environment variables, and avoid development fallback credentials outside local development.
-- [ ] Improve API error/loading/empty states and accessibility across the current screens.
+- [x] Add Alembic configuration and five ordered revisions (initial baseline, source-page references, subject term/year metadata, syllabus versions/review history, and concept prerequisites); CI validates upgrade, metadata consistency, and downgrade on SQLite and PostgreSQL.
+- [x] Add a dry-run schema adoption helper that detects revisions `0001`–`0005`, rejects partial/incompatible schemas, and requires both `--backup-verified` and `--apply` before stamping. Production startup now leaves schema management to Alembic and no longer runs `Base.metadata.create_all()`; local development retains the convenience behavior. **Still pending per environment:** verify a restorable backup, run the helper, and apply migrations only after inspecting the detected revision.
+- [x] Require a unique 32+ character JWT secret and explicit non-local CORS origins in production; disable startup create_all in production while retaining the local-development default.
+- [x] Add frontend interaction tests for the key authenticated flows. Continue the cross-screen API error/loading/empty-state and accessibility pass.
 
 ## Academics completion
 
 - [x] Add subject editing for name, course code, and description in the UI and API.
-- [ ] Add semester/term metadata and filtering to subject management.
+- [x] Add optional semester/term and academic-year metadata, plus term filtering to subject management.
 - [x] Add inline rename controls for topics and concepts, backed by ownership-checked partial PATCH endpoints. Reordering and richer descriptions remain future work.
 - [x] Make manual syllabus construction a first-class path: add chapters/subchapters from scratch and add concepts directly within their chapter, independently of PDF import.
 - [x] Replace the native confidence slider with a themed five-step accessible choice control; polish interaction states, transitions, and reduced-motion behavior in the Academics workspace.
 - [x] Add PDF upload and selectable-text extraction with conservative chapter/concept heading detection and page references. Scanned PDF OCR remains unsupported.
 - [x] Add an editable draft review/confirmation step; imported items are only persisted after explicit confirmation and append to existing syllabus content.
-- [ ] Add syllabus versioning and migration-backed schema support.
-- [ ] Expand readiness/revision from current self-assessment counts into explainable, exam-aware recommendations.
-- [ ] Add review history and consider spaced-repetition scheduling.
-- [ ] Consider prerequisite relationships after the core syllabus/revision flows are stable.
+- [x] Add migration-backed syllabus snapshots, automatic version capture for structural edits/imports, version inspection, and restore with pre-restore checkpointing.
+- [x] Flush pending structural edits and prerequisite links before creating version snapshots.
+- [x] Add exam-aware readiness context, due-review counts, and explainable priorities for weak, unassessed, recall-practice, and overdue concepts.
+- [x] Record each concept check-in in review history and calculate a transparent next-review interval from understanding and recall. This is a simple heuristic, not an adaptive SM-2 scheduler.
+- [x] Add same-subject concept prerequisites with ownership checks, self/cross-subject/cycle validation, a themed editor, and versioned restore support.
 
 ## Home / Overview
 
-- [ ] Expand the Overview beyond the current subject summary, calendar, and quotation into recent activity, continue-learning shortcuts, concept summaries, and revision suggestions.
-- [ ] Add weekly calendar navigation/view and clarify how academic dates, day notes, and any future general calendar events relate.
-- [ ] Improve calendar error/loading states and handle quote-provider unavailability without blocking the rest of the Overview.
-- [ ] Consider caching or a provider abstraction for quotations; the current quote endpoints call API Ninjas and require `X_API_KEY`.
+- [x] Expand the Overview with aggregate concept readiness, recent concept activity, direct continue-learning shortcuts, revision suggestions, upcoming exam summaries, and optional subject term filtering.
+- [x] Add weekly calendar navigation/view and clarify that exams are academic events while day notes are personal date notes.
+- [x] Return curated quote fallbacks when the quote provider is unavailable or unconfigured; cache daily quotes for six hours and random quotes for one minute, with stale-cache fallback after provider failures.
+- [x] Add a calendar retry affordance and loading semantics; keep calendar errors local to the calendar panel.
+- [ ] Add broader empty/loading/error states across remaining screens.
 
 ## Explore
 

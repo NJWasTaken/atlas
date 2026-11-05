@@ -6,8 +6,12 @@ import { api, clearToken, getToken, setToken } from "../lib/api";
 import DashboardCalendar from "./components/DashboardCalendar";
 import AcademicsWorkspace from "./components/AcademicsWorkspace";
 
-type Subject = { id: number; name: string; code?: string | null; description?: string | null };
+type Subject = { id: number; name: string; code?: string | null; description?: string | null; term?: string | null; academic_year?: string | null };
 type Quote = { quote: string; author: string; work?: string | null };
+type OverviewActivity = { concept_id:number; concept_title:string; topic_title:string; subject_id:number; subject_name:string; understanding:string; recall:string; last_reviewed:string };
+type OverviewSuggestion = { concept_id:number; concept_title:string; topic_title:string; subject_id:number; subject_name:string; reason:string[]; priority:number; days_until_exam:number|null; exam_title:string|null };
+type OverviewExam = { id:number; subject_id:number; subject_name:string; title:string; exam_date:string; days_until:number };
+type OverviewData = { learning_summary:{total_concepts:number;strong:number;developing:number;weak:number;not_assessed:number;due_for_review:number}; recent_activity:OverviewActivity[]; continue_learning:OverviewActivity[]; revision_suggestions:OverviewSuggestion[]; upcoming_exams:OverviewExam[] };
 type AuthMode = "login" | "register";
 const nav = [
   { label: "Overview", icon: Orbit },
@@ -16,7 +20,7 @@ const nav = [
   { label: "My Universe", icon: Library },
 ];
 const copy: Record<string, { eyebrow: string; title: string; description: string }> = {
-  Overview: { eyebrow: "YOUR SPACE", title: "Leave a little room to wonder.", description: "this is like your homepage and dashboard stuff." },
+  Overview: { eyebrow: "YOUR SPACE", title: "Leave a little room to wonder.", description: "A clear view of what you are learning, what is coming up, and what deserves a second look." },
   Academics: { eyebrow: "YOUR STUDIES", title: "The foundations.", description: "Keep your subjects, syllabi and learning progress in one quiet place." },
   Explore: { eyebrow: "BEYOND THE SYLLABUS", title: "Follow a question.", description: "Curiosity rarely follows a straight line. That's the interesting part." },
   "My Universe": { eyebrow: "YOUR KNOWLEDGE", title: "Things worth keeping.", description: "A growing collection of ideas, notes and connections that are yours." },
@@ -29,11 +33,19 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [overview, setOverview] = useState<OverviewData | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewError, setOverviewError] = useState("");
   const [active, setActive] = useState("Overview");
+  const [academicsFocus, setAcademicsFocus] = useState<{subjectId:number;conceptId:number}|null>(null);
+  const handleAcademicsFocusHandled = useCallback(() => setAcademicsFocus(null), []);
   const [showAdd, setShowAdd] = useState(false);
   const [subjectName, setSubjectName] = useState("");
   const [subjectCode, setSubjectCode] = useState("");
   const [subjectDescription, setSubjectDescription] = useState("");
+  const [subjectTerm, setSubjectTerm] = useState("");
+  const [subjectYear, setSubjectYear] = useState("");
+  const [subjectFilter, setSubjectFilter] = useState("all");
   const [editingSubjectId, setEditingSubjectId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -70,6 +82,20 @@ export default function Home() {
     setInitialized(true);
   }, []);
   useEffect(() => { if (token) loadSubjects().catch(e => setError(e.message)); }, [token]);
+  const loadOverview = useCallback(async () => {
+    setOverviewLoading(true);
+    try {
+      setOverview(await api<OverviewData>("/overview"));
+      setOverviewError("");
+    } catch(e) {
+      setOverviewError(e instanceof Error ? e.message : "Could not load your learning overview");
+    } finally {
+      setOverviewLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    if (token && active === "Overview") void loadOverview();
+  }, [token, active, loadOverview]);
   useEffect(() => { if (token) void loadQuote(); }, [token, loadQuote]);
 
   async function authenticate(e: React.FormEvent) {
@@ -84,7 +110,7 @@ export default function Home() {
   }
   function openAddSubject() {
     setEditingSubjectId(null);
-    setSubjectName(""); setSubjectCode(""); setSubjectDescription("");
+    setSubjectName(""); setSubjectCode(""); setSubjectDescription(""); setSubjectTerm(""); setSubjectYear("");
     setShowAdd(true);
   }
   function openEditSubject(subject: Subject) {
@@ -92,18 +118,20 @@ export default function Home() {
     setSubjectName(subject.name);
     setSubjectCode(subject.code ?? "");
     setSubjectDescription(subject.description ?? "");
+    setSubjectTerm(subject.term ?? "");
+    setSubjectYear(subject.academic_year ?? "");
     setShowAdd(true);
   }
   async function addSubject(e: React.FormEvent) {
     e.preventDefault(); setError(""); setBusy(true);
     try {
-      const payload = { name: subjectName.trim(), code: subjectCode.trim() || null, description: subjectDescription.trim() || null };
+      const payload = { name: subjectName.trim(), code: subjectCode.trim() || null, description: subjectDescription.trim() || null, term: subjectTerm.trim() || null, academic_year: subjectYear.trim() || null };
       if (editingSubjectId !== null) {
         await api<Subject>(`/subjects/${editingSubjectId}`, { method: "PATCH", body: JSON.stringify(payload) });
       } else {
         await api<Subject>("/subjects", { method: "POST", body: JSON.stringify(payload) });
       }
-      setSubjectName(""); setSubjectCode(""); setSubjectDescription(""); setEditingSubjectId(null); setShowAdd(false); await loadSubjects();
+      setSubjectName(""); setSubjectCode(""); setSubjectDescription(""); setSubjectTerm(""); setSubjectYear(""); setEditingSubjectId(null); setShowAdd(false); await loadSubjects();
     } catch (e) { setError(e instanceof Error ? e.message : "Could not save subject"); }
     finally { setBusy(false); }
   }
@@ -204,14 +232,24 @@ export default function Home() {
                 <p>{subjects.length?"Your semester, gathered in one place. Pick a subject and keep building your understanding.":"Your academic universe starts with the subjects you're studying this semester."}</p>
                 <button className="atlas-round-arrow" onClick={()=>setActive("Academics")} aria-label="View academics"><ArrowUpRight size={17}/></button>
               </div>
-              <SubjectGrid subjects={subjects} onDelete={deleteSubject} onEdit={openEditSubject}/>
+              <div className="atlas-subject-filter"><label htmlFor="atlas-subject-filter">SHOW</label><select id="atlas-subject-filter" value={subjectFilter} onChange={e=>setSubjectFilter(e.target.value)}><option value="all">All subjects</option>{Array.from(new Set(subjects.map(s=>s.term).filter((term): term is string => Boolean(term)))).sort().map(term=><option key={term} value={term}>{term}</option>)}</select></div>
+              <SubjectGrid subjects={subjects.filter(s=>subjectFilter==="all"||s.term===subjectFilter)} onDelete={deleteSubject} onEdit={openEditSubject}/>
+              <section className="atlas-overview-learning" aria-label="Learning overview">
+                <div className="atlas-overview-section-heading"><div><p className="eyebrow">YOUR LEARNING THREAD</p><h2>Pick up where you left off</h2><p>Small steps add up. Continue from the concepts you last checked in with.</p></div></div>
+                {overview&&<div className="atlas-overview-stats"><div><span>IN YOUR SYLLABI</span><strong>{overview.learning_summary.total_concepts}</strong><small>concepts</small></div><div><span>STRONG</span><strong>{overview.learning_summary.strong}</strong><small>feeling solid</small></div><div><span>DEVELOPING</span><strong>{overview.learning_summary.developing}</strong><small>taking shape</small></div><div><span>NEEDS ATTENTION</span><strong>{overview.learning_summary.weak+overview.learning_summary.not_assessed}</strong><small>{overview.learning_summary.due_for_review} due to revisit</small></div></div>}
+                {overviewError ? <div className="atlas-overview-inline-error" role="status"><p>Your learning summary is temporarily unavailable. Your subjects and calendar are still here.</p><button type="button" onClick={()=>void loadOverview()}>Try again</button></div> : overviewLoading && !overview ? <p className="atlas-overview-muted">Gathering your recent learning…</p> : overview?.continue_learning.length ? <div className="atlas-overview-activity-grid">{overview.continue_learning.map(item=><button key={item.concept_id} className="atlas-overview-activity-card" onClick={()=>{setAcademicsFocus({subjectId:item.subject_id,conceptId:item.concept_id});setActive("Academics");}}><span>{item.subject_name}</span><strong>{item.concept_title}</strong><small>{item.topic_title} · {new Date(item.last_reviewed).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</small><i>Continue learning <ArrowUpRight size={13}/></i></button>)}</div> : <p className="atlas-overview-muted">Your first concept check-in will show up here. Open Academics and start with any concept.</p>}
+                <div className="atlas-overview-secondary-grid">
+                  <section className="atlas-overview-mini-panel"><div><p className="eyebrow">A GENTLE NUDGE</p><h3>Worth a revisit</h3></div>{overview?.revision_suggestions.length ? overview.revision_suggestions.slice(0,4).map(item=><button key={item.concept_id} className="atlas-overview-suggestion" onClick={()=>{setAcademicsFocus({subjectId:item.subject_id,conceptId:item.concept_id});setActive("Academics");}}><span><strong>{item.concept_title}</strong><small>{item.subject_name} · {item.topic_title}</small></span><i>{item.days_until_exam!==null?`Exam in ${item.days_until_exam}d`:"Review"} <ArrowUpRight size={12}/></i></button>) : <p className="atlas-overview-muted">No revision suggestions yet. Add concepts and record how they feel.</p>}</section>
+                  <section className="atlas-overview-mini-panel"><div><p className="eyebrow">ON THE HORIZON</p><h3>Coming up</h3></div>{overview?.upcoming_exams.length ? overview.upcoming_exams.slice(0,4).map(exam=><div key={exam.id} className="atlas-overview-exam"><span>{new Date(exam.exam_date).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</span><div><strong>{exam.title}</strong><small>{exam.subject_name}</small></div><i>{exam.days_until===0?"Today":`${exam.days_until}d`}</i></div>) : <p className="atlas-overview-muted">No upcoming exams on your calendar.</p>}</section>
+                </div>
+              </section>
             </section>
-            <section className="atlas-overview-section atlas-calendar-section"><DashboardCalendar /></section>
+            <section className="atlas-overview-section atlas-calendar-section"><DashboardCalendar onDataChange={loadOverview} /></section>
           </>}
 
           {active==="Academics"&&<section className="atlas-overview-section">
             <div className="atlas-section-heading"><div><p className="eyebrow">THE BUILDING BLOCKS</p><h2>Your subjects</h2><p className="atlas-section-subtitle">A home for syllabi, concepts and revision.</p></div><button className="atlas-button atlas-primary" onClick={openAddSubject}><Plus size={15}/> Add subject</button></div>
-            <AcademicsWorkspace subjects={subjects}/>
+            <AcademicsWorkspace subjects={subjects} initialSubjectId={academicsFocus?.subjectId} focusConceptId={academicsFocus?.conceptId} onFocusHandled={handleAcademicsFocusHandled} onOverviewRefresh={loadOverview}/>
           </section>}
 
           {active==="Explore"&&<FeatureEmpty icon={<Sparkles size={23}/>} eyebrow="THE CURIOSITY PLAYGROUND" title={<>What have you been<br/><em>wondering about?</em></>} text="Exploration is on its way. For now, remember: your interests don't need to fit inside a syllabus." foot="A LITTLE SPACE FOR THE UNEXPECTED"/>}
@@ -225,6 +263,7 @@ export default function Home() {
           <label className="atlas-modal-label">Subject name<input autoFocus required value={subjectName} onChange={e=>setSubjectName(e.target.value)} placeholder="e.g. Machine Learning"/></label>
           <label className="atlas-modal-label">Course code <small>OPTIONAL</small><input value={subjectCode} onChange={e=>setSubjectCode(e.target.value)} placeholder="e.g. CS402"/></label>
           <label className="atlas-modal-label">Description <small>OPTIONAL</small><textarea rows={3} value={subjectDescription} onChange={e=>setSubjectDescription(e.target.value)} placeholder="What does this subject cover?"/></label>
+          <div className="atlas-subject-term-fields"><label className="atlas-modal-label">Semester / term <small>OPTIONAL</small><input value={subjectTerm} onChange={e=>setSubjectTerm(e.target.value)} placeholder="e.g. Semester 5"/></label><label className="atlas-modal-label">Academic year <small>OPTIONAL</small><input value={subjectYear} onChange={e=>setSubjectYear(e.target.value)} placeholder="e.g. 2026–27"/></label></div>
           <button disabled={busy} className="atlas-button atlas-primary atlas-full">{busy?"Saving…":editingSubjectId === null ? "Save subject" : "Save changes"}<ArrowUpRight size={16}/></button>
         </form>
       </div>}
@@ -240,7 +279,7 @@ function SubjectGrid({subjects,onDelete,onEdit}:{subjects:Subject[];onDelete:(id
   if(!subjects.length)return <div className="atlas-empty-subjects"><div className="atlas-empty-icon"><BookOpen size={19}/></div><p>Your map is waiting for its first pin.</p><span>Add a subject to begin building your academic space.</span></div>;
   return <div className="atlas-subject-grid">{subjects.map((s,i)=><article key={s.id} className="atlas-subject-card" style={{animationDelay:`${i*65}ms`}}>
     <div className="atlas-subject-card-top"><div className="atlas-subject-glyph"><BookOpen size={17}/></div><div className="atlas-subject-card-actions"><button onClick={()=>onEdit(s)} className="atlas-remove atlas-edit-subject">Edit</button><button onClick={()=>onDelete(s.id)} className="atlas-remove">Remove</button></div></div>
-    <p className="atlas-subject-code">{s.code||`SUBJECT ${String(i+1).padStart(2,"0")}`}</p><h3>{s.name}</h3><p className="atlas-subject-description">{s.description||"Syllabus and concepts will live here."}</p>
+    <p className="atlas-subject-code">{s.code||`SUBJECT ${String(i+1).padStart(2,"0")}`}</p><h3>{s.name}</h3>{(s.term||s.academic_year)&&<p className="atlas-subject-term">{[s.term,s.academic_year].filter(Boolean).join(" · ")}</p>}<p className="atlas-subject-description">{s.description||"Syllabus and concepts will live here."}</p>
     <div className="atlas-card-bottom"><span>YOUR ACADEMIC SPACE</span><ArrowUpRight size={14}/></div>
   </article>)}</div>;
 }

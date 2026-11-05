@@ -23,11 +23,15 @@ class SubjectCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     code: str | None = Field(default=None, max_length=32)
     description: str | None = None
+    term: str | None = Field(default=None, max_length=32)
+    academic_year: str | None = Field(default=None, max_length=16)
 
 class SubjectUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     code: str | None = Field(default=None, max_length=32)
     description: str | None = None
+    term: str | None = Field(default=None, max_length=32)
+    academic_year: str | None = Field(default=None, max_length=16)
 
     @model_validator(mode="after")
     def reject_null_name(self):
@@ -41,6 +45,8 @@ class SubjectOutput(BaseModel):
     name: str
     code: str | None
     description: str | None
+    term: str | None
+    academic_year: str | None
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
 

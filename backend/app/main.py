@@ -5,10 +5,10 @@ from app.core.config import settings
 from app.db import Base, engine
 from app import models  # noqa: F401
 from app import academics_models  # noqa: F401
-from app.routers import auth, quotes, subjects, calendar, academics
+from app.routers import auth, quotes, subjects, calendar, academics, overview
 
 
-def create_app(*, create_tables: bool = True) -> FastAPI:
+def create_app(*, create_tables: bool | None = None) -> FastAPI:
     """Build the API application.
 
     Table creation remains enabled for the current local-development workflow,
@@ -18,7 +18,7 @@ def create_app(*, create_tables: bool = True) -> FastAPI:
     application = FastAPI(title="Atlas API", version="0.1.0")
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.frontend_origin],
+        allow_origins=settings.allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -29,8 +29,10 @@ def create_app(*, create_tables: bool = True) -> FastAPI:
     application.include_router(subjects.router, prefix="/api/v1")
     application.include_router(calendar.router, prefix="/api/v1")
     application.include_router(academics.router, prefix="/api/v1")
+    application.include_router(overview.router, prefix="/api/v1")
 
-    if create_tables:
+    should_create_tables = settings.environment != "production" if create_tables is None else create_tables
+    if should_create_tables:
         @application.on_event("startup")
         def create_database_tables() -> None:
             Base.metadata.create_all(bind=engine)

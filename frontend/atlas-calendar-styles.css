@@ -95,3 +95,61 @@
 @media(max-width:1000px){.atlas-calendar-panel{grid-template-columns:minmax(0,1.2fr) minmax(230px,.8fr)}.atlas-calendar-main{padding:23px 20px}.atlas-day-note{padding:23px 19px}}
 @media(max-width:760px){.atlas-calendar-panel{grid-template-columns:1fr}.atlas-day-note{border-top:1px solid rgba(197,168,117,.14);border-left:0}.atlas-day-note textarea,.atlas-day-note-preview{min-height:100px}}
 @media(max-width:480px){.atlas-calendar-main{padding:20px 13px}.atlas-calendar-heading{flex-direction:column}.atlas-calendar-controls{align-self:flex-end;margin-top:-4px}.atlas-calendar-day{min-height:31px;font-size:9px}.atlas-day-note{padding:22px 18px}}
+
+
+/* Semester metadata and weekly calendar */
+.atlas-subject-filter{display:flex;align-items:center;justify-content:flex-end;gap:9px;margin:12px 0 2px;color:#7e8da0;font-size:8px;letter-spacing:.16em}
+.atlas-subject-filter select{min-width:145px;padding:8px 10px;color:#d8e0e7;border:1px solid rgba(166,187,211,.16);background:#0c1b2d;font:10px 'DM Sans',sans-serif}
+.atlas-subject-term-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.atlas-subject-term{margin-top:5px;color:#8fb9d6;font-size:9px;letter-spacing:.07em}
+.atlas-calendar-view-switch{display:flex;align-items:center;padding:3px;border:1px solid rgba(166,187,211,.16);background:rgba(4,13,24,.3)}
+.atlas-calendar-view-switch button{padding:6px 9px;color:#8392a4;font-size:9px;transition:background .2s,color .2s}
+.atlas-calendar-view-switch button.active{color:#e9e4d9;background:rgba(197,168,117,.15)}
+@media(max-width:560px){.atlas-subject-term-fields{grid-template-columns:1fr}.atlas-calendar-controls{flex-wrap:wrap}}
+
+
+/* Overview: continue learning, revision nudges, and upcoming exams */
+.atlas-overview-learning{margin-top:38px}
+.atlas-overview-section-heading{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+.atlas-overview-section-heading h2{margin-top:5px;color:var(--ivory);font-size:27px}
+.atlas-overview-section-heading>div>p:last-child{margin-top:6px;color:#8997a9;font-size:10px}
+.atlas-overview-activity-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.atlas-overview-activity-card{display:flex;flex-direction:column;align-items:flex-start;min-height:145px;padding:16px;text-align:left;border:1px solid rgba(133,181,229,.16);background:linear-gradient(145deg,rgba(17,37,58,.75),rgba(9,23,39,.76));transition:transform .22s,border-color .22s,background .22s}
+.atlas-overview-activity-card:hover{transform:translateY(-3px);border-color:rgba(120,199,183,.38);background:linear-gradient(145deg,rgba(19,47,61,.8),rgba(9,23,39,.84))}
+.atlas-overview-activity-card>span{color:#8fb9d6;font-size:8px;letter-spacing:.1em;text-transform:uppercase}
+.atlas-overview-activity-card>strong{margin-top:12px;color:#e8e4da;font-size:15px;font-weight:500;line-height:1.25}
+.atlas-overview-activity-card>small{margin-top:6px;color:#8191a4;font-size:9px}
+.atlas-overview-activity-card>i{display:flex;align-items:center;gap:5px;margin-top:auto;padding-top:13px;color:var(--gold-hi);font-size:9px;font-style:normal}
+.atlas-overview-secondary-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.atlas-overview-mini-panel{min-width:0;padding:19px;border:1px solid rgba(166,187,211,.13);background:rgba(11,26,43,.58)}
+.atlas-overview-mini-panel h3{margin-top:5px;color:var(--ivory);font-size:21px}
+.atlas-overview-suggestion,.atlas-overview-exam{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:12px 0;border-bottom:1px solid rgba(166,187,211,.09);text-align:left}
+.atlas-overview-suggestion:last-child,.atlas-overview-exam:last-child{border-bottom:0}
+.atlas-overview-suggestion>span,.atlas-overview-exam>div{display:grid;gap:4px;min-width:0}
+.atlas-overview-suggestion strong,.atlas-overview-exam strong{overflow:hidden;color:#dce2e8;font-size:11px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
+.atlas-overview-suggestion small,.atlas-overview-exam small{color:#7e8da0;font-size:9px}
+.atlas-overview-suggestion>i,.atlas-overview-exam>i{display:flex;align-items:center;gap:4px;flex:0 0 auto;color:#d0b67e;font-size:9px;font-style:normal}
+.atlas-overview-suggestion:hover strong{color:#a9d9cf}
+.atlas-overview-exam>span{min-width:48px;color:#8fb9d6;font-size:10px}
+.atlas-overview-muted,.atlas-overview-inline-error{padding:15px 0;color:#8392a4;font-size:10px;line-height:1.65}
+.atlas-overview-inline-error{color:#d6a6a2}
+@media(max-width:1000px){.atlas-overview-activity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.atlas-overview-secondary-grid{grid-template-columns:1fr}.atlas-overview-activity-card{min-height:130px}}
+
+.atlas-calendar-error{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.atlas-calendar-error button{flex:0 0 auto;padding:5px 9px;color:#e9d4a6;border:1px solid rgba(197,168,117,.24);font-size:9px}
+.atlas-calendar-error button:hover{border-color:rgba(197,168,117,.5);background:rgba(197,168,117,.07)}
+
+.atlas-overview-inline-error{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.atlas-overview-inline-error button{flex:0 0 auto;padding:6px 10px;color:#e9d4a6;border:1px solid rgba(197,168,117,.24);font-size:9px}
+.atlas-overview-inline-error button:hover{background:rgba(197,168,117,.07);border-color:rgba(197,168,117,.5)}
+
+.atlas-overview-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:14px 0 22px}
+.atlas-overview-stats>div{display:grid;gap:4px;min-width:0;padding:13px 15px;border:1px solid rgba(166,187,211,.13);background:rgba(11,26,43,.52)}
+.atlas-overview-stats span{color:#8194a7;font-size:8px;letter-spacing:.13em}
+.atlas-overview-stats strong{color:#e7e4dc;font:500 25px 'Cormorant Garamond',serif}
+.atlas-overview-stats small{color:#8292a4;font-size:9px}
+.atlas-overview-stats>div:nth-child(2) strong{color:#9ed4c4}
+.atlas-overview-stats>div:nth-child(3) strong{color:#a9c9e7}
+.atlas-overview-stats>div:nth-child(4) strong{color:#d9a59c}
+@media(max-width:760px){.atlas-overview-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}

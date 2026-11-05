@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -155,6 +155,23 @@ def test_progress_validation_and_readiness_counts(client: TestClient):
     assert readiness.status_code == 200
     assert readiness.json()["total_concepts"] == 1
     assert readiness.json()["not_assessed"] == 1
+
+    exam = client.post(
+        "/api/v1/exams",
+        headers=headers,
+        json={
+            "subject_id": subject["id"],
+            "title": "Statistics final",
+            "exam_date": (datetime.now(timezone.utc) + timedelta(days=5)).isoformat(),
+        },
+    )
+    assert exam.status_code == 201
+    readiness_with_exam = client.get(
+        f"/api/v1/subjects/{subject['id']}/readiness", headers=headers
+    ).json()
+    assert readiness_with_exam["next_exam"]["title"] == "Statistics final"
+    assert readiness_with_exam["next_exam"]["days_until"] == 5
+    assert any(item["reason"] == "upcoming_exam" for item in readiness_with_exam["recommendations"])
 
 
 def test_calendar_notes_are_user_scoped_and_validate_ranges(client: TestClient):
@@ -568,3 +585,279 @@ def test_syllabus_pdf_parser_rejects_non_pdf_and_detects_page_references(monkeyp
     monkeypatch.setattr(syllabus_import, "PdfReader", lambda *_args, **_kwargs: SimpleNamespace(is_encrypted=False, pages=[FakePage("")]))
     with pytest.raises(ValueError, match="selectable text"):
         syllabus_import.parse_syllabus_pdf(b"%PDF-scanned-image-only")
+
+
+def test_subject_term_metadata_can_be_created_updated_and_cleared(client: TestClient):
+    headers = auth_headers(register(client, "subject-term@example.com"))
+    created = client.post(
+        "/api/v1/subjects",
+        headers=headers,
+        json={"name": "Machine Learning", "term": "Semester 5", "academic_year": "2026-27"},
+    )
+    assert created.status_code == 201
+    subject = created.json()
+    assert subject["term"] == "Semester 5"
+    assert subject["academic_year"] == "2026-27"
+
+    updated = client.patch(
+        f"/api/v1/subjects/{subject['id']}",
+        headers=headers,
+        json={"term": "Semester 6"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["term"] == "Semester 6"
+    assert updated.json()["academic_year"] == "2026-27"
+
+    cleared = client.patch(
+        f"/api/v1/subjects/{subject['id']}",
+        headers=headers,
+        json={"term": None, "academic_year": None},
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["term"] is None
+    assert cleared.json()["academic_year"] is None
+
+
+def test_quote_endpoints_fall_back_when_provider_is_not_configured(client: TestClient, monkeypatch):
+    from app.routers import quotes
+
+    monkeypatch.setattr(quotes.settings, "x_api_key", None)
+    headers = auth_headers(register(client, "quote-fallback@example.com"))
+
+    daily = client.get("/api/v1/quotes/daily", headers=headers)
+    random = client.get("/api/v1/quotes/random", headers=headers)
+    assert daily.status_code == 200
+    assert daily.json()["quote"]
+    assert daily.json()["author"]
+    assert random.status_code == 200
+    assert random.json()["quote"]
+
+
+def test_overview_summary_is_user_scoped_and_prioritizes_revision(client: TestClient):
+    owner = auth_headers(register(client, "overview-owner@example.com"))
+    other = auth_headers(register(client, "overview-other@example.com"))
+    subject = client.post(
+        "/api/v1/subjects", headers=owner, json={"name": "Algorithms"}
+    ).json()
+    topic = client.post(
+        f"/api/v1/subjects/{subject['id']}/topics",
+        headers=owner,
+        json={"title": "Graph theory"},
+    ).json()
+    weak = client.post(
+        f"/api/v1/topics/{topic['id']}/concepts",
+        headers=owner,
+        json={"title": "Dijkstra"},
+    ).json()
+    untouched = client.post(
+        f"/api/v1/topics/{topic['id']}/concepts",
+        headers=owner,
+        json={"title": "Bellman-Ford"},
+    ).json()
+    client.patch(
+        f"/api/v1/concepts/{weak['id']}/progress",
+        headers=owner,
+        json={"understanding": "weak", "recall": "needs_practice"},
+    )
+    client.post(
+        "/api/v1/exams",
+        headers=owner,
+        json={"subject_id": subject["id"], "title": "Final", "exam_date": "2026-12-01T09:00:00+00:00"},
+    )
+
+    summary = client.get("/api/v1/overview", headers=owner)
+    assert summary.status_code == 200
+    payload = summary.json()
+    assert payload["learning_summary"]["total_concepts"] == 2
+    assert payload["learning_summary"]["weak"] == 1
+    assert payload["learning_summary"]["not_assessed"] == 1
+    assert payload["recent_activity"][0]["concept_id"] == weak["id"]
+    assert payload["revision_suggestions"][0]["concept_id"] == weak["id"]
+    assert payload["revision_suggestions"][0]["reason"] == ["weak_understanding", "recall_practice"]
+    assert any(item["concept_id"] == untouched["id"] for item in payload["revision_suggestions"])
+    assert payload["upcoming_exams"][0]["subject_name"] == "Algorithms"
+
+    hidden = client.get("/api/v1/overview", headers=other)
+    assert hidden.status_code == 200
+    assert hidden.json()["recent_activity"] == []
+    assert hidden.json()["revision_suggestions"] == []
+    assert hidden.json()["upcoming_exams"] == []
+
+
+def test_concept_reviews_record_history_and_schedule_next_review(client: TestClient):
+    owner = auth_headers(register(client, "review-history-owner@example.com"))
+    other = auth_headers(register(client, "review-history-other@example.com"))
+    subject = client.post("/api/v1/subjects", headers=owner, json={"name": "Databases"}).json()
+    topic = client.post(f"/api/v1/subjects/{subject['id']}/topics", headers=owner, json={"title": "Indexing"}).json()
+    concept = client.post(f"/api/v1/topics/{topic['id']}/concepts", headers=owner, json={"title": "B-trees"}).json()
+
+    first = client.patch(
+        f"/api/v1/concepts/{concept['id']}/progress",
+        headers=owner,
+        json={"understanding": "weak", "recall": "needs_practice", "confidence": 2},
+    )
+    assert first.status_code == 200
+    assert first.json()["next_review_at"]
+    first_due = datetime.fromisoformat(first.json()["next_review_at"].replace("Z", "+00:00"))
+    if first_due.tzinfo is None:
+        first_due = first_due.replace(tzinfo=timezone.utc)
+    assert timedelta(days=1) <= first_due - datetime.now(timezone.utc) <= timedelta(days=3)
+
+    second = client.patch(
+        f"/api/v1/concepts/{concept['id']}/progress",
+        headers=owner,
+        json={"understanding": "strong", "recall": "comfortable", "confidence": 5},
+    )
+    assert second.status_code == 200
+    second_due = datetime.fromisoformat(second.json()["next_review_at"].replace("Z", "+00:00"))
+    if second_due.tzinfo is None:
+        second_due = second_due.replace(tzinfo=timezone.utc)
+    assert timedelta(days=13) <= second_due - datetime.now(timezone.utc) <= timedelta(days=15)
+
+    history = client.get(f"/api/v1/concepts/{concept['id']}/reviews", headers=owner)
+    assert history.status_code == 200
+    assert len(history.json()) == 2
+    assert history.json()[0]["understanding"] == "strong"
+    assert history.json()[1]["understanding"] == "weak"
+    assert client.get(f"/api/v1/concepts/{concept['id']}/reviews", headers=other).status_code == 404
+
+
+def test_syllabus_versions_capture_changes_and_can_be_restored(client: TestClient):
+    headers = auth_headers(register(client, "syllabus-versions@example.com"))
+    subject = client.post("/api/v1/subjects", headers=headers, json={"name": "Operating Systems"}).json()
+    topic = client.post(
+        f"/api/v1/subjects/{subject['id']}/topics",
+        headers=headers,
+        json={"title": "Processes"},
+    ).json()
+    child = client.post(
+        f"/api/v1/subjects/{subject['id']}/topics",
+        headers=headers,
+        json={"title": "Process states", "parent_topic_id": topic["id"]},
+    ).json()
+    concept = client.post(
+        f"/api/v1/topics/{child['id']}/concepts",
+        headers=headers,
+        json={"title": "Ready and running"},
+    ).json()
+
+    versions = client.get(f"/api/v1/subjects/{subject['id']}/syllabus/versions", headers=headers)
+    assert versions.status_code == 200
+    assert [item["version_number"] for item in versions.json()] == [3, 2, 1]
+    detail = client.get(
+        f"/api/v1/subjects/{subject['id']}/syllabus/versions/{versions.json()[0]['id']}",
+        headers=headers,
+    )
+    assert detail.status_code == 200
+    snapshot_topics = detail.json()["snapshot"]["topics"]
+    assert any(item["title"] == "Process states" and item["concepts"][0]["title"] == "Ready and running" for item in snapshot_topics)
+
+    other = auth_headers(register(client, "syllabus-versions-other@example.com"))
+    assert client.get(
+        f"/api/v1/subjects/{subject['id']}/syllabus/versions/{versions.json()[0]['id']}",
+        headers=other,
+    ).status_code == 404
+
+    client.patch(
+        f"/api/v1/concepts/{concept['id']}/progress",
+        headers=headers,
+        json={"understanding": "developing", "recall": "needs_practice", "confidence": 3},
+    )
+    client.patch(
+        f"/api/v1/concepts/{concept['id']}",
+        headers=headers,
+        json={"title": "Process lifecycle"},
+    )
+    restored = client.post(
+        f"/api/v1/subjects/{subject['id']}/syllabus/versions/{versions.json()[0]['id']}/restore",
+        headers=headers,
+    )
+    assert restored.status_code == 200
+    current = client.get(f"/api/v1/subjects/{subject['id']}/concepts", headers=headers)
+    assert current.json()[0]["title"] == "Ready and running"
+    preserved_progress = client.get(f"/api/v1/concepts/{concept['id']}/progress", headers=headers).json()
+    assert preserved_progress["understanding"] == "developing"
+    assert preserved_progress["recall"] == "needs_practice"
+    assert len(client.get(f"/api/v1/concepts/{concept['id']}/reviews", headers=headers).json()) == 1
+    restored_topics = client.get(f"/api/v1/subjects/{subject['id']}/topics", headers=headers).json()
+    restored_child = next(item for item in restored_topics if item["title"] == "Process states")
+    restored_parent = next(item for item in restored_topics if item["title"] == "Processes")
+    assert restored_child["parent_topic_id"] == restored_parent["id"]
+    assert len(client.get(f"/api/v1/subjects/{subject['id']}/syllabus/versions", headers=headers).json()) == 6
+
+
+def test_concept_prerequisites_are_owned_acyclic_and_restorable(client: TestClient):
+    owner = auth_headers(register(client, "prerequisites-owner@example.com"))
+    other = auth_headers(register(client, "prerequisites-other@example.com"))
+    subject = client.post("/api/v1/subjects", headers=owner, json={"name": "Computer Networks"}).json()
+    topic = client.post(f"/api/v1/subjects/{subject['id']}/topics", headers=owner, json={"title": "Routing"}).json()
+    concepts = [
+        client.post(f"/api/v1/topics/{topic['id']}/concepts", headers=owner, json={"title": title}).json()
+        for title in ["Network layers", "Routing tables", "Path selection"]
+    ]
+    a, b, c = concepts
+
+    linked = client.put(
+        f"/api/v1/concepts/{a['id']}/prerequisites",
+        headers=owner,
+        json={"prerequisite_ids": [b["id"]]},
+    )
+    assert linked.status_code == 200
+    assert linked.json()[0]["title"] == "Routing tables"
+    saved_version = client.get(
+        f"/api/v1/subjects/{subject['id']}/syllabus/versions", headers=owner
+    ).json()[0]
+
+    client.put(
+        f"/api/v1/concepts/{a['id']}/prerequisites",
+        headers=owner,
+        json={"prerequisite_ids": []},
+    )
+    restored = client.post(
+        f"/api/v1/subjects/{subject['id']}/syllabus/versions/{saved_version['id']}/restore",
+        headers=owner,
+    )
+    assert restored.status_code == 200
+    assert client.get(f"/api/v1/concepts/{a['id']}/prerequisites", headers=owner).json()[0]["id"] == b["id"]
+
+    assert client.put(
+        f"/api/v1/concepts/{b['id']}/prerequisites",
+        headers=owner,
+        json={"prerequisite_ids": [c["id"]]},
+    ).status_code == 200
+    cycle = client.put(
+        f"/api/v1/concepts/{c['id']}/prerequisites",
+        headers=owner,
+        json={"prerequisite_ids": [a["id"]]},
+    )
+    assert cycle.status_code == 400
+    assert client.put(
+        f"/api/v1/concepts/{a['id']}/prerequisites",
+        headers=owner,
+        json={"prerequisite_ids": [a["id"]]},
+    ).status_code == 400
+
+    other_subject = client.post(
+        "/api/v1/subjects", headers=owner, json={"name": "Other subject"}
+    ).json()
+    other_topic = client.post(
+        f"/api/v1/subjects/{other_subject['id']}/topics",
+        headers=owner,
+        json={"title": "Other"},
+    ).json()
+    foreign_concept = client.post(
+        f"/api/v1/topics/{other_topic['id']}/concepts",
+        headers=owner,
+        json={"title": "Foreign concept"},
+    ).json()
+    assert client.put(
+        f"/api/v1/concepts/{a['id']}/prerequisites",
+        headers=owner,
+        json={"prerequisite_ids": [foreign_concept["id"]]},
+    ).status_code == 400
+    assert client.get(
+        f"/api/v1/concepts/{a['id']}/prerequisites", headers=other
+    ).status_code == 404
+
+    assert client.delete(f"/api/v1/concepts/{b['id']}", headers=owner).status_code == 204
+    assert client.get(f"/api/v1/concepts/{a['id']}/prerequisites", headers=owner).json() == []

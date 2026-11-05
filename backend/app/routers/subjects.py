@@ -14,7 +14,7 @@ def list_subjects(db: Session = Depends(get_db), user: User = Depends(get_curren
 
 @router.post("", response_model=SubjectOutput, status_code=201)
 def create_subject(data: SubjectCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    subject = Subject(user_id=user.id, name=data.name.strip(), code=data.code, description=data.description)
+    subject = Subject(user_id=user.id, name=data.name.strip(), code=data.code, description=data.description, term=data.term.strip() if data.term else None, academic_year=data.academic_year.strip() if data.academic_year else None)
     db.add(subject)
     db.commit()
     db.refresh(subject)

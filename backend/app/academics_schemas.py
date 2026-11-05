@@ -75,6 +75,7 @@ class ProgressOut(ProgressUpdate):
     id: int
     concept_id: int
     last_reviewed: datetime | None
+    next_review_at: datetime | None
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
@@ -132,3 +133,61 @@ class SyllabusTopicDraft(BaseModel):
 
 class SyllabusConfirm(BaseModel):
     topics: list[SyllabusTopicDraft] = Field(min_length=1, max_length=80)
+
+
+class ConceptReviewOut(BaseModel):
+    id: int
+    concept_id: int
+    reviewed_at: datetime
+    exposure: Exposure
+    understanding: Understanding
+    recall: Recall
+    confidence: int | None
+    notes: str | None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SyllabusVersionOut(BaseModel):
+    id: int
+    subject_id: int
+    version_number: int
+    label: str
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SyllabusVersionDetail(SyllabusVersionOut):
+    snapshot: dict
+
+
+class SyllabusVersionCreate(BaseModel):
+    label: str = Field(default="Manual snapshot", min_length=1, max_length=160)
+
+    @field_validator("label")
+    @classmethod
+    def clean_label(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("label cannot be blank")
+        return value
+
+
+class PrerequisiteUpdate(BaseModel):
+    prerequisite_ids: list[int] = Field(default_factory=list, max_length=50)
+
+    @field_validator("prerequisite_ids")
+    @classmethod
+    def unique_prerequisites(cls, value: list[int]) -> list[int]:
+        if len(value) != len(set(value)):
+            raise ValueError("prerequisite_ids must be unique")
+        if any(item <= 0 for item in value):
+            raise ValueError("prerequisite IDs must be positive")
+        return value
+
+
+class PrerequisiteOut(BaseModel):
+    id: int
+    title: str
+    topic_title: str
+    understanding: str
+    recall: str

@@ -32,9 +32,10 @@ const markdownTools: { action: MarkdownAction; label: string; icon: typeof Bold 
   { action: "rule", label: "Divider", icon: Minus },
 ];
 
-export default function DashboardCalendar() {
+export default function DashboardCalendar({ onDataChange }: { onDataChange?: () => void }) {
   const today = useMemo(() => new Date(), []);
   const [month,setMonth] = useState(() => new Date(today.getFullYear(),today.getMonth(),1));
+  const [view,setView] = useState<"month"|"week">("month");
   const [selected,setSelected] = useState(keyOf(today));
   const [notes,setNotes] = useState<Record<string,string>>({});
   const [exams,setExams] = useState<Exam[]>([]);
@@ -48,11 +49,14 @@ export default function DashboardCalendar() {
   const [saved,setSaved] = useState(false);
   const [editing,setEditing] = useState(false);
   const [error,setError] = useState("");
+  const [reload,setReload] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const first = new Date(month.getFullYear(),month.getMonth(),1);
-  const start = shift(first,-((first.getDay()+6)%7));
-  const days = Array.from({length:42},(_,i)=>shift(start,i));
-  const from = keyOf(days[0]), to = keyOf(days[41]);
+  const selectedAnchor = new Date(selected + "T12:00:00");
+  const anchor = view === "month" ? first : selectedAnchor;
+  const start = view === "month" ? shift(first,-((first.getDay()+6)%7)) : shift(anchor,-((anchor.getDay()+6)%7));
+  const days = Array.from({length:view === "month" ? 42 : 7},(_,i)=>shift(start,i));
+  const from = keyOf(days[0]), to = keyOf(days[days.length - 1]);
   const examsByDay = useMemo(() => {
     const grouped: Record<string, Exam[]> = {};
     for (const exam of exams) {
@@ -70,7 +74,7 @@ export default function DashboardCalendar() {
       .catch(e => { if(live) setError(e instanceof Error ? e.message : "Calendar sync failed"); })
       .finally(() => { if(live) setLoading(false); });
     return () => { live = false; };
-  },[from,to]);
+  },[from,to,reload]);
 
   useEffect(() => {
     let live = true;
@@ -78,9 +82,10 @@ export default function DashboardCalendar() {
       .then(rows => { if(live) setExams(rows); })
       .catch(e => { if(live) setError(e instanceof Error ? e.message : "Could not load exams"); });
     return () => { live = false; };
-  },[]);
+  },[reload]);
 
-  useEffect(() => { setDraft(notes[selected] ?? ""); setSaved(false); setEditing(false); },[selected,notes]);
+  useEffect(() => { setDraft(notes[selected] ?? ""); setEditing(false); },[selected,notes]);
+  useEffect(() => { setSaved(false); },[selected]);
   const selectedDate = new Date(`${selected}T12:00:00`);
   const weekdays = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
   const todayKey = keyOf(today);
@@ -112,6 +117,7 @@ export default function DashboardCalendar() {
       });
       setExams(old => old.map(exam => exam.id === updated.id ? updated : exam));
       cancelExamEdit();
+      onDataChange?.();
     } catch(e) {
       setError(e instanceof Error ? e.message : "Could not update exam");
     } finally {
@@ -127,6 +133,7 @@ export default function DashboardCalendar() {
       await api<void>(`/exams/${exam.id}`,{method:"DELETE"});
       setExams(old => old.filter(item => item.id !== exam.id));
       if (editingExamId === exam.id) cancelExamEdit();
+      onDataChange?.();
     } catch(e) {
       setError(e instanceof Error ? e.message : "Could not delete exam");
     } finally {
@@ -225,15 +232,16 @@ export default function DashboardCalendar() {
   return <section className="atlas-calendar-panel">
     <div className="atlas-calendar-main">
       <div className="atlas-calendar-heading">
-        <div><p className="eyebrow">YOUR TIME, YOUR WAY</p><h2>Days on the map</h2><p className="atlas-calendar-caption">A little space to keep track of what matters.</p></div>
+        <div><p className="eyebrow">YOUR TIME, YOUR WAY</p><h2>Days on the map</h2><p className="atlas-calendar-caption">Academic exams appear as events; personal notes stay attached to individual dates.</p></div>
         <div className="atlas-calendar-controls">
+          <div className="atlas-calendar-view-switch" role="group" aria-label="Calendar view"><button type="button" aria-pressed={view==="month"} className={view==="month"?"active":""} onClick={()=>setView("month")}>Month</button><button type="button" aria-pressed={view==="week"} className={view==="week"?"active":""} onClick={()=>setView("week")}>Week</button></div>
           <button type="button" className="atlas-calendar-today" onClick={()=>{setMonth(new Date(today.getFullYear(),today.getMonth(),1));setSelected(todayKey);}}>Today</button>
-          <button type="button" className="atlas-calendar-arrow" aria-label="Previous month" onClick={()=>setMonth(m=>new Date(m.getFullYear(),m.getMonth()-1,1))}><ArrowLeft size={15}/></button>
-          <button type="button" className="atlas-calendar-arrow" aria-label="Next month" onClick={()=>setMonth(m=>new Date(m.getFullYear(),m.getMonth()+1,1))}><ArrowRight size={15}/></button>
+          <button type="button" className="atlas-calendar-arrow" aria-label={view==="month"?"Previous month":"Previous week"} onClick={()=>view==="month"?setMonth(m=>new Date(m.getFullYear(),m.getMonth()-1,1)):setSelected(keyOf(shift(selectedAnchor,-7)))}><ArrowLeft size={15}/></button>
+          <button type="button" className="atlas-calendar-arrow" aria-label={view==="month"?"Next month":"Next week"} onClick={()=>view==="month"?setMonth(m=>new Date(m.getFullYear(),m.getMonth()+1,1)):setSelected(keyOf(shift(selectedAnchor,7)))}><ArrowRight size={15}/></button>
         </div>
       </div>
-      <div className="atlas-calendar-monthline"><h3>{month.toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</h3><span>{loading?"SYNCING":"SYNCED"} <i className={loading?"is-syncing":""}/></span></div>
-      <div className="atlas-calendar-grid" role="grid" aria-label="Calendar">
+      <div className="atlas-calendar-monthline"><h3>{view==="month"?month.toLocaleDateString("en-IN",{month:"long",year:"numeric"}):start.toLocaleDateString("en-IN",{day:"numeric",month:"short"}) + " – " + days[6].toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</h3><span>{loading?"SYNCING":"SYNCED"} <i className={loading?"is-syncing":""}/></span></div>
+      <div className="atlas-calendar-grid" role="grid" aria-label="Calendar" aria-busy={loading}>
         {weekdays.map(d=><div key={d} className="atlas-calendar-weekday" role="columnheader">{d}</div>)}
         {days.map(d=>{const k=keyOf(d),hasNote=Boolean(notes[k]?.trim()),hasExam=Boolean(examsByDay[k]?.length);return <button key={k} type="button" role="gridcell" aria-pressed={selected===k} aria-label={`${d.toLocaleDateString()}${hasExam?`, ${examsByDay[k].length} exam${examsByDay[k].length===1?"":"s"}`:""}${hasNote?", has a note":""}`} onClick={()=>setSelected(k)} className={`atlas-calendar-day${d.getMonth()!==month.getMonth()?" outside":""}${selected===k?" selected":""}${k===todayKey?" today":""}${hasNote?" has-note":""}${hasExam?" has-event":""}`}><span>{d.getDate()}</span>{hasNote&&<i/>}{hasExam&&<i className="exam-dot"/>}</button>;})}
       </div>
@@ -308,7 +316,7 @@ export default function DashboardCalendar() {
         {notes[selected]&&!draft.trim()&&<button type="button" className="atlas-note-delete" onClick={()=>void save()} disabled={saving} aria-label="Delete note"><Trash2 size={14}/></button>}
         <button type="button" className="atlas-button atlas-primary atlas-note-save" onClick={()=>void save()} disabled={saving||draft.trim()===(notes[selected]??"")}>{saving?<LoaderCircle size={14} className="atlas-spin"/>:saved?<Check size={14}/>:<Save size={14}/>} {saving?"Saving":saved?"Saved":"Save note"}</button>
       </div>
-      {error&&<p className="atlas-calendar-error" role="alert">{error}</p>}
+      {error&&<p className="atlas-calendar-error" role="alert">{error}<button type="button" onClick={()=>setReload(value=>value+1)}>Try again</button></p>}
       <p className="atlas-calendar-private">Notes sync to your Atlas account and will be here when you return.</p>
     </aside>
   </section>;
