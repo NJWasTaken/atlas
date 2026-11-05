@@ -189,7 +189,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
   }
 
   async function chooseConcept(concept: Concept) {
-    setSelectedConcept(concept); setReviews([]); setError("");
+    setSelectedConcept(concept); setReviews([]); setPrerequisiteSearch(""); setError("");
     try {
       const [result, history, prerequisiteRows] = await Promise.all([
         api<Progress | null>(`/concepts/${concept.id}/progress`),
