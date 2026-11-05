@@ -33,6 +33,9 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [subjectsLoading, setSubjectsLoading] = useState(true);
+  const [subjectsError, setSubjectsError] = useState("");
+  const [deletingSubjectId, setDeletingSubjectId] = useState<number | null>(null);
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewError, setOverviewError] = useState("");
@@ -54,7 +57,20 @@ export default function Home() {
   const [quoteError, setQuoteError] = useState("");
   const [quotePhase, setQuotePhase] = useState<"idle" | "out" | "in">("idle");
 
-  async function loadSubjects() { setSubjects(await api<Subject[]>("/subjects")); }
+  async function loadSubjects() {
+    setSubjectsLoading(true);
+    setSubjectsError("");
+    try {
+      const next = await api<Subject[]>("/subjects");
+      setSubjects(next);
+      return next;
+    } catch (e) {
+      setSubjectsError(e instanceof Error ? e.message : "Could not load your subjects.");
+      throw e;
+    } finally {
+      setSubjectsLoading(false);
+    }
+  }
   const loadQuote = useCallback(async (random = false) => {
     setQuoteLoading(true);
     setQuoteError("");
@@ -81,7 +97,7 @@ export default function Home() {
     if (saved) setAuth(saved);
     setInitialized(true);
   }, []);
-  useEffect(() => { if (token) loadSubjects().catch(e => setError(e.message)); }, [token]);
+  useEffect(() => { if (token) void loadSubjects().catch(() => {}); }, [token]);
   const loadOverview = useCallback(async () => {
     setOverviewLoading(true);
     try {
@@ -136,8 +152,16 @@ export default function Home() {
     finally { setBusy(false); }
   }
   async function deleteSubject(id: number) {
-    try { await api<void>(`/subjects/${id}`, { method: "DELETE" }); await loadSubjects(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Could not delete subject"); }
+    setDeletingSubjectId(id);
+    setError("");
+    try {
+      await api<void>(`/subjects/${id}`, { method: "DELETE" });
+      await loadSubjects();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not delete subject");
+    } finally {
+      setDeletingSubjectId(null);
+    }
   }
 
   if (!initialized) return <main className="atlas-loading"><Orbit size={25}/></main>;
@@ -233,11 +257,11 @@ export default function Home() {
                 <button className="atlas-round-arrow" onClick={()=>setActive("Academics")} aria-label="View academics"><ArrowUpRight size={17}/></button>
               </div>
               <div className="atlas-subject-filter"><label htmlFor="atlas-subject-filter">SHOW</label><select id="atlas-subject-filter" value={subjectFilter} onChange={e=>setSubjectFilter(e.target.value)}><option value="all">All subjects</option>{Array.from(new Set(subjects.map(s=>s.term).filter((term): term is string => Boolean(term)))).sort().map(term=><option key={term} value={term}>{term}</option>)}</select></div>
-              <SubjectGrid subjects={subjects.filter(s=>subjectFilter==="all"||s.term===subjectFilter)} onDelete={deleteSubject} onEdit={openEditSubject}/>
+              {subjectsError ? <div className="atlas-state-card atlas-state-error" role="alert"><div><strong>Could not load your subjects.</strong><p>{subjectsError}</p></div><button type="button" className="atlas-button atlas-secondary" onClick={()=>void loadSubjects().catch(()=>{})} disabled={subjectsLoading}>{subjectsLoading?"Trying again…":"Try again"}</button></div> : subjectsLoading ? <div className="atlas-state-card" role="status" aria-live="polite" aria-busy="true"><span className="atlas-state-spinner" aria-hidden="true"/><div><strong>Gathering your subjects…</strong><p>Your academic space will be ready in a moment.</p></div></div> : <SubjectGrid subjects={subjects.filter(s=>subjectFilter==="all"||s.term===subjectFilter)} onDelete={deleteSubject} onEdit={openEditSubject} deletingSubjectId={deletingSubjectId}/>}
               <section className="atlas-overview-learning" aria-label="Learning overview">
                 <div className="atlas-overview-section-heading"><div><p className="eyebrow">YOUR LEARNING THREAD</p><h2>Pick up where you left off</h2><p>Small steps add up. Continue from the concepts you last checked in with.</p></div></div>
                 {overview&&<div className="atlas-overview-stats"><div><span>IN YOUR SYLLABI</span><strong>{overview.learning_summary.total_concepts}</strong><small>concepts</small></div><div><span>STRONG</span><strong>{overview.learning_summary.strong}</strong><small>feeling solid</small></div><div><span>DEVELOPING</span><strong>{overview.learning_summary.developing}</strong><small>taking shape</small></div><div><span>NEEDS ATTENTION</span><strong>{overview.learning_summary.weak+overview.learning_summary.not_assessed}</strong><small>{overview.learning_summary.due_for_review} due to revisit</small></div></div>}
-                {overviewError ? <div className="atlas-overview-inline-error" role="status"><p>Your learning summary is temporarily unavailable. Your subjects and calendar are still here.</p><button type="button" onClick={()=>void loadOverview()}>Try again</button></div> : overviewLoading && !overview ? <p className="atlas-overview-muted">Gathering your recent learning…</p> : overview?.continue_learning.length ? <div className="atlas-overview-activity-grid">{overview.continue_learning.map(item=><button key={item.concept_id} className="atlas-overview-activity-card" onClick={()=>{setAcademicsFocus({subjectId:item.subject_id,conceptId:item.concept_id});setActive("Academics");}}><span>{item.subject_name}</span><strong>{item.concept_title}</strong><small>{item.topic_title} · {new Date(item.last_reviewed).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</small><i>Continue learning <ArrowUpRight size={13}/></i></button>)}</div> : <p className="atlas-overview-muted">Your first concept check-in will show up here. Open Academics and start with any concept.</p>}
+                {overviewError ? <div className="atlas-overview-inline-error" role="status"><p>Your learning summary is temporarily unavailable. Your subjects and calendar are still here.</p><button type="button" onClick={()=>void loadOverview()} disabled={overviewLoading}>{overviewLoading?"Trying again…":"Try again"}</button></div> : overviewLoading && !overview ? <p className="atlas-overview-muted" role="status" aria-live="polite">Gathering your recent learning…</p> : overview?.continue_learning.length ? <div className="atlas-overview-activity-grid">{overview.continue_learning.map(item=><button key={item.concept_id} className="atlas-overview-activity-card" onClick={()=>{setAcademicsFocus({subjectId:item.subject_id,conceptId:item.concept_id});setActive("Academics");}}><span>{item.subject_name}</span><strong>{item.concept_title}</strong><small>{item.topic_title} · {new Date(item.last_reviewed).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</small><i>Continue learning <ArrowUpRight size={13}/></i></button>)}</div> : <p className="atlas-overview-muted">Your first concept check-in will show up here. Open Academics and start with any concept.</p>}
                 <div className="atlas-overview-secondary-grid">
                   <section className="atlas-overview-mini-panel"><div><p className="eyebrow">A GENTLE NUDGE</p><h3>Worth a revisit</h3></div>{overview?.revision_suggestions.length ? overview.revision_suggestions.slice(0,4).map(item=><button key={item.concept_id} className="atlas-overview-suggestion" onClick={()=>{setAcademicsFocus({subjectId:item.subject_id,conceptId:item.concept_id});setActive("Academics");}}><span><strong>{item.concept_title}</strong><small>{item.subject_name} · {item.topic_title}</small></span><i>{item.days_until_exam!==null?`Exam in ${item.days_until_exam}d`:"Review"} <ArrowUpRight size={12}/></i></button>) : <p className="atlas-overview-muted">No revision suggestions yet. Add concepts and record how they feel.</p>}</section>
                   <section className="atlas-overview-mini-panel"><div><p className="eyebrow">ON THE HORIZON</p><h3>Coming up</h3></div>{overview?.upcoming_exams.length ? overview.upcoming_exams.slice(0,4).map(exam=><div key={exam.id} className="atlas-overview-exam"><span>{new Date(exam.exam_date).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</span><div><strong>{exam.title}</strong><small>{exam.subject_name}</small></div><i>{exam.days_until===0?"Today":`${exam.days_until}d`}</i></div>) : <p className="atlas-overview-muted">No upcoming exams on your calendar.</p>}</section>
@@ -275,10 +299,10 @@ function Brand(){return <div className="atlas-brand"><div className="atlas-brand
 function FeatureEmpty({icon,eyebrow,title,text,foot}:{icon:React.ReactNode;eyebrow:string;title:React.ReactNode;text:string;foot:string}){
   return <section className="atlas-feature-empty"><div className="atlas-feature-icon">{icon}</div><p className="eyebrow">{eyebrow}</p><h2>{title}</h2><p className="atlas-feature-text">{text}</p><div className="atlas-feature-foot"><span/>{foot}</div></section>;
 }
-function SubjectGrid({subjects,onDelete,onEdit}:{subjects:Subject[];onDelete:(id:number)=>void;onEdit:(subject:Subject)=>void}){
+function SubjectGrid({subjects,onDelete,onEdit,deletingSubjectId}:{subjects:Subject[];onDelete:(id:number)=>void;onEdit:(subject:Subject)=>void;deletingSubjectId:number|null}){
   if(!subjects.length)return <div className="atlas-empty-subjects"><div className="atlas-empty-icon"><BookOpen size={19}/></div><p>Your map is waiting for its first pin.</p><span>Add a subject to begin building your academic space.</span></div>;
   return <div className="atlas-subject-grid">{subjects.map((s,i)=><article key={s.id} className="atlas-subject-card" style={{animationDelay:`${i*65}ms`}}>
-    <div className="atlas-subject-card-top"><div className="atlas-subject-glyph"><BookOpen size={17}/></div><div className="atlas-subject-card-actions"><button onClick={()=>onEdit(s)} className="atlas-remove atlas-edit-subject">Edit</button><button onClick={()=>onDelete(s.id)} className="atlas-remove">Remove</button></div></div>
+    <div className="atlas-subject-card-top"><div className="atlas-subject-glyph"><BookOpen size={17}/></div><div className="atlas-subject-card-actions"><button onClick={()=>onEdit(s)} className="atlas-remove atlas-edit-subject">Edit</button><button onClick={()=>onDelete(s.id)} className="atlas-remove" disabled={deletingSubjectId===s.id}>{deletingSubjectId===s.id?"Removing…":"Remove"}</button></div></div>
     <p className="atlas-subject-code">{s.code||`SUBJECT ${String(i+1).padStart(2,"0")}`}</p><h3>{s.name}</h3>{(s.term||s.academic_year)&&<p className="atlas-subject-term">{[s.term,s.academic_year].filter(Boolean).join(" · ")}</p>}<p className="atlas-subject-description">{s.description||"Syllabus and concepts will live here."}</p>
     <div className="atlas-card-bottom"><span>YOUR ACADEMIC SPACE</span><ArrowUpRight size={14}/></div>
   </article>)}</div>;

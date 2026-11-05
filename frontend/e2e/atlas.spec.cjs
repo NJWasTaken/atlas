@@ -1,7 +1,8 @@
 const { test, expect } = require("@playwright/test");
 
-function installApiMock(page) {
+function installApiMock(page, options = {}) {
   const state = { subjects: [], topics: [], concepts: [], notes: {}, exams: [], progress: {}, reviews: [], versions: [] };
+  let failSubjectsOnce = Boolean(options.failSubjectsOnce);
   let nextId = 1;
 
   page.route("**/api/v1/**", async route => {
@@ -16,6 +17,10 @@ function installApiMock(page) {
 
     if (path === "/auth/login" || path === "/auth/register") return json({ access_token: "e2e-token" });
     if (path === "/subjects" && method === "GET") {
+      if (failSubjectsOnce) {
+        failSubjectsOnce = false;
+        return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ detail: "Temporary subject service outage." }) });
+      }
       const term = url.searchParams.get("term");
       return json(term ? state.subjects.filter(s => s.term === term) : state.subjects);
     }
@@ -193,4 +198,13 @@ test("student can create, edit and delete an exam from Academics and Overview", 
   await expect(page.getByLabel("Delete Overview exam revised")).toBeVisible();
   await page.getByLabel("Delete Overview exam revised").click();
   await expect(page.getByLabel("Delete Overview exam revised")).toHaveCount(0);
+});
+
+test("Home shows a recoverable subject loading error and retries successfully", async ({ page }) => {
+  installApiMock(page, { failSubjectsOnce: true });
+  await signIn(page);
+  await expect(page.getByRole("alert").filter({ hasText: "Could not load your subjects" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page.getByText("Your map is waiting for its first pin.")).toBeVisible();
 });

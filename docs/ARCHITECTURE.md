@@ -39,6 +39,10 @@ The App Router entry is `frontend/app/page.tsx`. It handles authentication state
 
 `frontend/lib/api.ts` is the shared JSON request helper. It reads the bearer token from browser local storage, adds it to requests, disables fetch caching, and turns non-success responses into errors. The API base URL comes from `NEXT_PUBLIC_API_URL`, defaulting to `http://localhost:8000/api/v1`.
 
+Home owns subject-list loading, failure, and retry state independently from the global action/authentication error. Overview summary failures remain local to the learning-summary panel so the calendar and subject list remain usable. Academics owns its subject-workspace loading/error state; each workspace load receives a monotonically increasing request ID so a slower response from a previously selected subject cannot overwrite the currently selected subject. The calendar keeps its own sync and note-save states, announces sync status through a polite live region, and exposes a retry action for failed loads.
+
+The shared `.atlas-state-card` styling provides the common visual treatment for loading and retryable error states without coupling the modules to a shared state-management abstraction. Empty states remain module-specific so their next action can be contextual.
+
 The API is called directly from client components. The browser does not connect to PostgreSQL. The Overview calls `/api/v1/overview` for aggregate concept readiness, recent check-ins, continue-learning shortcuts, explainable revision candidates, due-review counts, and upcoming exams. Subject term filtering is client-side in both the Overview subject grid and Academics subject picker.
 
 ### Backend
@@ -216,7 +220,7 @@ This list covers the tracked project source, documentation, and configuration fi
 | `app/layout.tsx` | Root App Router layout; imports global styles, sets metadata, and mounts the celestial background. |
 | `app/page.tsx` | Main client page: auth state/forms, navigation, overview, subject operations, quote loading, and module composition. |
 | `app/components/AcademicsWorkspace.tsx` | Subject-level topics/concepts/progress/readiness UI and exam create/edit/delete controls. |
-| `app/components/DashboardCalendar.tsx` | Monthly/weekly Overview calendar, date-note editing, retry states, and display/edit/delete of exams on selected dates. |
+| `app/components/DashboardCalendar.tsx` | Monthly/weekly Overview calendar, date-note editing, announced sync status, retry states, and display/edit/delete of exams on selected dates. |
 | `e2e/atlas.spec.cjs` | Playwright browser flows for sign-in, academics, progress, calendar notes, and exam management. |
 | `playwright.config.cjs` | Chromium browser-test configuration and local Next.js test server. |
 | `app/components/CelestialBackground.tsx` | Three.js/React Three Fiber animated star-map background with reduced-motion support. |
@@ -230,4 +234,5 @@ This list covers the tracked project source, documentation, and configuration fi
 - Startup `create_all()` is not a substitute for versioned database migrations. Production does not run it; local development still does. Existing database baseline adoption remains an operator task requiring a verified backup and schema comparison.
 - The backend suite includes API, configuration, quote-cache, migration-adoption, and PostgreSQL integration coverage. GitHub Actions validates the SQLite and PostgreSQL migration chains and runs Playwright browser flows after the frontend typecheck/build. The existing-database adoption helper remains an explicit operator action requiring a verified backup; it has not been run against a user database.
 - The Overview provides monthly and weekly calendar views, date notes, exam events, recent learning activity, revision nudges, and upcoming exams; it is not a general-purpose event planner.
+- Home, Academics, and the calendar expose explicit loading/error/retry feedback for their primary data requests. This is a focused reliability pass, not yet a complete accessibility or responsive audit of every control and screen.
 - Explore, My Universe, scanned-PDF OCR, adaptive spaced repetition, AI integrations, and data export remain future work.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen, ChevronDown, ChevronRight, Plus, Trash2, Pencil, Brain, Target,
   CalendarDays, RefreshCw, Check, AlertCircle, Layers3, Sparkles, FileUp, X
@@ -57,6 +57,9 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
   const [addingConcept, setAddingConcept] = useState<number | null>(null);
   const [addingExam, setAddingExam] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [workspaceLoading, setWorkspaceLoading] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState("");
+  const workspaceRequest = useRef(0);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [importDraft, setImportDraft] = useState<SyllabusDraft | null>(null);
@@ -74,7 +77,11 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
   const roots = topics.filter(t => !t.parent_topic_id);
 
   async function loadWorkspace(id: number) {
-    setError("");
+    const requestId = ++workspaceRequest.current;
+    setWorkspaceLoading(true);
+    setWorkspaceError("");
+    setTopics([]); setConcepts([]); setReadiness(null); setExams([]); setVersions([]);
+    setSelectedConcept(null); setReviews([]); setPrerequisites([]); setPrerequisiteIds([]);
     try {
       const [nextTopics, nextConcepts, nextReadiness, nextExams, nextVersions] = await Promise.all([
         api<Topic[]>(`/subjects/${id}/topics`),
@@ -83,9 +90,14 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
         api<Exam[]>(`/exams`),
         api<SyllabusVersion[]>(`/subjects/${id}/syllabus/versions`),
       ]);
+      if (requestId !== workspaceRequest.current) return;
       setTopics(nextTopics); setConcepts(nextConcepts); setReadiness(nextReadiness); setExams(nextExams); setVersions(nextVersions);
       setExpanded(nextTopics.filter(t => !t.parent_topic_id).map(t => t.id));
-    } catch (e) { setError(e instanceof Error ? e.message : "Could not load this subject."); }
+    } catch (e) {
+      if (requestId === workspaceRequest.current) setWorkspaceError(e instanceof Error ? e.message : "Could not load this subject.");
+    } finally {
+      if (requestId === workspaceRequest.current) setWorkspaceLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -405,13 +417,14 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
 
   if (!subjects.length) return <div className="atlas-academics-empty"><div className="atlas-academics-empty-icon"><BookOpen size={24}/></div><h3>Start with a subject</h3><p>Add a subject first, then build its syllabus manually or import a PDF and review the suggested chapters before saving.</p></div>;
 
-  return <div className="atlas-academics-workspace">
+  return <div className="atlas-academics-workspace" aria-busy={workspaceLoading}>
+    {workspaceError && <div className="atlas-academics-alert" role="alert"><AlertCircle size={15}/><span>Could not load this subject. {workspaceError}</span><button type="button" onClick={()=>void loadWorkspace(subjectId!)} disabled={workspaceLoading}>{workspaceLoading?"Retrying…":"Try again"}</button><button type="button" onClick={()=>setWorkspaceError("")}>Dismiss</button></div>}
     {error && <div className="atlas-academics-alert" role="alert"><AlertCircle size={15}/>{error}<button onClick={()=>setError("")}>Dismiss</button></div>}
     {notice && <div className="atlas-academics-notice" role="status"><Check size={15}/>{notice}<button onClick={()=>setNotice("")}>×</button></div>}
     <div className="atlas-academics-toolbar">
       <label><span>FILTER BY TERM</span><select value={termFilter} onChange={e=>{setTermFilter(e.target.value);setSelectedConcept(null);setReviews([]);setPrerequisites([]);setPrerequisiteIds([]);setSelectedVersion(null);setImportDraft(null);}}><option value="all">All terms</option>{terms.map(term=><option key={term} value={term}>{term}</option>)}</select></label>
       <label><span>WORKING IN</span><select value={subjectId ?? ""} onChange={e=>{setSubjectId(Number(e.target.value));setSelectedConcept(null);setReviews([]);setPrerequisites([]);setPrerequisiteIds([]);setPrerequisiteSearch("");setSelectedVersion(null);setShowVersionHistory(false);setImportDraft(null);}}>{visibleSubjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-      <div className="atlas-academics-actions"><button className="atlas-button atlas-secondary" onClick={()=>void loadWorkspace(subjectId!)}><RefreshCw size={14}/> Refresh</button><button className="atlas-button atlas-secondary" onClick={()=>setShowVersionHistory(value=>!value)}>History ({versions.length})</button><button className="atlas-button atlas-primary" onClick={()=>{setParentId(null);setAddingTopic(true);}}><Plus size={14}/> Add chapter</button></div>
+      <div className="atlas-academics-actions"><button className="atlas-button atlas-secondary" onClick={()=>void loadWorkspace(subjectId!)} disabled={workspaceLoading}><RefreshCw size={14}/> {workspaceLoading?"Loading…":"Refresh"}</button><button className="atlas-button atlas-secondary" onClick={()=>setShowVersionHistory(value=>!value)}>History ({versions.length})</button><button className="atlas-button atlas-primary" onClick={()=>{setParentId(null);setAddingTopic(true);}}><Plus size={14}/> Add chapter</button></div>
     </div>
 
     {!visibleSubjects.length && <div className="atlas-academics-empty">No subjects in this term yet.</div>}
@@ -463,7 +476,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
           </div>
           <p className="atlas-import-footnote">This adds the reviewed items alongside any chapters already in this subject. It does not replace your existing syllabus.</p>
         </section>}
-        {roots.length ? roots.map(t=>renderTopic(t)) : <div className="atlas-syllabus-empty"><BookOpen size={22}/><strong>Your syllabus is a blank page.</strong><span>Start from scratch with a chapter, or bring in an existing syllabus PDF.</span><button type="button" className="atlas-button atlas-primary" onClick={()=>{setParentId(null);setTopicTitle("");setAddingTopic(true);}}><Plus size={14}/> Add your first chapter</button></div>}
+        {workspaceLoading ? <div className="atlas-state-card" role="status" aria-live="polite"><span className="atlas-state-spinner" aria-hidden="true"/><div><strong>Loading subject workspace…</strong><p>Gathering chapters, concepts and revision details.</p></div></div> : roots.length ? roots.map(t=>renderTopic(t)) : <div className="atlas-syllabus-empty"><BookOpen size={22}/><strong>Your syllabus is a blank page.</strong><span>Start from scratch with a chapter, or bring in an existing syllabus PDF.</span><button type="button" className="atlas-button atlas-primary" onClick={()=>{setParentId(null);setTopicTitle("");setAddingTopic(true);}}><Plus size={14}/> Add your first chapter</button></div>}
       </section>
 
       <section className="atlas-academics-panel atlas-progress-panel">

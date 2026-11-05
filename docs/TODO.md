@@ -45,7 +45,10 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Add weekly calendar navigation/view and clarify that exams are academic events while day notes are personal date notes.
 - [x] Return curated quote fallbacks when the quote provider is unavailable or unconfigured; cache daily quotes for six hours and random quotes for one minute, with stale-cache fallback after provider failures.
 - [x] Add a calendar retry affordance and loading semantics; keep calendar errors local to the calendar panel.
-- [ ] Add broader empty/loading/error states across remaining screens.
+- [x] Add explicit subject-list loading/error/retry states on Home, local Overview-summary loading/error feedback, Academics workspace loading/error/retry states, and an announced calendar sync state.
+- [x] Guard Academics workspace requests against out-of-order responses when switching subjects.
+- [x] Add a Playwright regression test for a transient subject-list API failure followed by a successful retry.
+- [ ] Continue the cross-screen pass for individual mutations, modal/dialog feedback, and edge-case empty states.
 
 ## Explore
 
@@ -73,7 +76,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 ## Release readiness and refinement
 
 - [ ] Add data export and backup/restore workflows.
-- [ ] Improve mobile layouts, keyboard navigation, screen-reader support, and reduced-motion behavior across all views.
+- [ ] Complete a full mobile-layout, keyboard-navigation, screen-reader, and reduced-motion audit across all views. The current PR adds live announcements for the newly hardened async states but does not claim full accessibility completion.
 - [ ] Add search across subjects, concepts, notes, and saved items as those modules become available.
 - [ ] Measure and improve performance, reliability, logging, and operational error reporting.
 - [ ] Define deployment, secrets management, database backup, and production monitoring requirements.

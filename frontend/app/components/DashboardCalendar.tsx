@@ -240,7 +240,7 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
           <button type="button" className="atlas-calendar-arrow" aria-label={view==="month"?"Next month":"Next week"} onClick={()=>view==="month"?setMonth(m=>new Date(m.getFullYear(),m.getMonth()+1,1)):setSelected(keyOf(shift(selectedAnchor,7)))}><ArrowRight size={15}/></button>
         </div>
       </div>
-      <div className="atlas-calendar-monthline"><h3>{view==="month"?month.toLocaleDateString("en-IN",{month:"long",year:"numeric"}):start.toLocaleDateString("en-IN",{day:"numeric",month:"short"}) + " – " + days[6].toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</h3><span>{loading?"SYNCING":"SYNCED"} <i className={loading?"is-syncing":""}/></span></div>
+      <div className="atlas-calendar-monthline"><h3>{view==="month"?month.toLocaleDateString("en-IN",{month:"long",year:"numeric"}):start.toLocaleDateString("en-IN",{day:"numeric",month:"short"}) + " – " + days[6].toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</h3><span role="status" aria-live="polite" aria-busy={loading}>{loading?"SYNCING":"SYNCED"} <i className={loading?"is-syncing":""}/></span></div>
       <div className="atlas-calendar-grid" role="grid" aria-label="Calendar" aria-busy={loading}>
         {weekdays.map(d=><div key={d} className="atlas-calendar-weekday" role="columnheader">{d}</div>)}
         {days.map(d=>{const k=keyOf(d),hasNote=Boolean(notes[k]?.trim()),hasExam=Boolean(examsByDay[k]?.length);return <button key={k} type="button" role="gridcell" aria-pressed={selected===k} aria-label={`${d.toLocaleDateString()}${hasExam?`, ${examsByDay[k].length} exam${examsByDay[k].length===1?"":"s"}`:""}${hasNote?", has a note":""}`} onClick={()=>setSelected(k)} className={`atlas-calendar-day${d.getMonth()!==month.getMonth()?" outside":""}${selected===k?" selected":""}${k===todayKey?" today":""}${hasNote?" has-note":""}${hasExam?" has-event":""}`}><span>{d.getDate()}</span>{hasNote&&<i/>}{hasExam&&<i className="exam-dot"/>}</button>;})}
@@ -316,7 +316,7 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
         {notes[selected]&&!draft.trim()&&<button type="button" className="atlas-note-delete" onClick={()=>void save()} disabled={saving} aria-label="Delete note"><Trash2 size={14}/></button>}
         <button type="button" className="atlas-button atlas-primary atlas-note-save" onClick={()=>void save()} disabled={saving||draft.trim()===(notes[selected]??"")}>{saving?<LoaderCircle size={14} className="atlas-spin"/>:saved?<Check size={14}/>:<Save size={14}/>} {saving?"Saving":saved?"Saved":"Save note"}</button>
       </div>
-      {error&&<p className="atlas-calendar-error" role="alert">{error}<button type="button" onClick={()=>setReload(value=>value+1)}>Try again</button></p>}
+      {error&&<p className="atlas-calendar-error" role="alert">{error}<button type="button" onClick={()=>setReload(value=>value+1)} disabled={loading}>{loading?"Retrying…":"Try again"}</button></p>}
       <p className="atlas-calendar-private">Notes sync to your Atlas account and will be here when you return.</p>
     </aside>
   </section>;
