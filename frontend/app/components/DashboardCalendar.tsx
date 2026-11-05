@@ -84,7 +84,8 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
     return () => { live = false; };
   },[reload]);
 
-  useEffect(() => { setDraft(notes[selected] ?? ""); setSaved(false); setEditing(false); },[selected,notes]);
+  useEffect(() => { setDraft(notes[selected] ?? ""); setEditing(false); },[selected,notes]);
+  useEffect(() => { setSaved(false); },[selected]);
   const selectedDate = new Date(`${selected}T12:00:00`);
   const weekdays = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
   const todayKey = keyOf(today);
