@@ -121,3 +121,6 @@
  .atlas-import-review-actions{align-items:stretch;flex-direction:column}
  .atlas-import-review-actions>div{justify-content:flex-end}
 }
+
+.atlas-topic-source{flex:0 0 auto}
+.atlas-concept-source{margin-right:7px}
