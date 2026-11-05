@@ -48,7 +48,9 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
   const [saving,setSaving] = useState(false);
   const [saved,setSaved] = useState(false);
   const [editing,setEditing] = useState(false);
-  const [error,setError] = useState("");
+  const [syncError,setSyncError] = useState("");
+  const [mutationError,setMutationError] = useState("");
+  const [notice,setNotice] = useState("");
   const [reload,setReload] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const first = new Date(month.getFullYear(),month.getMonth(),1);
@@ -68,10 +70,10 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
 
   useEffect(() => {
     let live = true;
-    setLoading(true); setError("");
+    setLoading(true); setSyncError("");
     api<DayNote[]>(`/calendar?start=${from}&end=${to}`)
       .then(rows => { if(live) setNotes(Object.fromEntries(rows.map(r=>[r.day,r.note]))); })
-      .catch(e => { if(live) setError(e instanceof Error ? e.message : "Calendar sync failed"); })
+      .catch(e => { if(live) setSyncError(e instanceof Error ? e.message : "Calendar sync failed"); })
       .finally(() => { if(live) setLoading(false); });
     return () => { live = false; };
   },[from,to,reload]);
@@ -80,7 +82,7 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
     let live = true;
     api<Exam[]>("/exams")
       .then(rows => { if(live) setExams(rows); })
-      .catch(e => { if(live) setError(e instanceof Error ? e.message : "Could not load exams"); });
+      .catch(e => { if(live) setSyncError(e instanceof Error ? e.message : "Could not load exams"); });
     return () => { live = false; };
   },[reload]);
 
@@ -96,7 +98,7 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
     setEditingExamId(exam.id);
     setExamTitle(exam.title);
     setExamDate(localDate.toISOString().slice(0, 16));
-    setError("");
+    setMutationError("");
   }
 
   function cancelExamEdit() {
@@ -109,7 +111,8 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
     e.preventDefault();
     if (editingExamId === null || !examDate) return;
     setExamSaving(true);
-    setError("");
+    setMutationError("");
+    setNotice("");
     try {
       const updated = await api<Exam>(`/exams/${editingExamId}`, {
         method:"PATCH",
@@ -117,9 +120,10 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
       });
       setExams(old => old.map(exam => exam.id === updated.id ? updated : exam));
       cancelExamEdit();
+      setNotice("Exam updated.");
       onDataChange?.();
     } catch(e) {
-      setError(e instanceof Error ? e.message : "Could not update exam");
+      setMutationError(e instanceof Error ? e.message : "Could not update exam");
     } finally {
       setExamSaving(false);
     }
@@ -128,21 +132,24 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
   async function deleteExam(exam: Exam) {
     if (!confirm(`Delete "${exam.title}"?`)) return;
     setExamSaving(true);
-    setError("");
+    setMutationError("");
+    setNotice("");
     try {
       await api<void>(`/exams/${exam.id}`,{method:"DELETE"});
       setExams(old => old.filter(item => item.id !== exam.id));
       if (editingExamId === exam.id) cancelExamEdit();
+      setNotice("Exam deleted.");
       onDataChange?.();
     } catch(e) {
-      setError(e instanceof Error ? e.message : "Could not delete exam");
+      setMutationError(e instanceof Error ? e.message : "Could not delete exam");
     } finally {
       setExamSaving(false);
     }
   }
 
   async function save() {
-    setSaving(true); setError("");
+    if (!draft.trim() && notes[selected] && !window.confirm("Delete the note for this day?")) return;
+    setSaving(true); setMutationError(""); setNotice("");
     try {
       if(draft.trim()) {
         const row = await api<DayNote>(`/calendar/${selected}`,{method:"PUT",body:JSON.stringify({note:draft.trim()})});
@@ -152,7 +159,8 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
         setNotes(old=>{const next={...old};delete next[selected];return next;});
       }
       setSaved(true);
-    } catch(e) { setError(e instanceof Error ? e.message : "Could not save note"); }
+      setNotice(draft.trim() ? "Day note saved." : "Day note deleted.");
+    } catch(e) { setMutationError(e instanceof Error ? e.message : "Could not save note"); }
     finally { setSaving(false); }
   }
 
@@ -316,7 +324,9 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
         {notes[selected]&&!draft.trim()&&<button type="button" className="atlas-note-delete" onClick={()=>void save()} disabled={saving} aria-label="Delete note"><Trash2 size={14}/></button>}
         <button type="button" className="atlas-button atlas-primary atlas-note-save" onClick={()=>void save()} disabled={saving||draft.trim()===(notes[selected]??"")}>{saving?<LoaderCircle size={14} className="atlas-spin"/>:saved?<Check size={14}/>:<Save size={14}/>} {saving?"Saving":saved?"Saved":"Save note"}</button>
       </div>
-      {error&&<p className="atlas-calendar-error" role="alert">{error}<button type="button" onClick={()=>setReload(value=>value+1)} disabled={loading}>{loading?"Retrying…":"Try again"}</button></p>}
+      {syncError&&<p className="atlas-calendar-error" role="alert">{syncError}<button type="button" onClick={()=>setReload(value=>value+1)} disabled={loading}>{loading?"Retrying…":"Retry sync"}</button></p>}
+      {mutationError&&<p className="atlas-calendar-error" role="alert">{mutationError}<button type="button" onClick={()=>setMutationError("")}>Dismiss</button></p>}
+      {notice&&<p className="atlas-calendar-success" role="status">{notice}<button type="button" onClick={()=>setNotice("")} aria-label="Dismiss notification">×</button></p>}
       <p className="atlas-calendar-private">Notes sync to your Atlas account and will be here when you return.</p>
     </aside>
   </section>;
