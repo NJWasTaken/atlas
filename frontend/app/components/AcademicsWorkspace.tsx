@@ -17,6 +17,7 @@ type Progress = {
   confidence: number | null; notes: string | null; last_reviewed?: string | null; next_review_at?: string | null;
 };
 type Review = { id:number; concept_id:number; reviewed_at:string; exposure:string; understanding:string; recall:string; confidence:number|null; notes:string|null };
+type Prerequisite = { id:number; title:string; topic_title:string; understanding:string; recall:string };
 type SyllabusVersion = { id:number; subject_id:number; version_number:number; label:string; created_at:string };
 type SyllabusVersionDetail = SyllabusVersion & { snapshot:{topics:{id:number;title:string;concepts:{id:number;title:string}[]}[]} };
 type Readiness = { subject_id: number; total_concepts: number; strong: number; developing: number; weak: number; not_assessed: number; due_for_review?:number; next_exam?:{title:string;exam_date:string;days_until:number}|null; recommendations: {reason:string;count:number;message:string}[] };
@@ -33,6 +34,9 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [readiness, setReadiness] = useState<Readiness | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [prerequisites, setPrerequisites] = useState<Prerequisite[]>([]);
+  const [prerequisiteIds, setPrerequisiteIds] = useState<number[]>([]);
+  const [prerequisiteSearch, setPrerequisiteSearch] = useState("");
   const [versions, setVersions] = useState<SyllabusVersion[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<SyllabusVersionDetail | null>(null);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
@@ -187,12 +191,15 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
   async function chooseConcept(concept: Concept) {
     setSelectedConcept(concept); setReviews([]); setError("");
     try {
-      const [result, history] = await Promise.all([
+      const [result, history, prerequisiteRows] = await Promise.all([
         api<Progress | null>(`/concepts/${concept.id}/progress`),
         api<Review[]>(`/concepts/${concept.id}/reviews`),
+        api<Prerequisite[]>(`/concepts/${concept.id}/prerequisites`),
       ]);
       setProgress(result ?? {...blankProgress, concept_id:concept.id});
       setReviews(history);
+      setPrerequisites(prerequisiteRows);
+      setPrerequisiteIds(prerequisiteRows.map(item=>item.id));
     } catch(e) { setError(e instanceof Error ? e.message : "Could not load progress."); }
   }
 
@@ -210,6 +217,21 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
     void chooseConcept(concept);
     onFocusHandled?.();
   }, [focusConceptId, concepts, topics, onFocusHandled]);
+
+  async function savePrerequisites() {
+    if(!selectedConcept) return;
+    setBusy(true); setError("");
+    try {
+      const saved = await api<Prerequisite[]>("/concepts/" + selectedConcept.id + "/prerequisites", {
+        method:"PUT", body:JSON.stringify({prerequisite_ids:prerequisiteIds})
+      });
+      setPrerequisites(saved);
+      setPrerequisiteIds(saved.map(item=>item.id));
+      if(subjectId!==null) await loadWorkspace(subjectId);
+      setNotice("Prerequisite links saved.");
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not save prerequisites."); }
+    finally { setBusy(false); }
+  }
 
   async function saveProgress(e: React.FormEvent) {
     e.preventDefault(); if(!selectedConcept) return;
@@ -255,6 +277,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
     try {
       await api("/subjects/" + subjectId + "/syllabus/versions/" + version.id + "/restore",{method:"POST"});
       setSelectedVersion(null);
+      setSelectedConcept(null); setReviews([]); setPrerequisites([]); setPrerequisiteIds([]);
       await loadWorkspace(subjectId);
       setNotice("Syllabus restored. The previous version is kept in history.");
     } catch(e) { setError(e instanceof Error ? e.message : "Could not restore this syllabus version."); }
