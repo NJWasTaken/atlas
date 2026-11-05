@@ -39,3 +39,13 @@ def test_production_accepts_explicit_trusted_origins():
 def test_development_keeps_local_defaults():
     settings = Settings(environment="development")
     assert settings.allowed_origins == ["http://localhost:3000"]
+
+
+def test_production_rejects_local_development_database_url():
+    with pytest.raises(ValidationError, match="local development database"):
+        Settings(
+            environment="production",
+            jwt_secret="a-unique-production-secret-that-is-long-enough",
+            frontend_origin="https://atlas.example.com",
+            database_url="postgresql+psycopg://atlas:atlas_dev_password@localhost:5432/atlas",
+        )
