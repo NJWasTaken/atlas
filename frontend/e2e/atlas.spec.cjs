@@ -367,7 +367,6 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and pa
   await page.getByRole("button",{name:"Bookmark",exact:true}).click();
   await page.getByRole("button",{name:/Bookmarks/}).click();
   await expect(page.getByText("Page 3",{exact:true})).toBeVisible();
-  await page.waitForTimeout(750);
   await page.getByRole("button",{name:"Library"}).click();
   await expect(page.getByText("Page 3 of 8")).toBeVisible();
 });
