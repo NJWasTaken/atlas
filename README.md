@@ -1092,6 +1092,9 @@ The following describes the intended API surface.
 - Manage syllabus versions.
 
 **Explore**
+- Private PDF library with local upload and public-URL import.
+- PDF.js reading room with continuous scrolling, page thumbnails, document outline, in-document text search, zoom and fit controls.
+- Persistent reading position, bookmarks, text highlights, page-linked annotations and notes, and distraction-free focus mode.
 - Create exploration sessions.
 - Retrieve exploration sessions.
 - Update sessions.

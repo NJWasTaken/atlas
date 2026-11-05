@@ -217,7 +217,7 @@ def add_annotation(document_id: int, data: AnnotationCreate, db: Session = Depen
     document = owned_document(db, document_id, user.id)
     if data.page_number > document.page_count:
         raise HTTPException(422, "Page number is outside this document.")
-    annotation = ExploreAnnotation(document_id=document_id, page_number=data.page_number, selected_text=data.selected_text, note=data.note.strip())
+    annotation = ExploreAnnotation(document_id=document_id, page_number=data.page_number, selected_text=data.selected_text, highlight_rects=[rect.model_dump() for rect in data.highlight_rects], note=data.note.strip())
     db.add(annotation)
     db.commit()
     db.refresh(annotation)
@@ -231,6 +231,8 @@ def update_annotation(document_id: int, annotation_id: int, data: AnnotationUpda
     if annotation is None:
         raise HTTPException(404, "Annotation not found")
     for key, value in data.model_dump(exclude_unset=True).items():
+        if key == "highlight_rects" and value is not None:
+            value = [rect.model_dump() if hasattr(rect, "model_dump") else rect for rect in value]
         setattr(annotation, key, value.strip() if isinstance(value, str) else value)
     db.commit()
     db.refresh(annotation)

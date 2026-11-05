@@ -1,3 +1,23 @@
+function createPdfFixture() {
+  const objects = [];
+  objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objects[2] = "<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R 6 0 R 7 0 R 8 0 R 9 0 R 10 0 R] /Count 8 >>";
+  for (let i=0;i<8;i++) {
+    objects[3+i] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 11 0 R >> >> /Contents ${12+i} 0 R >>`;
+    const text = `BT /F1 18 Tf 50 740 Td (Page ${i+1} searchable text for Atlas reader tests) Tj ET`;
+    objects[12+i] = `<< /Length ${text.length} >>\nstream\n${text}\nendstream`;
+  }
+  objects[11] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  for (let i=1;i<objects.length;i++) { offsets[i]=Buffer.byteLength(pdf,"binary"); pdf += `${i} 0 obj\n${objects[i]}\nendobj\n`; }
+  const xref = Buffer.byteLength(pdf,"binary");
+  pdf += `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
+  for (let i=1;i<objects.length;i++) pdf += `${String(offsets[i]).padStart(10,"0")} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return Buffer.from(pdf,"binary");
+}
+
 const { test, expect } = require("@playwright/test");
 
 function installApiMock(page, options = {}) {
@@ -339,7 +359,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and pa
       docs.unshift(doc);return created(doc);
     }
     const docPath=path.match(/^\/explore\/documents\/(\d+)(?:\/(file))?$/);
-    if(docPath&&docPath[2]==="file")return route.fulfill({status:200,contentType:"application/pdf",body:"%PDF-1.4"});
+    if(docPath&&docPath[2]==="file")return route.fulfill({status:200,contentType:"application/pdf",body:createPdfFixture()});
     if(docPath&&method==="GET")return json({...docs.find(d=>d.id===Number(docPath[1])),last_opened_at:new Date().toISOString()});
     if(docPath&&method==="PATCH"){const doc=docs.find(d=>d.id===Number(docPath[1]));Object.assign(doc,body);return json(doc);}
     if(docPath&&method==="DELETE"){const id=Number(docPath[1]);docs.splice(docs.findIndex(d=>d.id===id),1);return empty();}
@@ -360,15 +380,21 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and pa
   await expect(page.getByRole("heading",{name:/Make room for/})).toBeVisible();
   await page.locator(".atlas-upload-button input").setInputFiles({name:"paper.pdf",mimeType:"application/pdf",buffer:Buffer.from("%PDF-1.4")});
   await expect(page.getByText("Research paper",{exact:true})).toBeVisible();
-  await expect(page.locator(".atlas-pdf-frame")).toBeVisible();
-  await page.getByLabel("Current page").fill("3");
-  await page.getByLabel("Current page").press("Enter");
+  await expect(page.locator(".atlas-pdf-page").first()).toBeVisible();
+  await expect(page.locator("iframe")).toHaveCount(0);
+  await page.locator('[data-page="3"]').scrollIntoViewIfNeeded();
+  await expect(page.getByLabel("Current page")).toHaveValue("3");
   await page.getByLabel("Your note").fill("Compare this result with the lecture discussion.");
-  await page.getByRole("button",{name:"Save note"}).click();
+  await page.getByRole("button",{name:"Save page note"}).click();
   await expect(page.getByText("Compare this result with the lecture discussion.")).toBeVisible();
-  await page.getByRole("button",{name:"Bookmark",exact:true}).click();
-  await page.getByRole("button",{name:/Bookmarks/}).click();
+  await page.getByRole("button",{name:/Bookmark/}).click();
+  await page.getByRole("button",{name:/Saved/}).click();
   await expect(page.locator(".atlas-reader-bookmark").filter({hasText:"Page 3"})).toBeVisible();
+  await page.getByRole("button",{name:/Pages/}).click();
+  await page.getByRole("button",{name:"Search"}).click();
+  await page.getByPlaceholder("Search words or phrases in this PDF…").fill("searchable text");
+  await page.getByRole("button",{name:"Find"}).click();
+  await expect(page.locator(".atlas-pdf-search-results")).toContainText("Page 1");
   await page.getByRole("button",{name:"Library"}).click();
   await expect(page.getByText("Page 3 of 8")).toBeVisible();
 });

@@ -66,3 +66,46 @@
 @media(max-width:820px){.atlas-explore-intro{align-items:flex-start;flex-direction:column}.atlas-reader-body{grid-template-columns:1fr}.atlas-reader-sidebar{border-top:1px solid rgba(166,187,211,.13);border-left:0}.atlas-reader-sidebar-foot{margin-top:12px}.atlas-pdf-frame{height:650px}.atlas-reader-toolbar{flex-wrap:wrap;padding:8px 12px}.atlas-reader-zoom{margin-left:0}}
 @media(max-width:560px){.atlas-explore-intro{padding:24px 19px}.atlas-explore-actions{width:100%}.atlas-explore-actions .atlas-button{flex:1}.atlas-library-toolbar{align-items:flex-start;flex-direction:column}.atlas-library-search{width:100%}.atlas-document-grid{grid-template-columns:1fr}.atlas-reader{margin:0 -18px}.atlas-reader-header{gap:9px;padding:0 9px}.atlas-reader-document-title{justify-content:flex-start}.atlas-reader-document-title span{max-width:33vw}.atlas-reader-mode{font-size:0}.atlas-reader-mode svg{width:17px;height:17px}.atlas-reader-toolbar{gap:5px}.atlas-reader-tool{padding:0 5px}.atlas-reader-page-control{gap:4px}.atlas-reader-zoom{gap:4px}.atlas-pdf-frame{height:540px}.reader-mode .atlas-reader{inset:0}.reader-mode .atlas-reader-body{overflow:auto}.reader-mode .atlas-pdf-frame{height:70vh}}
 @media(prefers-reduced-motion:reduce){.atlas-document-card{transition:none}}
+
+/* First-class PDF.js reading surface */
+.atlas-reader{display:flex;flex-direction:column;min-height:680px}
+.atlas-reader-body{flex:1;min-height:0}
+.atlas-reader-body.sidebar-hidden{grid-template-columns:minmax(0,1fr)}
+.atlas-pdf-stage{min-height:0;height:min(78vh,920px)}
+.atlas-pdf-scroll{height:100%;min-height:540px;overflow:auto;overscroll-behavior:contain;scroll-behavior:smooth;background:#202d3c;padding:24px 18px 70px}
+.atlas-pdf-pages{display:flex;flex-direction:column;align-items:center;gap:24px}
+.atlas-pdf-page-shell{display:flex;max-width:100%;flex-direction:column;align-items:center;gap:7px;scroll-margin-top:18px}
+.atlas-pdf-page-label{align-self:flex-start;margin-left:max(0px,calc((100% - 780px)/2));color:#8290a2;font-size:7px;letter-spacing:.16em}
+.atlas-pdf-page{position:relative;max-width:100%;overflow:hidden;background:#fff;box-shadow:0 8px 32px rgba(0,0,0,.28);user-select:text}
+.atlas-pdf-canvas{position:absolute;inset:0;display:block}
+.atlas-pdf-text-layer{position:absolute;inset:0;overflow:hidden;opacity:.22;line-height:1;user-select:text}
+.atlas-pdf-text-layer span{position:absolute;display:block;overflow:hidden;color:transparent;white-space:pre;transform-origin:0 0;cursor:text;user-select:text}
+.atlas-pdf-text-layer span::selection{background:rgba(244,196,92,.5);color:transparent}
+.atlas-pdf-highlight{position:absolute;z-index:2;background:rgba(255,211,82,.38);border-bottom:1px solid rgba(207,151,36,.7);pointer-events:none}
+.atlas-pdf-search{display:flex;align-items:center;gap:10px;padding:9px 14px;color:#9aa8b8;border-bottom:1px solid rgba(166,187,211,.12);background:#101f31}
+.atlas-pdf-search input{flex:1;min-width:0;color:var(--ivory);border:0;outline:0;background:transparent;font-size:10px}
+.atlas-pdf-search button{padding:6px 9px;color:var(--gold-hi);border:1px solid rgba(197,168,117,.2);font-size:8px}
+.atlas-pdf-search button:disabled{opacity:.45}
+.atlas-pdf-search-results{display:flex;gap:7px;max-height:120px;overflow:auto;padding:8px 12px;background:#0b1929}
+.atlas-pdf-search-results button{min-width:180px;padding:8px;color:#aab5c2;border:1px solid rgba(166,187,211,.12);text-align:left;font-size:8px;line-height:1.5}
+.atlas-pdf-search-results button strong{display:block;color:var(--gold-hi)}
+.atlas-pdf-sidebar-scroll{flex:1;min-height:0;overflow:auto;padding:12px 10px}
+.atlas-reader-sidebar{min-height:0;max-height:calc(min(78vh,920px) + 48px)}
+.atlas-reader-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}
+.atlas-reader-tabs button{gap:4px;font-size:8px}
+.atlas-pdf-thumb{display:flex;width:100%;align-items:center;justify-content:center;gap:12px;margin-bottom:12px;padding:9px;color:#8290a2;border:1px solid transparent;font-size:9px}
+.atlas-pdf-thumb canvas{max-width:100%;height:auto;background:#fff;box-shadow:0 3px 12px #0005}
+.atlas-pdf-thumb.active{color:var(--gold-hi);border-color:rgba(197,168,117,.35);background:rgba(197,168,117,.06)}
+.atlas-pdf-outline-item{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:9px 8px;color:#b4bfca;text-align:left;font-size:9px;line-height:1.5}
+.atlas-pdf-outline-item:hover{color:var(--gold-hi);background:rgba(197,168,117,.05)}
+.atlas-pdf-outline-item:disabled{opacity:.45}
+.atlas-pdf-outline-item small{color:#718198}
+.atlas-pdf-selection-preview{max-height:100px;overflow:auto;padding:8px;color:#c6b99f;border-left:2px solid var(--gold);background:rgba(197,168,117,.05);font-size:9px;line-height:1.5}
+.reader-mode .atlas-reader{position:fixed;z-index:50;inset:10px;margin:0;display:flex;flex-direction:column;background:#07111f}
+.reader-mode .atlas-reader-body{flex:1;min-height:0}
+.reader-mode .atlas-pdf-stage{height:auto;min-height:0;flex:1}
+.reader-mode .atlas-pdf-scroll{min-height:0}
+.reader-mode .atlas-reader-sidebar{max-height:none}
+@media(max-width:820px){.atlas-pdf-stage{height:68vh}.atlas-pdf-scroll{min-height:420px}.atlas-reader-sidebar{max-height:50vh}.atlas-reader-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}.atlas-reader-toolbar{flex-wrap:wrap;padding:8px 12px}.atlas-reader-zoom{margin-left:0}}
+@media(max-width:560px){.atlas-reader-tabs button{font-size:7px}.atlas-pdf-scroll{padding:12px 8px 50px}.atlas-pdf-page-label{margin-left:0}.reader-mode .atlas-reader{inset:0}.reader-mode .atlas-reader-body{overflow:auto}.reader-mode .atlas-pdf-stage{height:65vh}}
+@media(prefers-reduced-motion:reduce){.atlas-pdf-scroll{scroll-behavior:auto}}

@@ -55,10 +55,10 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 ## Explore
 
 - [x] Add a private PDF reading library with device upload and public-URL import, per-user ownership, document metadata, and durable reading position.
-- [x] Add a PDF reading workspace with page navigation, zoom/fit controls, browser-native PDF search, thumbnails and document outline where supported by the browser viewer.
+- [x] Replace the browser-native PDF iframe with a bundled PDF.js reading workspace: continuous scrolling, thumbnails, outline, in-document search, zoom/fit, bookmarks, progress, text selection/highlights, page-linked notes, and focus mode.
 - [x] Persist per-document page bookmarks and page-linked notes, including an optional quoted passage.
 - [x] Add PDF validation, a 12 MB size limit, encrypted-PDF rejection, URL host checks, ownership checks, migration coverage, and API/browser regression tests.
-- [ ] Add direct in-reader text selection/highlight overlays with durable highlight positioning; the current reader can save a copied passage with a page-linked note.
+- [x] Add direct text selection and persist normalized page-relative highlight rectangles with page-linked annotations and notes.
 - [ ] Build the discovery interface and exploration-session model/API.
 - [ ] Support saving discoveries and questions for later.
 - [ ] Add contextual prompts and learning paths.

@@ -38,6 +38,7 @@ class ExploreAnnotation(Base):
     document_id: Mapped[int] = mapped_column(ForeignKey("explore_documents.id", ondelete="CASCADE"), index=True)
     page_number: Mapped[int] = mapped_column(Integer, nullable=False)
     selected_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    highlight_rects: Mapped[list | None] = mapped_column(JSON, nullable=True)
     note: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

@@ -142,10 +142,10 @@ export default function ExploreWorkspace() {
     try {await api<void>(`/explore/documents/${item.id}`,{method:"DELETE"});setDocuments(current=>current.filter(doc=>doc.id!==item.id));if(selected?.id===item.id){setSelected(null);setPdfUrl("");}}
     catch(e){setError(e instanceof Error?e.message:"Could not remove this document.");}
   }
-  function goToPage(value:number) {
+  const goToPage = useCallback((value:number) => {
     const next=Math.min(Math.max(1,value),selected?.page_count??1);
     setPage(next);setPageDraft(String(next));
-  }
+  },[selected?.page_count]);
 
   return (
     <section className={`atlas-explore ${readerMode?"reader-mode":""}`} aria-label="Explore PDF library">

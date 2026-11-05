@@ -51,9 +51,17 @@ class BookmarkOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class HighlightRect(BaseModel):
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+    width: float = Field(gt=0, le=1)
+    height: float = Field(gt=0, le=1)
+
+
 class AnnotationCreate(BaseModel):
     page_number: Annotated[int, Field(ge=1)]
     selected_text: str | None = Field(default=None, max_length=12000)
+    highlight_rects: list[HighlightRect] = Field(default_factory=list, max_length=500)
     note: str = Field(min_length=1, max_length=12000)
 
     @field_validator("note")
@@ -67,6 +75,7 @@ class AnnotationCreate(BaseModel):
 
 class AnnotationUpdate(BaseModel):
     selected_text: str | None = Field(default=None, max_length=12000)
+    highlight_rects: list[HighlightRect] | None = Field(default=None, max_length=500)
     note: str | None = Field(default=None, min_length=1, max_length=12000)
 
 
@@ -74,6 +83,7 @@ class AnnotationOut(BaseModel):
     id: int
     page_number: int
     selected_text: str | None
+    highlight_rects: list[dict[str, float]] | None = None
     note: str
     created_at: datetime
     updated_at: datetime

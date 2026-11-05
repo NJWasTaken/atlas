@@ -1,0 +1,298 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowLeft, ArrowUpRight, Bookmark, BookOpen, Check, ChevronLeft, ChevronRight,
+  FileText, List, LoaderCircle, Maximize2, Minus, Plus, Search, StickyNote,
+  Grid2X2, Trash2, X, PanelLeftClose, PanelLeftOpen,
+} from "lucide-react";
+import { api } from "../../lib/api";
+
+type PdfDocument = any;
+type Mark = { id:number; page_number:number; label:string };
+type Rect = { x:number; y:number; width:number; height:number };
+type Annotation = { id:number; page_number:number; selected_text:string|null; note:string; highlight_rects:Rect[]|null; created_at:string; updated_at:string };
+type OutlineItem = { title:string; page:number|null; depth:number };
+type Props = {
+  documentId:number; title:string; pageCount:number; pdfUrl:string; initialPage:number;
+  bookmarks:Mark[]; annotations:Annotation[]; readerMode:boolean;
+  onExit:()=>void; onToggleFocus:()=>void; onProgressChange:(page:number)=>void;
+  onBookmarksChange:(items:Mark[])=>void; onAnnotationsChange:(items:Annotation[])=>void;
+  onError:(message:string)=>void;
+};
+
+function clamp(n:number,min:number,max:number){return Math.min(max,Math.max(min,n));}
+
+function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:PdfDocument;pageNumber:number;scale:number;searchTerm:string;annotations:Annotation[];onSelect:(page:number,text:string,rects:Rect[])=>void}) {
+  const host=useRef<HTMLDivElement>(null);
+  const canvasRef=useRef<HTMLCanvasElement>(null);
+  const [dimensions,setDimensions]=useState({width:0,height:0});
+  useEffect(()=>{
+    let cancelled=false; let renderTask:any; let page:any;
+    const hostNode=host.current;
+    if(!hostNode||!pdf)return;
+    const observer=new IntersectionObserver(async entries=>{
+      if(!entries.some(entry=>entry.isIntersecting))return;
+      observer.disconnect();
+      try {
+        page=await pdf.getPage(pageNumber);
+        if(cancelled)return;
+        const viewport=page.getViewport({scale});
+        const canvas=canvasRef.current;
+        if(!canvas)return;
+        const ratio=Math.min(window.devicePixelRatio||1,2);
+        canvas.width=Math.floor(viewport.width*ratio);canvas.height=Math.floor(viewport.height*ratio);
+        canvas.style.width=`${viewport.width}px`;canvas.style.height=`${viewport.height}px`;
+        const context=canvas.getContext("2d");
+        if(!context)return;
+        renderTask=page.render({canvasContext:context,viewport,transform:ratio!==1?[ratio,0,0,ratio,0,0]:null});
+        await renderTask.promise;
+        if(cancelled)return;
+        const text=await page.getTextContent();
+        const layer=hostNode.querySelector(".atlas-pdf-text-layer") as HTMLDivElement|null;
+        if(layer){
+          layer.replaceChildren();
+          const viewportTransform=viewport.transform;
+          for(const item of text.items as any[]){
+            if(!item.str)continue;
+            const tx=(window as any).pdfjsUtilTransform
+              ? (window as any).pdfjsUtilTransform(viewportTransform,item.transform)
+              : [0,0,0,0,0,0];
+            const span=document.createElement("span");
+            const fontHeight=Math.max(1,Math.hypot(tx[2],tx[3]));
+            span.textContent=item.str;
+            if(searchTerm&&item.str.toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase()))span.className="atlas-pdf-search-hit";
+            span.style.left=`${tx[4]}px`;
+            span.style.top=`${tx[5]-fontHeight}px`;
+            span.style.fontSize=`${fontHeight}px`;
+            span.style.height=`${fontHeight*1.2}px`;
+            span.style.width=`${Math.max(1,item.width*scale)}px`;
+            span.style.fontFamily="sans-serif";
+            layer.appendChild(span);
+          }
+        }
+        setDimensions({width:viewport.width,height:viewport.height});
+      } catch(error){if(!cancelled)console.error("PDF page render failed",error);}
+    },{root:hostNode.closest(".atlas-pdf-scroll"),rootMargin:"900px 0px",threshold:0});
+    observer.observe(hostNode);
+    return ()=>{cancelled=true;observer.disconnect();try{renderTask?.cancel();}catch{};try{page?.cleanup();}catch{}};
+  },[pdf,pageNumber,scale]);
+
+  const selectText=()=>{
+    const selection=window.getSelection();
+    const text=selection?.toString().trim();
+    if(!selection||!text||!host.current)return;
+    const pageRect=host.current.getBoundingClientRect();
+    const range=selection.getRangeAt(0);
+    const rects=Array.from(range.getClientRects()).map(rect=>({
+      x:clamp((rect.left-pageRect.left)/pageRect.width,0,1),
+      y:clamp((rect.top-pageRect.top)/pageRect.height,0,1),
+      width:clamp(rect.width/pageRect.width,0,1),
+      height:clamp(rect.height/pageRect.height,0,1),
+    })).filter(rect=>rect.width>0&&rect.height>0);
+    onSelect(pageNumber,text,rects);
+  };
+  return <div className="atlas-pdf-page-shell" id={`atlas-pdf-page-${pageNumber}`} data-page={pageNumber}>
+    <div className="atlas-pdf-page-label">PAGE {pageNumber}</div>
+    <div className="atlas-pdf-page" ref={host} onMouseUp={selectText} style={{width:dimensions.width||"min(100%, 780px)",height:dimensions.height||Math.max(500,Math.round(990*scale))}}>
+      <canvas ref={canvasRef} className="atlas-pdf-canvas"/>
+      <div className="atlas-pdf-text-layer"/>
+      {annotations.filter(note=>note.page_number===pageNumber).flatMap(note=>(note.highlight_rects||[]).map((rect,index)=><span key={`${note.id}-${index}`} className="atlas-pdf-highlight" title={note.selected_text||note.note} style={{left:`${rect.x*100}%`,top:`${rect.y*100}%`,width:`${rect.width*100}%`,height:`${rect.height*100}%`}}/>))}
+    </div>
+  </div>;
+}
+
+export default function PdfReaderWorkspace(props:Props) {
+  const {documentId,title,pageCount,pdfUrl,initialPage,bookmarks,annotations,readerMode,onExit,onToggleFocus,onProgressChange,onBookmarksChange,onAnnotationsChange,onError}=props;
+  const [pdf,setPdf]=useState<PdfDocument|null>(null);
+  const [loading,setLoading]=useState(true);
+  const [page,setPage]=useState(initialPage);
+  const [zoom,setZoom]=useState<"width"|"page"|number>("width");
+  const [scale,setScale]=useState(1);
+  const [activePanel,setActivePanel]=useState<"thumbnails"|"outline"|"notes"|"bookmarks">("thumbnails");
+  const [outline,setOutline]=useState<OutlineItem[]>([]);
+  const [query,setQuery]=useState("");
+  const [searching,setSearching]=useState(false);
+  const [matches,setMatches]=useState<{page:number;snippet:string}[]>([]);
+  const [selectedText,setSelectedText]=useState("");
+  const [selectedRects,setSelectedRects]=useState<Rect[]>([]);
+  const [selectedPage,setSelectedPage]=useState(initialPage);
+  const [note,setNote]=useState("");
+  const [saving,setSaving]=useState(false);
+  const [showSearch,setShowSearch]=useState(false);
+  const [sidebarOpen,setSidebarOpen]=useState(true);
+  const scrollRef=useRef<HTMLDivElement>(null);
+  const pageRefs=useRef<Map<number,HTMLDivElement>>(new Map());
+  const pdfRef=useRef<PdfDocument|null>(null);
+  const scaleMode=useRef<"width"|"page"|number>("width");
+
+  useEffect(()=>{
+    let cancelled=false;let task:any;
+    setLoading(true);setPdf(null);
+    (async()=>{
+      try{
+        const pdfjs:any=await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc=new URL("pdfjs-dist/build/pdf.worker.min.mjs",import.meta.url).toString();
+        const response=await fetch(pdfUrl);
+        if(!response.ok)throw new Error("Could not load this PDF.");
+        const data=await response.arrayBuffer();
+        task=pdfjs.getDocument({data});
+        const doc=await task.promise;
+        if(cancelled){await doc.destroy();return;}
+        (window as any).pdfjsUtilTransform=pdfjs.Util.transform;
+        pdfRef.current=doc;setPdf(doc);
+        const raw=await doc.getOutline();
+        const items:OutlineItem[]=[];
+        const walk=async(nodes:any[],depth:number)=>{
+          for(const node of nodes||[]){
+            let target:number|null=null;
+            try{
+              const dest=typeof node.dest==="string"?await doc.getDestination(node.dest):node.dest;
+              if(dest){const ref=dest[0];target=(await doc.getPageIndex(ref))+1;}
+            }catch{}
+            items.push({title:node.title||"Untitled section",page:target,depth});
+            if(node.items?.length)await walk(node.items,depth+1);
+          }
+        };
+        await walk(raw||[],0);
+        if(!cancelled)setOutline(items);
+      }catch(error){if(!cancelled)onError(error instanceof Error?error.message:"Could not open this PDF.");}
+      finally{if(!cancelled)setLoading(false);}
+    })();
+    return()=>{cancelled=true;try{task?.destroy();}catch{};pdfRef.current=null;};
+  },[pdfUrl,onError]);
+
+  const updateScale=useCallback(()=>{
+    const container=scrollRef.current;if(!container||!pdfRef.current)return;
+    const width=Math.max(260,container.clientWidth-56);
+    const pageHeight=Math.max(280,container.clientHeight-48);
+    pdfRef.current.getPage(page).then((p:any)=>{
+      const base=p.getViewport({scale:1});
+      const widthScale=width/base.width;
+      const fitPage=Math.min(widthScale,pageHeight/base.height);
+      const mode=scaleMode.current;
+      setScale(mode==="width"?widthScale:mode==="page"?fitPage:clamp(mode/100,.5,3));
+    }).catch(()=>{});
+  },[page]);
+  useEffect(()=>{updateScale();const node=scrollRef.current;if(!node)return;const observer=new ResizeObserver(updateScale);observer.observe(node);return()=>observer.disconnect();},[updateScale,pdf]);
+
+  useEffect(()=>{
+    if(!pdf||!scrollRef.current)return;
+    const root=scrollRef.current;
+    const observer=new IntersectionObserver(entries=>{
+      const visible=entries.filter(entry=>entry.isIntersecting).sort((a,b)=>{
+        const ar=a.boundingClientRect,br=b.boundingClientRect,rr=root.getBoundingClientRect();
+        const ac=Math.abs((ar.top+ar.bottom)/2-(rr.top+rr.bottom)/2);
+        const bc=Math.abs((br.top+br.bottom)/2-(rr.top+rr.bottom)/2);
+        return ac-bc;
+      });
+      if(visible[0]){
+        const next=Number((visible[0].target as HTMLElement).dataset.page);
+        if(next&&next!==page){setPage(next);onProgressChange(next);}
+      }
+    },{root,rootMargin:"-12% 0px -12% 0px",threshold:[0,.15,.3,.5,.7,1]});
+    root.querySelectorAll("[data-page]").forEach(node=>observer.observe(node));
+    return()=>observer.disconnect();
+  },[pdf,scale,page,onProgressChange]);
+
+  const goToPage=useCallback((next:number)=>{
+    const target=clamp(next,1,pageCount);setPage(target);onProgressChange(target);
+    pageRefs.current.get(target)?.scrollIntoView({behavior:"smooth",block:"start"});
+  },[pageCount,onProgressChange]);
+  useEffect(()=>{if(pdf&&initialPage>1){const timer=window.setTimeout(()=>goToPage(initialPage),180);return()=>clearTimeout(timer);}},[pdf,initialPage,goToPage]);
+
+  async function searchPdf(event?:React.FormEvent){
+    event?.preventDefault();if(!pdf||!query.trim())return;
+    setSearching(true);setMatches([]);
+    try{
+      const needle=query.trim().toLocaleLowerCase();const found:{page:number;snippet:string}[]=[];
+      for(let p=1;p<=pageCount;p++){
+        const pageProxy=await pdf.getPage(p);const text=await pageProxy.getTextContent();
+        const joined=(text.items as any[]).map(item=>item.str||"").join(" ");
+        const lower=joined.toLocaleLowerCase();let index=lower.indexOf(needle);
+        while(index>=0){found.push({page:p,snippet:joined.slice(Math.max(0,index-65),Math.min(joined.length,index+needle.length+90))});index=lower.indexOf(needle,index+needle.length);if(found.length>=250)break;}
+        if(found.length>=250)break;
+      }
+      setMatches(found);if(found[0])goToPage(found[0].page);
+    }catch(error){onError(error instanceof Error?error.message:"PDF search failed.");}
+    finally{setSearching(false);}
+  }
+
+  async function addBookmark(){
+    setSaving(true);
+    try{const item=await api<Mark>(`/explore/documents/${documentId}/bookmarks`,{method:"POST",body:JSON.stringify({page_number:page,label:`Page ${page}`})});onBookmarksChange([...bookmarks.filter(mark=>mark.page_number!==page),item].sort((a,b)=>a.page_number-b.page_number));}
+    catch(error){onError(error instanceof Error?error.message:"Could not save bookmark.");}
+    finally{setSaving(false);}
+  }
+  async function saveAnnotation(event:React.FormEvent){
+    event.preventDefault();if(!note.trim())return;
+    setSaving(true);
+    try{
+      const item=await api<Annotation>(`/explore/documents/${documentId}/annotations`,{method:"POST",body:JSON.stringify({page_number:selectedPage,selected_text:selectedText||null,note:note.trim(),highlight_rects:selectedRects})});
+      onAnnotationsChange([item,...annotations]);setNote("");setSelectedText("");setSelectedRects([]);
+      setActivePanel("notes");
+    }catch(error){onError(error instanceof Error?error.message:"Could not save annotation.");}
+    finally{setSaving(false);}
+  }
+  async function deleteBookmark(id:number){
+    try{await api<void>(`/explore/documents/${documentId}/bookmarks/${id}`,{method:"DELETE"});onBookmarksChange(bookmarks.filter(item=>item.id!==id));}
+    catch(error){onError(error instanceof Error?error.message:"Could not remove bookmark.");}
+  }
+  async function deleteAnnotation(id:number){
+    try{await api<void>(`/explore/documents/${documentId}/annotations/${id}`,{method:"DELETE"});onAnnotationsChange(annotations.filter(item=>item.id!==id));}
+    catch(error){onError(error instanceof Error?error.message:"Could not remove annotation.");}
+  }
+  useEffect(()=>{setSelectedPage(page);},[page]);
+  const currentBookmark=bookmarks.some(mark=>mark.page_number===page);
+  const pageNumbers=useMemo(()=>Array.from({length:pageCount},(_,index)=>index+1),[pageCount]);
+
+  return <div className={`atlas-reader ${readerMode?"is-focus":""}`}>
+    <header className="atlas-reader-header">
+      <button className="atlas-reader-back" onClick={onExit}><ArrowLeft size={15}/> Library</button>
+      <div className="atlas-reader-document-title"><FileText size={16}/><span>{title}</span><small>PDF</small></div>
+      <button className="atlas-reader-mode" onClick={onToggleFocus}><Maximize2 size={14}/>{readerMode?"Exit focus":"Focus mode"}</button>
+    </header>
+    <div className="atlas-reader-toolbar">
+      <div className="atlas-reader-page-control"><button onClick={()=>goToPage(page-1)} disabled={page<=1} aria-label="Previous page"><ChevronLeft size={16}/></button><input aria-label="Current page" value={page} inputMode="numeric" onChange={e=>{const n=Number(e.target.value);if(Number.isFinite(n)&&n>0)setPage(clamp(n,1,pageCount));}} onBlur={()=>goToPage(page)} onKeyDown={e=>{if(e.key==="Enter")goToPage(page);}}/><span>/ {pageCount}</span><button onClick={()=>goToPage(page+1)} disabled={page>=pageCount} aria-label="Next page"><ChevronRight size={16}/></button></div>
+      <div className="atlas-reader-toolbar-divider"/>
+      <button className={`atlas-reader-tool ${zoom==="width"?"active":""}`} onClick={()=>{scaleMode.current="width";setZoom("width");updateScale();}}>Fit width</button>
+      <button className={`atlas-reader-tool ${zoom==="page"?"active":""}`} onClick={()=>{scaleMode.current="page";setZoom("page");updateScale();}}>Fit page</button>
+      <div className="atlas-reader-zoom"><button onClick={()=>{const n=clamp(scale*100-10,50,300);scaleMode.current=n;setZoom(n);updateScale();}} aria-label="Zoom out"><Minus size={14}/></button><span>{Math.round(scale*100)}%</span><button onClick={()=>{const n=clamp(scale*100+10,50,300);scaleMode.current=n;setZoom(n);updateScale();}} aria-label="Zoom in"><Plus size={14}/></button></div>
+      <button className={`atlas-reader-tool ${showSearch?"active":""}`} onClick={()=>setShowSearch(v=>!v)}><Search size={14}/> Search</button>
+      <button className={`atlas-reader-tool ${currentBookmark?"active":""}`} onClick={()=>void addBookmark()} disabled={saving} title="Bookmark current page"><Bookmark size={14}/> Bookmark</button>
+      <button className="atlas-reader-tool" onClick={()=>setSidebarOpen(v=>!v)} aria-label={sidebarOpen?"Hide sidebar":"Show sidebar"}>{sidebarOpen?<PanelLeftClose size={14}/>:<PanelLeftOpen size={14}/>}</button>
+    </div>
+    {showSearch&&<><form className="atlas-pdf-search" onSubmit={searchPdf}><Search size={15}/><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search words or phrases in this PDF…"/><button disabled={searching||!query.trim()}>{searching?"Searching…":"Find"}</button><button type="button" onClick={()=>{setShowSearch(false);setMatches([]);}} aria-label="Close search"><X size={15}/></button></form>{matches.length>0&&<div className="atlas-pdf-search-results" aria-live="polite">{matches.map((match,index)=><button key={`${match.page}-${index}`} onClick={()=>goToPage(match.page)}><strong>Page {match.page}</strong>{match.snippet}</button>)}</div>}{!searching&&query.trim()&&matches.length===0&&<div className="atlas-pdf-search-results"><span className="atlas-reader-empty">No matches found. Press Find to search the document.</span></div>}</>}
+    <div className={`atlas-reader-body ${sidebarOpen?"":"sidebar-hidden"}`}>
+      <main className="atlas-pdf-stage">
+        <div className="atlas-pdf-scroll" ref={scrollRef}>
+          {loading?<div className="atlas-explore-state"><LoaderCircle className="atlas-spin" size={20}/>Preparing your reader…</div>:pdf?<div className="atlas-pdf-pages">{pageNumbers.map(number=><div key={number} ref={node=>{if(node)pageRefs.current.set(number,node);else pageRefs.current.delete(number);}}><PdfPage pdf={pdf} pageNumber={number} scale={scale} searchTerm={query} annotations={annotations} onSelect={(p,text,rects)=>{setSelectedPage(p);setSelectedText(text);setSelectedRects(rects);setActivePanel("notes");}}/></div>)}</div>:<div className="atlas-explore-state">Unable to render this PDF.</div>}
+        </div>
+        <div className="atlas-reader-status"><span>PAGE {page} OF {pageCount}</span><span>{Math.round(page/pageCount*100)}% THROUGH</span></div>
+      </main>
+      {sidebarOpen&&<aside className="atlas-reader-sidebar">
+        <div className="atlas-reader-tabs">
+          <button className={activePanel==="thumbnails"?"active":""} onClick={()=>setActivePanel("thumbnails")}><Grid2X2 size={14}/> Pages</button>
+          <button className={activePanel==="outline"?"active":""} onClick={()=>setActivePanel("outline")}><List size={14}/> Outline</button>
+          <button className={activePanel==="notes"?"active":""} onClick={()=>setActivePanel("notes")}><StickyNote size={14}/> Notes <span>{annotations.length}</span></button>
+          <button className={activePanel==="bookmarks"?"active":""} onClick={()=>setActivePanel("bookmarks")}><Bookmark size={14}/> Saved <span>{bookmarks.length}</span></button>
+        </div>
+        {activePanel==="thumbnails"&&<div className="atlas-pdf-sidebar-scroll">{pageNumbers.map(number=><button key={number} className={`atlas-pdf-thumb ${page===number?"active":""}`} onClick={()=>goToPage(number)}><PdfThumbnail pdf={pdf} page={number}/><span>{number}</span></button>)}</div>}
+        {activePanel==="outline"&&<div className="atlas-pdf-sidebar-scroll">{outline.length?outline.map((item,index)=><button key={index} className="atlas-pdf-outline-item" style={{paddingLeft:12+item.depth*13}} disabled={!item.page} onClick={()=>item.page&&goToPage(item.page)}><span>{item.title}</span>{item.page&&<small>{item.page}</small>}</button>):<p className="atlas-reader-empty">This document does not contain a navigable outline.</p>}</div>}
+        {activePanel==="notes"&&<div className="atlas-pdf-sidebar-scroll">
+          <form className="atlas-reader-note-form" onSubmit={saveAnnotation}><p className="eyebrow">ANNOTATE YOUR READING</p><span>{selectedText? `Selected passage · Page ${selectedPage}`:`Page ${page}`}</span>{selectedText&&<blockquote className="atlas-pdf-selection-preview">{selectedText}</blockquote>}<label>Your note<textarea rows={4} required value={note} onChange={e=>setNote(e.target.value)} placeholder="What stood out? What do you want to investigate?"/></label><button className="atlas-button atlas-primary atlas-full" disabled={saving||!note.trim()}>{saving?"Saving…":selectedRects.length?"Save highlight & note":"Save page note"}<Check size={14}/></button></form>
+          <div className="atlas-reader-list-heading">YOUR ANNOTATIONS</div>
+          {annotations.length?annotations.map(item=><article className="atlas-reader-note" key={item.id}><button className="atlas-reader-note-page" onClick={()=>goToPage(item.page_number)}>PAGE {item.page_number} <ArrowUpRight size={11}/></button>{item.selected_text&&<blockquote>{item.selected_text}</blockquote>}<p>{item.note}</p><button className="atlas-reader-note-delete" onClick={()=>void deleteAnnotation(item.id)} aria-label="Delete annotation"><Trash2 size={12}/></button></article>):<p className="atlas-reader-empty">Select text on a page to highlight it, then add a note. Page notes work too.</p>}
+        </div>}
+        {activePanel==="bookmarks"&&<div className="atlas-pdf-sidebar-scroll"><div className="atlas-reader-list-heading">BOOKMARKED PAGES</div>{bookmarks.length?bookmarks.map(mark=><article className="atlas-reader-bookmark" key={mark.id}><button onClick={()=>goToPage(mark.page_number)}><Bookmark size={13}/><span><strong>{mark.label}</strong><small>Page {mark.page_number}</small></span><ArrowUpRight size={13}/></button><button className="atlas-reader-note-delete" onClick={()=>void deleteBookmark(mark.id)} aria-label="Remove bookmark"><Trash2 size={12}/></button></article>):<p className="atlas-reader-empty">Bookmark a page to find your way back to it.</p>}</div>}
+        <div className="atlas-reader-sidebar-foot"><BookOpen size={13}/> Notes and highlights stay with this document.</div>
+      </aside>}
+    </div>
+  </div>;
+}
+
+function PdfThumbnail({pdf,page}:{pdf:PdfDocument|null;page:number}){
+  const canvas=useRef<HTMLCanvasElement>(null);
+  useEffect(()=>{let cancelled=false;let task:any;(async()=>{if(!pdf||!canvas.current)return;try{const p=await pdf.getPage(page);const viewport=p.getViewport({scale:.18});const el=canvas.current!;el.width=viewport.width*2;el.height=viewport.height*2;el.style.width=`${viewport.width}px`;el.style.height=`${viewport.height}px`;task=p.render({canvasContext:el.getContext("2d"),viewport,transform:[2,0,0,2,0,0]});await task.promise;if(cancelled)task.cancel();}catch{}})();return()=>{cancelled=true;try{task?.cancel();}catch{}};},[pdf,page]);
+  return <canvas ref={canvas}/>;
+}
