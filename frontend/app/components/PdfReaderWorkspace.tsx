@@ -177,22 +177,24 @@ export default function PdfReaderWorkspace(props:Props) {
   useEffect(()=>{updateScale();const node=scrollRef.current;if(!node)return;const observer=new ResizeObserver(updateScale);observer.observe(node);return()=>observer.disconnect();},[updateScale,pdf]);
 
   useEffect(()=>{
-    if(!pdf||!scrollRef.current)return;
-    const root=scrollRef.current;
-    const observer=new IntersectionObserver(entries=>{
-      const visible=entries.filter(entry=>entry.isIntersecting).sort((a,b)=>{
-        const ar=a.boundingClientRect,br=b.boundingClientRect,rr=root.getBoundingClientRect();
-        const ac=Math.abs((ar.top+ar.bottom)/2-(rr.top+rr.bottom)/2);
-        const bc=Math.abs((br.top+br.bottom)/2-(rr.top+rr.bottom)/2);
-        return ac-bc;
+    const root=scrollRef.current;if(!pdf||!root)return;
+    let frame=0;
+    const update=()=>{
+      cancelAnimationFrame(frame);
+      frame=requestAnimationFrame(()=>{
+        const bounds=root.getBoundingClientRect();const center=(bounds.top+bounds.bottom)/2;
+        let nearest=page;let distance=Number.POSITIVE_INFINITY;
+        root.querySelectorAll<HTMLElement>("[data-page]").forEach(node=>{
+          const rect=node.getBoundingClientRect();
+          if(rect.bottom<=bounds.top||rect.top>=bounds.bottom)return;
+          const next=Number(node.dataset.page);const delta=Math.abs((rect.top+rect.bottom)/2-center);
+          if(delta<distance){distance=delta;nearest=next;}
+        });
+        if(nearest!==page){setPage(nearest);onProgressChange(nearest);}
       });
-      if(visible[0]){
-        const next=Number((visible[0].target as HTMLElement).dataset.page);
-        if(next&&next!==page){setPage(next);onProgressChange(next);}
-      }
-    },{root,rootMargin:"-12% 0px -12% 0px",threshold:[0,.15,.3,.5,.7,1]});
-    root.querySelectorAll("[data-page]").forEach(node=>observer.observe(node));
-    return()=>observer.disconnect();
+    };
+    root.addEventListener("scroll",update,{passive:true});update();
+    return()=>{root.removeEventListener("scroll",update);cancelAnimationFrame(frame);};
   },[pdf,scale,page,onProgressChange]);
 
   const goToPage=useCallback((next:number)=>{
@@ -293,6 +295,24 @@ export default function PdfReaderWorkspace(props:Props) {
 
 function PdfThumbnail({pdf,page}:{pdf:PdfDocument|null;page:number}){
   const canvas=useRef<HTMLCanvasElement>(null);
-  useEffect(()=>{let cancelled=false;let task:any;(async()=>{if(!pdf||!canvas.current)return;try{const p=await pdf.getPage(page);const viewport=p.getViewport({scale:.18});const el=canvas.current!;el.width=viewport.width*2;el.height=viewport.height*2;el.style.width=`${viewport.width}px`;el.style.height=`${viewport.height}px`;task=p.render({canvasContext:el.getContext("2d"),viewport,transform:[2,0,0,2,0,0]});await task.promise;if(cancelled)task.cancel();}catch{}})();return()=>{cancelled=true;try{task?.cancel();}catch{}};},[pdf,page]);
-  return <canvas ref={canvas}/>;
+  const shell=useRef<HTMLSpanElement>(null);
+  useEffect(()=>{
+    let cancelled=false;let task:any;let proxy:any;
+    const node=shell.current;if(!node||!pdf)return;
+    const observer=new IntersectionObserver(async entries=>{
+      if(!entries.some(entry=>entry.isIntersecting))return;
+      observer.disconnect();
+      try{
+        proxy=await pdf.getPage(page);if(cancelled)return;
+        const viewport=proxy.getViewport({scale:.18});const el=canvas.current;if(!el)return;
+        el.width=Math.floor(viewport.width*2);el.height=Math.floor(viewport.height*2);
+        el.style.width=`${viewport.width}px`;el.style.height=`${viewport.height}px`;
+        task=proxy.render({canvasContext:el.getContext("2d"),viewport,transform:[2,0,0,2,0,0]});
+        await task.promise;
+      }catch(error){if(!cancelled)console.debug("PDF thumbnail unavailable",error);}
+    },{root:node.closest(".atlas-pdf-sidebar-scroll"),rootMargin:"240px 0px"});
+    observer.observe(node);
+    return()=>{cancelled=true;observer.disconnect();try{task?.cancel();}catch{};try{proxy?.cleanup();}catch{}};
+  },[pdf,page]);
+  return <span ref={shell} className="atlas-pdf-thumb-preview"><canvas ref={canvas}/></span>;
 }
