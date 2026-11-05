@@ -557,6 +557,6 @@ def test_syllabus_pdf_parser_rejects_non_pdf_and_detects_page_references(monkeyp
     parsed = syllabus_import.parse_syllabus_pdf(b"%PDF-mocked-content")
     assert parsed["page_count"] == 2
     assert parsed["topics"][0]["title"] == "INTRODUCTION"
-    assert parsed["topics"][0]["source_pages"] == [1]
+    assert parsed["topics"][0]["source_pages"] == [1, 2]
     assert parsed["topics"][0]["concepts"][0] == {"title": "Overview", "source_pages": [1]}
     assert parsed["topics"][1]["title"] == "TREES"
