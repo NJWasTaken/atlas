@@ -233,14 +233,20 @@ def list_concepts(subject_id: int, db: Session = Depends(get_db), user: User = D
 def create_concept(topic_id: int, data: ConceptCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     topic = owned_topic(db, topic_id, user.id)
     concept = Concept(topic_id=topic.id, **data.model_dump())
-    db.add(concept); db.commit(); db.refresh(concept)
+    db.add(concept); db.flush()
+    save_syllabus_version(db, topic.subject_id, user.id, "Concept added")
+    db.commit(); db.refresh(concept)
     return concept
 
 @router.patch("/concepts/{concept_id}", response_model=ConceptOut)
 def update_concept(concept_id: int, data: ConceptUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     concept = owned_concept(db, concept_id, user.id)
-    for key, value in data.model_dump(exclude_unset=True).items():
+    changes = data.model_dump(exclude_unset=True)
+    for key, value in changes.items():
         setattr(concept, key, value)
+    if changes:
+        topic = db.get(Topic, concept.topic_id)
+        save_syllabus_version(db, topic.subject_id, user.id, "Concept updated")
     db.commit(); db.refresh(concept)
     return concept
 
@@ -248,7 +254,11 @@ def update_concept(concept_id: int, data: ConceptUpdate, db: Session = Depends(g
 @router.delete("/concepts/{concept_id}", status_code=204)
 def delete_concept(concept_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     concept = owned_concept(db, concept_id, user.id)
-    db.delete(concept); db.commit()
+    topic = db.get(Topic, concept.topic_id)
+    subject_id = topic.subject_id
+    db.delete(concept); db.flush()
+    save_syllabus_version(db, subject_id, user.id, "Concept removed")
+    db.commit()
     return None
 
 @router.get("/concepts/{concept_id}/progress", response_model=ProgressOut | None)
