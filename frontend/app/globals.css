@@ -186,3 +186,13 @@ main{position:relative;z-index:1}h1,h2,h3{margin:0;font-family:'Cormorant Garamo
 .atlas-modal-label textarea{width:100%;min-height:76px;padding:11px 12px;color:var(--ivory);border:1px solid var(--cool);border-radius:0;background:rgba(6,17,29,.55);font:11px/1.6 'DM Sans',sans-serif;resize:vertical}
 .atlas-modal-label textarea:focus{outline:none;border-color:rgba(133,181,229,.6)}
 .atlas-subject-card .atlas-remove{opacity:1}
+
+/* Shared async states used by Home and Academics. */
+.atlas-state-card{display:flex;align-items:center;gap:14px;padding:18px 20px;margin-top:14px;border:1px solid rgba(166,187,211,.14);background:rgba(13,28,45,.42);color:var(--ivory)}
+.atlas-state-card strong{display:block;font-size:11px;font-weight:500}
+.atlas-state-card p{margin-top:5px;color:#8997a9;font-size:9px;line-height:1.6}
+.atlas-state-card.atlas-state-error{justify-content:space-between;gap:18px;border-color:rgba(180,93,93,.28);background:rgba(72,25,31,.2)}
+.atlas-state-card.atlas-state-error strong{color:#e6b2ad}
+.atlas-state-spinner{flex:0 0 15px;width:15px;height:15px;border:1px solid rgba(197,168,117,.25);border-top-color:var(--gold-hi);border-radius:50%;animation:atlas-spin .8s linear infinite}
+.atlas-state-card button:disabled{opacity:.55;cursor:wait}
+@media(max-width:480px){.atlas-state-card,.atlas-state-card.atlas-state-error{align-items:flex-start;flex-direction:column}}
