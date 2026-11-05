@@ -66,7 +66,8 @@ The current entities are:
 | `Concept` | Learning item belonging to a topic |
 | `ConceptProgress` | Per-user exposure, understanding, recall, confidence, notes, last review, and suggested next-review timestamp |
 | `ConceptReview` | Immutable per-user snapshots of each concept check-in |
-| `SyllabusVersion` | Numbered JSON snapshots of a subject's topic/concept tree, with restore history |
+| `SyllabusVersion` | Numbered JSON snapshots of a subject's topic/concept/prerequisite tree, with restore history |
+| `ConceptPrerequisite` | Directed same-subject prerequisite links between concepts; self-links and cycles are rejected |
 | `Exam` | User-owned exam associated with a subject and a date/time |
 
 `backend/app/academics_models.py` defines topic, concept, progress, review-history, syllabus-version, and exam tables. Topics and concepts include optional JSON source-page references for imported syllabus material; `backend/app/models.py` defines users, subjects (including optional term and academic year), and day notes. Foreign keys and ORM cascades connect the records. Progress is unique per user/concept, and confidence is constrained to 1–5 when supplied.
@@ -81,7 +82,7 @@ Concept-progress updates use partial PATCH semantics: only fields explicitly sup
 | Subjects | `GET /subjects`, `POST /subjects`, `PATCH /subjects/{subject_id}`, `DELETE /subjects/{subject_id}` |
 | Calendar notes | `GET /calendar?start=…&end=…`, `PUT /calendar/{day}`, `DELETE /calendar/{day}` |
 | Quotes | `GET /quotes/daily`, `GET /quotes/random` |
-| Academics | Topic/concept CRUD; syllabus PDF draft/confirm; version list/detail/create/restore; progress get/update; concept review history; exam-aware readiness; exam CRUD |
+| Academics | Topic/concept CRUD; syllabus PDF draft/confirm; version list/detail/create/restore; progress get/update; concept review history; prerequisite get/replace; exam-aware readiness; exam CRUD |
 | Overview | Authenticated recent concept activity, continue-learning candidates, revision suggestions, and upcoming exams |
 
 All API routes are mounted under `/api/v1` except `/health`. The calendar range is limited to 63 days. Quote endpoints require authentication; API Ninjas is used when configured, otherwise a curated fallback is returned. Successful daily provider responses are cached in-process for one hour.
@@ -96,9 +97,9 @@ The root page restores a token from local storage, shows registration/login when
 
 ### Academics
 
-`AcademicsWorkspace.tsx` loads the selected subject's topics, concepts, readiness summary, exams, and syllabus version list. Topic nesting is represented by `parent_topic_id`. Topics and concepts can be renamed inline; edits are saved through ownership-checked PATCH endpoints and create a new syllabus snapshot. Concept progress is stored per user, each check-in is recorded in review history, and the selected concept displays its next suggested review date. Overview learning/revision shortcuts deep-link to the matching subject and concept. Exam changes use the same persistent exam endpoints used by the Overview calendar.
+`AcademicsWorkspace.tsx` loads the selected subject's topics, concepts, readiness summary, exams, syllabus versions, and prerequisite links. Users can add same-subject prerequisites for a concept; the API rejects self-links, cross-subject links, and cycles. Topic nesting is represented by `parent_topic_id`. Topics and concepts can be renamed inline; edits are saved through ownership-checked PATCH endpoints and create a new syllabus snapshot. Concept progress is stored per user, each check-in is recorded in review history, and the selected concept displays its next suggested review date. Overview learning/revision shortcuts deep-link to the matching subject and concept. Exam changes use the same persistent exam endpoints used by the Overview calendar.
 
-The syllabus importer accepts PDF uploads up to 12 MB and 100 pages, extracts selectable text with `pypdf`, and uses conservative heading/bullet heuristics to suggest top-level chapters and concepts. The API returns an ephemeral draft with warnings and page references; the upload itself is not stored. The user can rename/remove/add chapters and concepts in the review UI. A separate manual builder supports creating chapters and nested chapters from scratch, while each expanded chapter has its own contextual add-concept form. Only the separate confirm endpoint persists the reviewed structure. Confirmed page references are stored as nullable JSON arrays on topics and concepts and shown in the syllabus tree. Each structural change and confirmed import records a numbered snapshot; users can inspect versions and restore an older tree, with both the pre-restore state and restored state retained in history. Scanned/image-only PDFs are rejected with a clear OCR-not-supported message; OCR and complex multi-column layouts remain future work. Import appends to the existing syllabus rather than replacing it.
+The syllabus importer accepts PDF uploads up to 12 MB and 100 pages, extracts selectable text with `pypdf`, and uses conservative heading/bullet heuristics to suggest top-level chapters and concepts. The API returns an ephemeral draft with warnings and page references; the upload itself is not stored. The user can rename/remove/add chapters and concepts in the review UI. A separate manual builder supports creating chapters and nested chapters from scratch, while each expanded chapter has its own contextual add-concept form. Only the separate confirm endpoint persists the reviewed structure. Confirmed page references are stored as nullable JSON arrays on topics and concepts and shown in the syllabus tree. Each structural change, prerequisite update, and confirmed import records a numbered snapshot; users can inspect versions and restore an older tree, with both the pre-restore state and restored state retained in history. Existing concept IDs are reused during restore where possible so progress and review history survive; prerequisites are restored with the syllabus tree. Scanned/image-only PDFs are rejected with a clear OCR-not-supported message; OCR and complex multi-column layouts remain future work. Import appends to the existing syllabus rather than replacing it.
 
 ### Overview calendar
 
@@ -177,9 +178,10 @@ This list covers the tracked project source, documentation, and configuration fi
 | `migrations/versions/0002_source_pages.py` | Adds nullable JSON page-reference columns to topics and concepts. |
 | `migrations/versions/0003_subject_term.py` | Adds optional term and academic-year fields to subjects. |
 | `migrations/versions/0004_syllabus_versions_reviews.py` | Adds syllabus snapshots, concept review history, and next-review scheduling. |
+| `migrations/versions/0005_concept_prerequisites.py` | Adds same-subject concept prerequisite relationships. |
 | `migrations/script.py.mako` | Template for future versioned schema revisions. |
 | `app/models.py` | Core `User`, `Subject`, and `DayNote` ORM models. |
-| `app/academics_models.py` | `Topic`, `Concept`, `ConceptProgress`, `ConceptReview`, `SyllabusVersion`, and `Exam` ORM models and relationships, including imported source-page references. |
+| `app/academics_models.py` | `Topic`, `Concept`, `ConceptProgress`, `ConceptReview`, `ConceptPrerequisite`, `SyllabusVersion`, and `Exam` ORM models and relationships, including imported source-page references. |
 | `app/syllabus_import.py` | Bounded PDF text extraction, conservative heading detection, warnings, and page-reference capture. |
 | `app/schemas.py` | Pydantic request/response types for authentication, quotes, subjects, and calendar notes. |
 | `app/academics_schemas.py` | Pydantic validation and response types for topics, concepts, progress, and exams. |
