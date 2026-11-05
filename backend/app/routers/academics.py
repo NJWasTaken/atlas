@@ -181,22 +181,23 @@ def restore_syllabus_version(subject_id: int, version_id: int, db: Session = Dep
 
     save_syllabus_version(db, subject_id, user.id, "Before restoring version " + str(version.version_number))
     db.flush()
-    current_topics = list(db.scalars(select(Topic).where(Topic.subject_id == subject_id, Topic.parent_topic_id.is_(None))))
-    for topic in current_topics:
-        db.delete(topic)
-    db.flush()
 
-    remaining = list(version.snapshot.get("topics", []))
-    id_map = {}
-    while remaining:
-        made_progress = False
-        for item in remaining[:]:
-            old_parent = item.get("parent_topic_id")
-            if old_parent is not None and old_parent not in id_map:
-                continue
+    snapshot_topics = list(version.snapshot.get("topics", []))
+    desired_topic_ids = {item["id"] for item in snapshot_topics}
+    current_topics = list(db.scalars(select(Topic).where(Topic.subject_id == subject_id)))
+    current_topics_by_id = {topic.id: topic for topic in current_topics}
+    topic_id_map = {}
+
+    # Reuse surviving topic IDs so concepts and their progress remain attached.
+    # Missing topics are recreated with new IDs and the snapshot's parent links remapped.
+    for item in snapshot_topics:
+        old_id = item["id"]
+        existing = current_topics_by_id.get(old_id)
+        if existing is not None:
+            topic_id_map[old_id] = existing.id
+        else:
             topic = Topic(
                 subject_id=subject_id,
-                parent_topic_id=id_map.get(old_parent),
                 title=item["title"],
                 description=item.get("description"),
                 position=item.get("position", 0),
@@ -204,20 +205,60 @@ def restore_syllabus_version(subject_id: int, version_id: int, db: Session = Dep
             )
             db.add(topic)
             db.flush()
-            id_map[item["id"]] = topic.id
-            for concept_data in item.get("concepts", []):
-                db.add(Concept(
-                    topic_id=topic.id,
-                    title=concept_data["title"],
-                    description=concept_data.get("description"),
-                    position=concept_data.get("position", 0),
-                    source_pages=concept_data.get("source_pages"),
-                ))
-            remaining.remove(item)
-            made_progress = True
-        if not made_progress:
-            db.rollback()
-            raise HTTPException(400, "This syllabus snapshot contains an invalid topic hierarchy")
+            topic_id_map[old_id] = topic.id
+
+    for item in snapshot_topics:
+        topic = db.get(Topic, topic_id_map[item["id"]])
+        topic.title = item["title"]
+        topic.description = item.get("description")
+        topic.position = item.get("position", 0)
+        topic.source_pages = item.get("source_pages")
+        old_parent = item.get("parent_topic_id")
+        topic.parent_topic_id = topic_id_map.get(old_parent) if old_parent is not None else None
+    db.flush()
+
+    current_concepts = list(
+        db.scalars(
+            select(Concept)
+            .join(Topic, Topic.id == Concept.topic_id)
+            .where(Topic.subject_id == subject_id)
+        )
+    )
+    current_concepts_by_id = {concept.id: concept for concept in current_concepts}
+    snapshot_concepts = [
+        (topic_item, concept_item)
+        for topic_item in snapshot_topics
+        for concept_item in topic_item.get("concepts", [])
+    ]
+    desired_concept_ids = {concept_item["id"] for _, concept_item in snapshot_concepts}
+
+    for topic_item, concept_item in snapshot_concepts:
+        old_id = concept_item["id"]
+        concept = current_concepts_by_id.get(old_id)
+        if concept is None:
+            concept = Concept(
+                topic_id=topic_id_map[topic_item["id"]],
+                title=concept_item["title"],
+                description=concept_item.get("description"),
+                position=concept_item.get("position", 0),
+                source_pages=concept_item.get("source_pages"),
+            )
+            db.add(concept)
+        else:
+            concept.topic_id = topic_id_map[topic_item["id"]]
+            concept.title = concept_item["title"]
+            concept.description = concept_item.get("description")
+            concept.position = concept_item.get("position", 0)
+            concept.source_pages = concept_item.get("source_pages")
+
+    db.flush()
+    for concept in current_concepts:
+        if concept.id not in desired_concept_ids:
+            db.delete(concept)
+    for topic in current_topics:
+        if topic.id not in desired_topic_ids:
+            db.delete(topic)
+    db.flush()
 
     save_syllabus_version(db, subject_id, user.id, "Restored version " + str(version.version_number))
     db.commit()
