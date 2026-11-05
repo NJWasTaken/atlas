@@ -22,6 +22,7 @@ def test_production_rejects_wildcard_and_localhost_cors_origins():
     with pytest.raises(ValidationError, match="localhost"):
         Settings(
             environment="production",
+            database_url=PRODUCTION_DATABASE_URL,
             jwt_secret="a-unique-production-secret-that-is-long-enough",
             frontend_origin="http://localhost:3000",
         )
