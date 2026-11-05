@@ -1,0 +1,39 @@
+/* Readability and semantic colour layer for Atlas.
+   Import after globals.css. These tokens deliberately add accents without
+   turning every surface into a gradient. */
+:root {
+  --atlas-text: #f2eee5;
+  --atlas-text-secondary: #c0cbd8;
+  --atlas-text-muted: #9aaabd;
+  --atlas-accent-gold: #d6b77d;
+  --atlas-accent-blue: #8fb9dc;
+  --atlas-accent-teal: #83c7bb;
+  --atlas-accent-lilac: #b8a9df;
+  --atlas-accent-coral: #e2a69c;
+  --atlas-panel: rgba(15, 31, 49, .82);
+  --atlas-panel-raised: rgba(23, 43, 64, .9);
+}
+body { font-size: 16px; color: var(--atlas-text); }
+.eyebrow { font-size: 11px; letter-spacing: .16em; }
+.atlas-page-description, .atlas-section-subtitle { font-size: 14px; color: var(--atlas-text-secondary); line-height: 1.75; }
+.atlas-nav-item { font-size: 14px; color: var(--atlas-text-secondary); }
+.atlas-button { font-size: 13px; }
+.atlas-form label, .atlas-modal-label { font-size: 13px; }
+.atlas-subject-description, .atlas-subject-summary>p,
+.atlas-feature-text, .atlas-calendar-caption { font-size: 13px; color: var(--atlas-text-secondary); }
+.atlas-subject-code, .atlas-card-bottom, .atlas-calendar-monthline>span,
+.atlas-calendar-weekday, .atlas-calendar-legend { font-size: 10px; }
+.atlas-day-note label { font-size: 12px; color: var(--atlas-text-secondary); }
+.atlas-day-note textarea { font-size: 14px; line-height: 1.7; }
+.atlas-day-note-preview { font-size: 14px; line-height: 1.7; }
+.atlas-quote-hint { font-size: 10px !important; }
+.atlas-auth-card { max-width: 470px; }
+.atlas-subject-card { background: linear-gradient(145deg, rgba(24, 43, 63, .88), rgba(12, 29, 47, .82)); }
+.atlas-subject-glyph { color: var(--atlas-accent-blue); border-color: rgba(143,185,220,.28); background: rgba(143,185,220,.08); }
+.atlas-feature-icon { color: var(--atlas-accent-lilac); border-color: rgba(184,169,223,.28); background: rgba(184,169,223,.07); }
+.atlas-calendar-day.has-note:not(.selected) { color: var(--atlas-accent-teal); }
+.atlas-alert { font-size: 13px; }
+@media (max-width: 760px) {
+  .atlas-nav-item { font-size: 12px; }
+  .atlas-page-description { font-size: 13px; }
+}

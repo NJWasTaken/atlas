@@ -4,6 +4,8 @@ from app.core.config import settings
 from app.db import Base, engine
 from app import models
 from app.routers import auth, quotes, subjects, calendar
+from app.academics_models import Topic, Concept, ConceptProgress, Exam
+from app.routers import academics
 
 Base.metadata.create_all(bind=engine)
 
@@ -19,6 +21,7 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(quotes.router, prefix="/api/v1")
 app.include_router(subjects.router, prefix="/api/v1")
 app.include_router(calendar.router, prefix="/api/v1")
+app.include_router(academics.router, prefix="/api/v1")
 
 @app.get("/health")
 def health():

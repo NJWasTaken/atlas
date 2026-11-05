@@ -1,5 +1,6 @@
 import "./globals.css";
 import "../atlas-calendar-styles.css";
+import "../academics-readable.css";
 import type { Metadata } from "next";
 import CelestialBackground from "./components/CelestialBackground";
 
