@@ -32,6 +32,8 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
   const [expanded, setExpanded] = useState<number[]>([]);
   const [topicTitle, setTopicTitle] = useState("");
   const [conceptTitle, setConceptTitle] = useState("");
+  const [editingItem, setEditingItem] = useState<{kind:"topic"|"concept";id:number}|null>(null);
+  const [editTitle, setEditTitle] = useState("");
   const [examTitle, setExamTitle] = useState("End-semester examination");
   const [examDate, setExamDate] = useState("");
   const [editingExamId, setEditingExamId] = useState<number | null>(null);
@@ -93,6 +95,33 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
       setNotice("Concept added.");
     } catch(e) { setError(e instanceof Error ? e.message : "Could not add concept."); }
     finally { setBusy(false); }
+  }
+
+  function beginItemEdit(kind: "topic" | "concept", item: Topic | Concept) {
+    setEditingItem({kind, id:item.id});
+    setEditTitle(item.title);
+    setError("");
+  }
+
+  async function saveItemEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingItem || !editTitle.trim()) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const path = editingItem.kind === "topic" ? "topics" : "concepts";
+      const updated = await api<Topic | Concept>(`/${path}/${editingItem.id}`, {
+        method:"PATCH",
+        body:JSON.stringify({title:editTitle.trim()})
+      });
+      if (editingItem.kind === "concept" && selectedConcept?.id === editingItem.id) {
+        setSelectedConcept(updated as Concept);
+      }
+      setEditingItem(null);
+      if (subjectId !== null) await loadWorkspace(subjectId);
+      setNotice(`${editingItem.kind === "topic" ? "Topic" : "Concept"} updated.`);
+    } catch(e) {
+      setError(e instanceof Error ? e.message : "Could not update this item.");
+    } finally { setBusy(false); }
   }
 
   async function chooseConcept(concept: Concept) {
@@ -195,13 +224,23 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
         <span className="atlas-topic-title">{topic.title}</span>
         <span className="atlas-topic-count">{items.length} concepts</span>
         <button className="atlas-mini-action" onClick={()=>setAddingConcept(topic.id)} title="Add concept"><Plus size={14}/></button>
+        <button className="atlas-mini-action" onClick={()=>beginItemEdit("topic",topic)} title="Rename topic" aria-label={`Rename ${topic.title}`}><Pencil size={13}/></button>
         <button className="atlas-mini-action danger" onClick={()=>removeTopic(topic.id)} title="Delete topic"><Trash2 size={13}/></button>
       </div>
+      {editingItem?.kind === "topic" && editingItem.id === topic.id && <form className="atlas-inline-form atlas-edit-inline-form" onSubmit={saveItemEdit}>
+        <label>Rename topic<input autoFocus value={editTitle} onChange={e=>setEditTitle(e.target.value)} required maxLength={180}/></label>
+        <div><button className="atlas-button atlas-primary" disabled={busy}>Save name</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setEditingItem(null)}>Cancel</button></div>
+      </form>}
       {isOpen && <div className="atlas-topic-children">
         {items.map(c=><div className={`atlas-concept-row ${selectedConcept?.id===c.id?"selected":""}`} key={c.id}>
           <button onClick={()=>void chooseConcept(c)}><Brain size={14}/><span>{c.title}</span></button>
+          <button className="atlas-mini-action" onClick={()=>beginItemEdit("concept",c)} title="Rename concept" aria-label={`Rename ${c.title}`}><Pencil size={12}/></button>
           <button className="atlas-mini-action danger" onClick={()=>removeConcept(c.id)} title="Delete concept"><Trash2 size={12}/></button>
-        </div>)}
+        </div>
+        {editingItem?.kind === "concept" && editingItem.id === c.id && <form className="atlas-inline-form atlas-edit-inline-form" onSubmit={saveItemEdit}>
+          <label>Rename concept<input autoFocus value={editTitle} onChange={e=>setEditTitle(e.target.value)} required maxLength={180}/></label>
+          <div><button className="atlas-button atlas-primary" disabled={busy}>Save name</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setEditingItem(null)}>Cancel</button></div>
+        </form>})}
         {children.map(child=>renderTopic(child,depth+1))}
         {!items.length&&!children.length&&<p className="atlas-topic-empty">No concepts here yet. Add the first one.</p>}
       </div>}
