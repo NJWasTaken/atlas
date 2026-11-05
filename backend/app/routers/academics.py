@@ -42,7 +42,7 @@ async def create_syllabus_draft(
     user: User = Depends(get_current_user),
 ):
     owned_subject(db, subject_id, user.id)
-    filename = (file.filename or "syllabus.pdf").replace("\\\\", "/").split("/")[-1]
+    filename = (file.filename or "syllabus.pdf").replace(chr(92), "/").split("/")[-1]
     if not filename.lower().endswith(".pdf"):
         raise HTTPException(400, "Please upload a PDF file.")
     content = await file.read(MAX_PDF_BYTES + 1)
