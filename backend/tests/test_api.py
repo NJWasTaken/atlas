@@ -756,6 +756,11 @@ def test_syllabus_versions_capture_changes_and_can_be_restored(client: TestClien
     ).status_code == 404
 
     client.patch(
+        f"/api/v1/concepts/{concept['id']}/progress",
+        headers=headers,
+        json={"understanding": "developing", "recall": "needs_practice", "confidence": 3},
+    )
+    client.patch(
         f"/api/v1/concepts/{concept['id']}",
         headers=headers,
         json={"title": "Process lifecycle"},
@@ -767,6 +772,10 @@ def test_syllabus_versions_capture_changes_and_can_be_restored(client: TestClien
     assert restored.status_code == 200
     current = client.get(f"/api/v1/subjects/{subject['id']}/concepts", headers=headers)
     assert current.json()[0]["title"] == "Ready and running"
+    preserved_progress = client.get(f"/api/v1/concepts/{concept['id']}/progress", headers=headers).json()
+    assert preserved_progress["understanding"] == "developing"
+    assert preserved_progress["recall"] == "needs_practice"
+    assert len(client.get(f"/api/v1/concepts/{concept['id']}/reviews", headers=headers).json()) == 1
     restored_topics = client.get(f"/api/v1/subjects/{subject['id']}/topics", headers=headers).json()
     restored_child = next(item for item in restored_topics if item["title"] == "Process states")
     restored_parent = next(item for item in restored_topics if item["title"] == "Processes")
