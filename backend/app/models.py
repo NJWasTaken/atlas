@@ -21,6 +21,7 @@ class Subject(Base):
     term: Mapped[str | None] = mapped_column(String(60), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     owner: Mapped[User] = relationship(back_populates="subjects")
+    syllabus_versions: Mapped[list["SyllabusVersion"]] = relationship(back_populates="subject", cascade="all, delete-orphan")
 
 class DayNote(Base):
     __tablename__ = "day_notes"
