@@ -160,6 +160,16 @@ test("student can create, edit and delete an exam from Academics and Overview", 
   await page.getByLabel("Delete Networks final").click();
   await expect(page.getByText("No exam dates yet.",{exact:false})).toBeVisible();
 
+  await page.getByTitle("Add exam").click();
+  await page.getByLabel("Exam title").fill("Overview exam");
+  await page.getByLabel("Exam date").fill(localDate);
+  await page.getByRole("button",{name:"Add exam"}).click();
   await page.getByRole("button",{name:"Overview"}).click();
-  await expect(page.getByText("No upcoming exams.",{exact:false})).toBeVisible();
+  await expect(page.getByLabel("Edit Overview exam")).toBeVisible();
+  await page.getByLabel("Edit Overview exam").click();
+  await page.getByLabel("Exam title").fill("Overview exam revised");
+  await page.getByRole("button",{name:"Save"}).click();
+  await expect(page.getByLabel("Delete Overview exam revised")).toBeVisible();
+  await page.getByLabel("Delete Overview exam revised").click();
+  await expect(page.getByText("Overview exam revised",{exact:true})).toHaveCount(0);
 });
