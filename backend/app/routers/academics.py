@@ -1,15 +1,16 @@
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_, delete
 from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Subject, User
-from app.academics_models import Topic, Concept, ConceptProgress, ConceptReview, SyllabusVersion, Exam
+from app.academics_models import Topic, Concept, ConceptProgress, ConceptReview, ConceptPrerequisite, SyllabusVersion, Exam
 from app.syllabus_import import MAX_PDF_BYTES, parse_syllabus_pdf
 from app.academics_schemas import (
     TopicCreate, TopicUpdate, TopicOut, ConceptCreate, ConceptUpdate, ConceptOut,
     ProgressUpdate, ProgressOut, ExamCreate, ExamUpdate, ExamOut, SyllabusConfirm,
-    ConceptReviewOut, SyllabusVersionOut, SyllabusVersionDetail, SyllabusVersionCreate
+    ConceptReviewOut, SyllabusVersionOut, SyllabusVersionDetail, SyllabusVersionCreate,
+    PrerequisiteUpdate, PrerequisiteOut
 )
 from app.security import get_current_user
 
@@ -357,6 +358,78 @@ def delete_concept(concept_id: int, db: Session = Depends(get_db), user: User = 
     save_syllabus_version(db, subject_id, user.id, "Concept removed")
     db.commit()
     return None
+
+
+@router.get("/concepts/{concept_id}/prerequisites", response_model=list[PrerequisiteOut])
+def list_prerequisites(concept_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    owned_concept(db, concept_id, user.id)
+    rows = db.execute(
+        select(
+            Concept.id,
+            Concept.title,
+            Topic.title,
+            func.coalesce(ConceptProgress.understanding, "not_assessed"),
+            func.coalesce(ConceptProgress.recall, "not_assessed"),
+        )
+        .join(ConceptPrerequisite, ConceptPrerequisite.prerequisite_concept_id == Concept.id)
+        .join(Topic, Topic.id == Concept.topic_id)
+        .join(Subject, Subject.id == Topic.subject_id)
+        .outerjoin(
+            ConceptProgress,
+            and_(ConceptProgress.concept_id == Concept.id, ConceptProgress.user_id == user.id),
+        )
+        .where(ConceptPrerequisite.concept_id == concept_id, Subject.user_id == user.id)
+        .order_by(Topic.position, Concept.position, Concept.id)
+    ).all()
+    return [
+        {"id": concept_id, "title": title, "topic_title": topic_title, "understanding": understanding, "recall": recall}
+        for concept_id, title, topic_title, understanding, recall in rows
+    ]
+
+
+@router.put("/concepts/{concept_id}/prerequisites", response_model=list[PrerequisiteOut])
+def replace_prerequisites(concept_id: int, data: PrerequisiteUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    concept = owned_concept(db, concept_id, user.id)
+    topic = db.get(Topic, concept.topic_id)
+    requested = set(data.prerequisite_ids)
+    if concept_id in requested:
+        raise HTTPException(400, "A concept cannot be its own prerequisite")
+    if requested:
+        valid_ids = set(db.scalars(
+            select(Concept.id)
+            .join(Topic, Topic.id == Concept.topic_id)
+            .where(Concept.id.in_(requested), Topic.subject_id == topic.subject_id)
+        ))
+        if valid_ids != requested:
+            raise HTTPException(400, "Prerequisites must belong to the same subject")
+
+    existing_edges = db.execute(
+        select(ConceptPrerequisite.concept_id, ConceptPrerequisite.prerequisite_concept_id)
+        .join(Concept, Concept.id == ConceptPrerequisite.concept_id)
+        .join(Topic, Topic.id == Concept.topic_id)
+        .where(Topic.subject_id == topic.subject_id, ConceptPrerequisite.concept_id != concept_id)
+    ).all()
+    graph = {}
+    for dependent_id, prerequisite_id in existing_edges:
+        graph.setdefault(dependent_id, []).append(prerequisite_id)
+    for candidate_id in requested:
+        pending = [candidate_id]
+        visited = set()
+        while pending:
+            current_id = pending.pop()
+            if current_id == concept_id:
+                raise HTTPException(400, "This prerequisite would create a cycle")
+            if current_id in visited:
+                continue
+            visited.add(current_id)
+            pending.extend(graph.get(current_id, []))
+
+    db.execute(delete(ConceptPrerequisite).where(ConceptPrerequisite.concept_id == concept_id))
+    for prerequisite_id in sorted(requested):
+        db.add(ConceptPrerequisite(concept_id=concept_id, prerequisite_concept_id=prerequisite_id))
+    db.commit()
+    return list_prerequisites(concept_id, db, user)
+
 
 @router.get("/concepts/{concept_id}/progress", response_model=ProgressOut | None)
 def get_progress(concept_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
