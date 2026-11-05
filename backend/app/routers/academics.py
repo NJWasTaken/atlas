@@ -181,7 +181,7 @@ def restore_syllabus_version(subject_id: int, version_id: int, db: Session = Dep
 
     save_syllabus_version(db, subject_id, user.id, "Before restoring version " + str(version.version_number))
     db.flush()
-    current_topics = list(db.scalars(select(Topic).where(Topic.subject_id == subject_id)))
+    current_topics = list(db.scalars(select(Topic).where(Topic.subject_id == subject_id, Topic.parent_topic_id.is_(None))))
     for topic in current_topics:
         db.delete(topic)
     db.flush()
@@ -408,7 +408,7 @@ def subject_readiness(subject_id: int, db: Session = Depends(get_db), user: User
     if next_exam and days_until_exam is not None and days_until_exam <= 14:
         recommendations.append({
             "reason": "upcoming_exam",
-            "count": counts.get("weak", 0) + due_count,
+            "count": counts.get("weak", 0) + due_count + (total - assessed + counts.get("not_assessed", 0)),
             "message": next_exam.title + " is in " + str(days_until_exam) + " days. Prioritize weak and due concepts first.",
         })
     return {
