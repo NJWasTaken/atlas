@@ -33,6 +33,8 @@ export default function Home() {
   const [showAdd, setShowAdd] = useState(false);
   const [subjectName, setSubjectName] = useState("");
   const [subjectCode, setSubjectCode] = useState("");
+  const [subjectDescription, setSubjectDescription] = useState("");
+  const [editingSubjectId, setEditingSubjectId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -80,12 +82,29 @@ export default function Home() {
     } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong"); }
     finally { setBusy(false); }
   }
+  function openAddSubject() {
+    setEditingSubjectId(null);
+    setSubjectName(""); setSubjectCode(""); setSubjectDescription("");
+    setShowAdd(true);
+  }
+  function openEditSubject(subject: Subject) {
+    setEditingSubjectId(subject.id);
+    setSubjectName(subject.name);
+    setSubjectCode(subject.code ?? "");
+    setSubjectDescription(subject.description ?? "");
+    setShowAdd(true);
+  }
   async function addSubject(e: React.FormEvent) {
     e.preventDefault(); setError(""); setBusy(true);
     try {
-      await api<Subject>("/subjects", { method: "POST", body: JSON.stringify({ name: subjectName, code: subjectCode || null }) });
-      setSubjectName(""); setSubjectCode(""); setShowAdd(false); await loadSubjects();
-    } catch (e) { setError(e instanceof Error ? e.message : "Could not add subject"); }
+      const payload = { name: subjectName.trim(), code: subjectCode.trim() || null, description: subjectDescription.trim() || null };
+      if (editingSubjectId !== null) {
+        await api<Subject>(`/subjects/${editingSubjectId}`, { method: "PATCH", body: JSON.stringify(payload) });
+      } else {
+        await api<Subject>("/subjects", { method: "POST", body: JSON.stringify(payload) });
+      }
+      setSubjectName(""); setSubjectCode(""); setSubjectDescription(""); setEditingSubjectId(null); setShowAdd(false); await loadSubjects();
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not save subject"); }
     finally { setBusy(false); }
   }
   async function deleteSubject(id: number) {
@@ -177,7 +196,7 @@ export default function Home() {
             <section className="atlas-overview-section">
               <div className="atlas-section-heading">
                 <div><p className="eyebrow">YOUR ACADEMIC SPACE</p><h2>Subjects on your map</h2></div>
-                <button className="atlas-button atlas-secondary" onClick={()=>{setActive("Academics");setShowAdd(true);}}><Plus size={15}/> Add subject</button>
+                <button className="atlas-button atlas-secondary" onClick={()=>{setActive("Academics");openAddSubject();}}><Plus size={15}/> Add subject</button>
               </div>
               <div className="atlas-subject-summary">
                 <div className="atlas-subject-count"><strong>{String(subjects.length).padStart(2,"0")}</strong><span>SUBJECTS</span></div>
@@ -185,13 +204,13 @@ export default function Home() {
                 <p>{subjects.length?"Your semester, gathered in one place. Pick a subject and keep building your understanding.":"Your academic universe starts with the subjects you're studying this semester."}</p>
                 <button className="atlas-round-arrow" onClick={()=>setActive("Academics")} aria-label="View academics"><ArrowUpRight size={17}/></button>
               </div>
-              <SubjectGrid subjects={subjects} onDelete={deleteSubject}/>
+              <SubjectGrid subjects={subjects} onDelete={deleteSubject} onEdit={openEditSubject}/>
             </section>
             <section className="atlas-overview-section atlas-calendar-section"><DashboardCalendar /></section>
           </>}
 
           {active==="Academics"&&<section className="atlas-overview-section">
-            <div className="atlas-section-heading"><div><p className="eyebrow">THE BUILDING BLOCKS</p><h2>Your subjects</h2><p className="atlas-section-subtitle">A home for syllabi, concepts and revision.</p></div><button className="atlas-button atlas-primary" onClick={()=>setShowAdd(true)}><Plus size={15}/> Add subject</button></div>
+            <div className="atlas-section-heading"><div><p className="eyebrow">THE BUILDING BLOCKS</p><h2>Your subjects</h2><p className="atlas-section-subtitle">A home for syllabi, concepts and revision.</p></div><button className="atlas-button atlas-primary" onClick={openAddSubject}><Plus size={15}/> Add subject</button></div>
             <AcademicsWorkspace subjects={subjects}/>
           </section>}
 
@@ -202,10 +221,11 @@ export default function Home() {
 
       {showAdd&&<div className="atlas-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowAdd(false);}}>
         <form onSubmit={addSubject} className="atlas-modal">
-          <div className="atlas-modal-heading"><div><p className="eyebrow">ACADEMICS</p><h2>Add a subject</h2></div><button type="button" className="atlas-icon-button" onClick={()=>setShowAdd(false)} aria-label="Close"><X size={18}/></button></div>
+          <div className="atlas-modal-heading"><div><p className="eyebrow">ACADEMICS</p><h2>{editingSubjectId === null ? "Add a subject" : "Edit subject"}</h2></div><button type="button" className="atlas-icon-button" onClick={()=>setShowAdd(false)} aria-label="Close"><X size={18}/></button></div>
           <label className="atlas-modal-label">Subject name<input autoFocus required value={subjectName} onChange={e=>setSubjectName(e.target.value)} placeholder="e.g. Machine Learning"/></label>
           <label className="atlas-modal-label">Course code <small>OPTIONAL</small><input value={subjectCode} onChange={e=>setSubjectCode(e.target.value)} placeholder="e.g. CS402"/></label>
-          <button disabled={busy} className="atlas-button atlas-primary atlas-full">{busy?"Saving…":"Save subject"}<ArrowUpRight size={16}/></button>
+          <label className="atlas-modal-label">Description <small>OPTIONAL</small><textarea rows={3} value={subjectDescription} onChange={e=>setSubjectDescription(e.target.value)} placeholder="What does this subject cover?"/></label>
+          <button disabled={busy} className="atlas-button atlas-primary atlas-full">{busy?"Saving…":editingSubjectId === null ? "Save subject" : "Save changes"}<ArrowUpRight size={16}/></button>
         </form>
       </div>}
     </main>
@@ -216,10 +236,10 @@ function Brand(){return <div className="atlas-brand"><div className="atlas-brand
 function FeatureEmpty({icon,eyebrow,title,text,foot}:{icon:React.ReactNode;eyebrow:string;title:React.ReactNode;text:string;foot:string}){
   return <section className="atlas-feature-empty"><div className="atlas-feature-icon">{icon}</div><p className="eyebrow">{eyebrow}</p><h2>{title}</h2><p className="atlas-feature-text">{text}</p><div className="atlas-feature-foot"><span/>{foot}</div></section>;
 }
-function SubjectGrid({subjects,onDelete}:{subjects:Subject[];onDelete:(id:number)=>void}){
+function SubjectGrid({subjects,onDelete,onEdit}:{subjects:Subject[];onDelete:(id:number)=>void;onEdit:(subject:Subject)=>void}){
   if(!subjects.length)return <div className="atlas-empty-subjects"><div className="atlas-empty-icon"><BookOpen size={19}/></div><p>Your map is waiting for its first pin.</p><span>Add a subject to begin building your academic space.</span></div>;
   return <div className="atlas-subject-grid">{subjects.map((s,i)=><article key={s.id} className="atlas-subject-card" style={{animationDelay:`${i*65}ms`}}>
-    <div className="atlas-subject-card-top"><div className="atlas-subject-glyph"><BookOpen size={17}/></div><button onClick={()=>onDelete(s.id)} className="atlas-remove">Remove</button></div>
+    <div className="atlas-subject-card-top"><div className="atlas-subject-glyph"><BookOpen size={17}/></div><div className="atlas-subject-card-actions"><button onClick={()=>onEdit(s)} className="atlas-remove atlas-edit-subject">Edit</button><button onClick={()=>onDelete(s.id)} className="atlas-remove">Remove</button></div></div>
     <p className="atlas-subject-code">{s.code||`SUBJECT ${String(i+1).padStart(2,"0")}`}</p><h3>{s.name}</h3><p className="atlas-subject-description">{s.description||"Syllabus and concepts will live here."}</p>
     <div className="atlas-card-bottom"><span>YOUR ACADEMIC SPACE</span><ArrowUpRight size={14}/></div>
   </article>)}</div>;
