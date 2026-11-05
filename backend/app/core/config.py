@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     def validate_runtime_security(self):
         production = self.environment.lower() in {"production", "prod"}
         if production:
+            if "atlas_dev_password" in self.database_url or "localhost:5432/atlas" in self.database_url:
+                raise ValueError("DATABASE_URL must point to the configured production database, not the local development database.")
             if len(self.jwt_secret) < 32 or self.jwt_secret == "development-only-change-me":
                 raise ValueError("JWT_SECRET must be a unique secret of at least 32 characters in production.")
             if self.create_tables_on_startup:
