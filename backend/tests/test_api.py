@@ -156,6 +156,23 @@ def test_progress_validation_and_readiness_counts(client: TestClient):
     assert readiness.json()["total_concepts"] == 1
     assert readiness.json()["not_assessed"] == 1
 
+    exam = client.post(
+        "/api/v1/exams",
+        headers=headers,
+        json={
+            "subject_id": subject["id"],
+            "title": "Statistics final",
+            "exam_date": (datetime.now(timezone.utc) + timedelta(days=5)).isoformat(),
+        },
+    )
+    assert exam.status_code == 201
+    readiness_with_exam = client.get(
+        f"/api/v1/subjects/{subject['id']}/readiness", headers=headers
+    ).json()
+    assert readiness_with_exam["next_exam"]["title"] == "Statistics final"
+    assert readiness_with_exam["next_exam"]["days_until"] == 5
+    assert any(item["reason"] == "upcoming_exam" for item in readiness_with_exam["recommendations"])
+
 
 def test_calendar_notes_are_user_scoped_and_validate_ranges(client: TestClient):
     owner = auth_headers(register(client, "calendar-owner@example.com"))
