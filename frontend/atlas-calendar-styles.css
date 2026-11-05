@@ -143,3 +143,13 @@
 .atlas-overview-inline-error{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .atlas-overview-inline-error button{flex:0 0 auto;padding:6px 10px;color:#e9d4a6;border:1px solid rgba(197,168,117,.24);font-size:9px}
 .atlas-overview-inline-error button:hover{background:rgba(197,168,117,.07);border-color:rgba(197,168,117,.5)}
+
+.atlas-overview-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:14px 0 22px}
+.atlas-overview-stats>div{display:grid;gap:4px;min-width:0;padding:13px 15px;border:1px solid rgba(166,187,211,.13);background:rgba(11,26,43,.52)}
+.atlas-overview-stats span{color:#8194a7;font-size:8px;letter-spacing:.13em}
+.atlas-overview-stats strong{color:#e7e4dc;font:500 25px 'Cormorant Garamond',serif}
+.atlas-overview-stats small{color:#8292a4;font-size:9px}
+.atlas-overview-stats>div:nth-child(2) strong{color:#9ed4c4}
+.atlas-overview-stats>div:nth-child(3) strong{color:#a9c9e7}
+.atlas-overview-stats>div:nth-child(4) strong{color:#d9a59c}
+@media(max-width:760px){.atlas-overview-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
