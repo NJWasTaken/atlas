@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import io
 import re
-from collections import OrderedDict
 
 from pypdf import PdfReader
 
@@ -12,17 +11,17 @@ MAX_PDF_PAGES = 100
 MAX_EXTRACTED_CHARS = 1_000_000
 
 _UNIT_HEADING = re.compile(
-    r"^(?:UNIT|MODULE|CHAPTER|PART|SECTION)\\s+(?:[0-9IVX]+|[A-Z])(?:\\s*[:.\\-–—)]\\s*|\\s+).{2,150}$",
+    r"^(?:UNIT|MODULE|CHAPTER|PART|SECTION)\s+(?:[0-9IVX]+|[A-Z])(?:\s*[:.\-–—)]\s*|\s+).{2,150}$",
     re.IGNORECASE,
 )
-_NUMBERED_HEADING = re.compile(r"^\\d+(?:\\.\\d+)*[.)]?\\s+.{2,150}$")
-_BULLET = re.compile(r"^(?:[-*•▪◦]|\\(?\\d+[.)])\\s+(.{3,150})$")
-_ROMAN_HEADING = re.compile(r"^[IVX]+[.)]\\s+.{2,150}$")
-_BULLET_PREFIX = re.compile(r"^(?:[-*•▪◦]|\\(?\\d+[.)])\\s+")
+_NUMBERED_HEADING = re.compile(r"^\d+(?:\.\d+)*[.)]?\s+.{2,150}$")
+_BULLET = re.compile(r"^(?:[-*•▪◦]|\(?\d+[.)])\s+(.{3,150})$")
+_ROMAN_HEADING = re.compile(r"^[IVX]+[.)]\s+.{2,150}$")
+_BULLET_PREFIX = re.compile(r"^(?:[-*•▪◦]|\(?\d+[.)])\s+")
 
 
 def _clean_line(line: str) -> str:
-    return re.sub(r"\\s+", " ", line).strip(" \\t•·")
+    return re.sub(r"\s+", " ", line).strip(" \t•·")
 
 
 def _is_heading(line: str) -> bool:
@@ -72,7 +71,7 @@ def parse_syllabus_pdf(pdf_bytes: bytes) -> dict:
 
     def add_topic(title: str, page: int) -> None:
         nonlocal current_topic
-        normalized = re.sub(r"^\\d+(?:\\.\\d+)*[.)]?\\s+", "", title).strip(" .:-–—")
+        normalized = re.sub(r"^\d+(?:\.\d+)*[.)]?\s+", "", title).strip(" .:-–—")
         key = (normalized.casefold(), page)
         if not normalized or key in seen:
             return
@@ -88,12 +87,12 @@ def parse_syllabus_pdf(pdf_bytes: bytes) -> dict:
             if _is_heading(line):
                 # Deeply numbered headings are treated as concepts under the
                 # current unit; major numbered headings start a new unit.
-                number = re.match(r"^(\\d+(?:\\.\\d+)*)", line)
+                number = re.match(r"^(\d+(?:\.\d+)*)", line)
                 depth = number.group(1).count(".") if number else 0
                 if _UNIT_HEADING.match(line) or _ROMAN_HEADING.match(line) or (number and depth == 0):
                     add_topic(line, page_number)
                 elif current_topic is not None:
-                    title = re.sub(r"^\\d+(?:\\.\\d+)*[.)]?\\s+", "", line).strip()
+                    title = re.sub(r"^\d+(?:\.\d+)*[.)]?\s+", "", line).strip()
                     if title and not any(c["title"].casefold() == title.casefold() for c in current_topic["concepts"]):
                         current_topic["concepts"].append({"title": title[:180], "source_pages": [page_number]})
                 else:
