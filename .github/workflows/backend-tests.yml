@@ -37,6 +37,7 @@ jobs:
           DATABASE_URL: sqlite:////tmp/atlas-migrations.db
         run: |
           python -m alembic upgrade head
+          python -m alembic check
           python -m alembic downgrade base
       - name: Run backend API tests
         run: python -m pytest -v
