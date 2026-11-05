@@ -82,3 +82,15 @@ class ConceptReview(Base):
     confidence: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     concept = relationship("Concept", back_populates="reviews")
+
+
+class ConceptPrerequisite(Base):
+    __tablename__ = "concept_prerequisites"
+    __table_args__ = (
+        UniqueConstraint("concept_id", "prerequisite_concept_id", name="uq_concept_prerequisite"),
+        CheckConstraint("concept_id != prerequisite_concept_id", name="ck_concept_prerequisite_not_self"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    concept_id: Mapped[int] = mapped_column(ForeignKey("concepts.id", ondelete="CASCADE"), index=True)
+    prerequisite_concept_id: Mapped[int] = mapped_column(ForeignKey("concepts.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
