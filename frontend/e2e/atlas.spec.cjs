@@ -156,8 +156,8 @@ test("calendar offers a weekly view and saves a day note", async ({ page }) => {
 test("student can create, edit and delete an exam from Academics and Overview", async ({ page }) => {
   installApiMock(page);
   page.on("dialog", dialog => dialog.accept());
-  page.on("response", response => {
-    if (response.url().includes("exams")) console.log("E2E_EXAMS", response.request().method(), response.status(), response.url());
+  page.on("response", async response => {
+    if (response.url().includes("exams")) console.log("E2E_EXAMS", response.request().method(), response.status(), response.request().postData(), await response.text());
   });
   await signIn(page);
   await page.getByRole("button",{name:/Add subject/}).first().click();
