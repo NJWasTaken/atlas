@@ -1,13 +1,14 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Subject, User
 from app.academics_models import Topic, Concept, ConceptProgress, Exam
+from app.syllabus_import import MAX_PDF_BYTES, parse_syllabus_pdf
 from app.academics_schemas import (
     TopicCreate, TopicUpdate, TopicOut, ConceptCreate, ConceptUpdate, ConceptOut,
-    ProgressUpdate, ProgressOut, ExamCreate, ExamUpdate, ExamOut
+    ProgressUpdate, ProgressOut, ExamCreate, ExamUpdate, ExamOut, SyllabusConfirm
 )
 from app.security import get_current_user
 
@@ -32,6 +33,70 @@ def owned_concept(db: Session, concept_id: int, user_id: int):
     if not concept:
         raise HTTPException(404, "Concept not found")
     return concept
+
+@router.post("/subjects/{subject_id}/syllabus/draft")
+async def create_syllabus_draft(
+    subject_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    owned_subject(db, subject_id, user.id)
+    filename = (file.filename or "syllabus.pdf").replace("\\\\", "/").split("/")[-1]
+    if not filename.lower().endswith(".pdf"):
+        raise HTTPException(400, "Please upload a PDF file.")
+    content = await file.read(MAX_PDF_BYTES + 1)
+    await file.close()
+    if len(content) > MAX_PDF_BYTES:
+        raise HTTPException(413, "This PDF is larger than the 12 MB upload limit.")
+    try:
+        parsed = parse_syllabus_pdf(content)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {
+        "file_name": filename,
+        "page_count": parsed["page_count"],
+        "extracted_characters": parsed["extracted_characters"],
+        "topics": parsed["topics"],
+        "warnings": parsed["warnings"],
+    }
+
+
+@router.post("/subjects/{subject_id}/syllabus/confirm", status_code=201)
+def confirm_syllabus_import(
+    subject_id: int,
+    data: SyllabusConfirm,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    owned_subject(db, subject_id, user.id)
+    topic_count = 0
+    concept_count = 0
+    try:
+        for topic_position, topic_draft in enumerate(data.topics):
+            topic = Topic(
+                subject_id=subject_id,
+                title=topic_draft.title.strip(),
+                position=topic_position,
+                source_pages=topic_draft.source_pages or None,
+            )
+            db.add(topic)
+            db.flush()
+            topic_count += 1
+            for concept_position, concept_draft in enumerate(topic_draft.concepts):
+                db.add(Concept(
+                    topic_id=topic.id,
+                    title=concept_draft.title.strip(),
+                    position=concept_position,
+                    source_pages=concept_draft.source_pages or None,
+                ))
+                concept_count += 1
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return {"subject_id": subject_id, "topics_created": topic_count, "concepts_created": concept_count}
+
 
 @router.get("/subjects/{subject_id}/topics", response_model=list[TopicOut])
 def list_topics(subject_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
