@@ -39,7 +39,7 @@ The App Router entry is `frontend/app/page.tsx`. It handles authentication state
 
 `frontend/lib/api.ts` is the shared JSON request helper. It reads the bearer token from browser local storage, adds it to requests, disables fetch caching, and turns non-success responses into errors. The API base URL comes from `NEXT_PUBLIC_API_URL`, defaulting to `http://localhost:8000/api/v1`.
 
-The API is called directly from client components. The browser does not connect to PostgreSQL. The Overview calls `/api/v1/overview` for recent concept check-ins, continue-learning shortcuts, explainable revision candidates, and upcoming exams. Subject term filtering is client-side over the authenticated subject list.
+The API is called directly from client components. The browser does not connect to PostgreSQL. The Overview calls `/api/v1/overview` for aggregate concept readiness, recent check-ins, continue-learning shortcuts, explainable revision candidates, due-review counts, and upcoming exams. Subject term filtering is client-side over the authenticated subject list.
 
 ### Backend
 
