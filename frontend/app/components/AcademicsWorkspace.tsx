@@ -301,7 +301,7 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
     </div>;
   }
 
-  if (!subjects.length) return <div className="atlas-academics-empty"><div className="atlas-academics-empty-icon"><BookOpen size={24}/></div><h3>Start with a subject</h3><p>Add a subject first, then build its syllabus chapter by chapter. You can keep it manual for now; PDF import comes next.</p></div>;
+  if (!subjects.length) return <div className="atlas-academics-empty"><div className="atlas-academics-empty-icon"><BookOpen size={24}/></div><h3>Start with a subject</h3><p>Add a subject first, then build its syllabus manually or import a PDF and review the suggested chapters before saving.</p></div>;
 
   return <div className="atlas-academics-workspace">
     {error && <div className="atlas-academics-alert"><AlertCircle size={15}/>{error}<button onClick={()=>setError("")}>Dismiss</button></div>}
