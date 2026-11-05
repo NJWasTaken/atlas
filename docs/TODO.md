@@ -29,6 +29,8 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Add subject editing for name, course code, and description in the UI and API.
 - [ ] Add semester/term metadata and filtering to subject management.
 - [x] Add inline rename controls for topics and concepts, backed by ownership-checked partial PATCH endpoints. Reordering and richer descriptions remain future work.
+- [x] Make manual syllabus construction a first-class path: add chapters/subchapters from scratch and add concepts directly within their chapter, independently of PDF import.
+- [x] Replace the native confidence slider with a themed five-step accessible choice control; polish interaction states, transitions, and reduced-motion behavior in the Academics workspace.
 - [x] Add PDF upload and selectable-text extraction with conservative chapter/concept heading detection and page references. Scanned PDF OCR remains unsupported.
 - [x] Add an editable draft review/confirmation step; imported items are only persisted after explicit confirmation and append to existing syllabus content.
 - [ ] Add syllabus versioning and migration-backed schema support.
