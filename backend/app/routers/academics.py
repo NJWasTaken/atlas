@@ -6,7 +6,7 @@ from app.db import get_db
 from app.models import Subject, User
 from app.academics_models import Topic, Concept, ConceptProgress, Exam
 from app.academics_schemas import (
-    TopicCreate, TopicUpdate, TopicOut, ConceptCreate, ConceptOut,
+    TopicCreate, TopicUpdate, TopicOut, ConceptCreate, ConceptUpdate, ConceptOut,
     ProgressUpdate, ProgressOut, ExamCreate, ExamUpdate, ExamOut
 )
 from app.security import get_current_user
@@ -85,6 +85,15 @@ def create_concept(topic_id: int, data: ConceptCreate, db: Session = Depends(get
     concept = Concept(topic_id=topic.id, **data.model_dump())
     db.add(concept); db.commit(); db.refresh(concept)
     return concept
+
+@router.patch("/concepts/{concept_id}", response_model=ConceptOut)
+def update_concept(concept_id: int, data: ConceptUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    concept = owned_concept(db, concept_id, user.id)
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(concept, key, value)
+    db.commit(); db.refresh(concept)
+    return concept
+
 
 @router.delete("/concepts/{concept_id}", status_code=204)
 def delete_concept(concept_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
