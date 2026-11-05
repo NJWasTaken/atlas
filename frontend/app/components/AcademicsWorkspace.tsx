@@ -274,7 +274,7 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
         <span className="atlas-topic-title">{topic.title}</span>
         {topic.source_pages?.length ? <span className="atlas-topic-source">p. {topic.source_pages.join(", ")}</span> : null}
         <span className="atlas-topic-count">{items.length} concepts</span>
-        <button className="atlas-mini-action" onClick={()=>setAddingConcept(topic.id)} title="Add concept"><Plus size={14}/></button>
+        <button className="atlas-mini-action" onClick={()=>{setAddingConcept(topic.id);setExpanded(old=>old.includes(topic.id)?old:[...old,topic.id]);}} title="Add concept"><Plus size={14}/></button>
         <button className="atlas-mini-action" onClick={()=>beginItemEdit("topic",topic)} title="Rename topic" aria-label={`Rename ${topic.title}`}><Pencil size={13}/></button>
         <button className="atlas-mini-action danger" onClick={()=>removeTopic(topic.id)} title="Delete topic"><Trash2 size={13}/></button>
       </div>
@@ -373,8 +373,8 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
           <div className="atlas-confidence-control">
             <div className="atlas-confidence-heading"><label>Confidence</label><strong className="atlas-confidence-value">{progress.confidence===null?"Not rated":`${progress.confidence} / 5`}</strong></div>
             <p>How sure are you that you could explain this without looking at your notes?</p>
-            <div className="atlas-confidence-options" role="radiogroup" aria-label="Confidence level">
-              {[1,2,3,4,5].map(value=><button key={value} type="button" role="radio" aria-checked={progress.confidence===value} className={progress.confidence===value?"active":""} onClick={()=>setProgress({...progress,confidence:value})}><span>{value}</span><small>{["Unsure","Shaky","Okay","Good","Solid"][value-1]}</small></button>)}
+            <div className="atlas-confidence-options" role="group" aria-label="Confidence level">
+              {[1,2,3,4,5].map(value=><button key={value} type="button" aria-pressed={progress.confidence===value} className={progress.confidence===value?"active":""} onClick={()=>setProgress({...progress,confidence:value})}><span>{value}</span><small>{["Unsure","Shaky","Okay","Good","Solid"][value-1]}</small></button>)}
             </div>
             <div className="atlas-confidence-scale"><span>Still learning</span><span>Could teach it</span></div>
           </div>
