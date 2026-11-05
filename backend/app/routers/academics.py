@@ -1,14 +1,15 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Subject, User
-from app.academics_models import Topic, Concept, ConceptProgress, Exam
+from app.academics_models import Topic, Concept, ConceptProgress, Exam, SyllabusVersion, ConceptReview
 from app.syllabus_import import MAX_PDF_BYTES, parse_syllabus_pdf
 from app.academics_schemas import (
     TopicCreate, TopicUpdate, TopicOut, ConceptCreate, ConceptUpdate, ConceptOut,
-    ProgressUpdate, ProgressOut, ExamCreate, ExamUpdate, ExamOut, SyllabusConfirm
+    ProgressUpdate, ProgressOut, ExamCreate, ExamUpdate, ExamOut, SyllabusConfirm,
+    SyllabusVersionCreate, SyllabusVersionOut, ConceptReviewOut
 )
 from app.security import get_current_user
 
@@ -33,6 +34,33 @@ def owned_concept(db: Session, concept_id: int, user_id: int):
     if not concept:
         raise HTTPException(404, "Concept not found")
     return concept
+
+
+def review_interval_days(progress: ConceptProgress) -> int:
+    if progress.understanding == "weak" or progress.recall == "needs_practice":
+        return 1
+    if progress.understanding == "developing" or (progress.confidence is not None and progress.confidence <= 2):
+        return 3
+    if progress.understanding == "strong" and progress.recall == "comfortable" and (progress.confidence or 0) >= 4:
+        return 14
+    return 7
+
+
+def syllabus_snapshot(db: Session, subject_id: int) -> dict:
+    topics = list(db.scalars(select(Topic).where(Topic.subject_id == subject_id).order_by(Topic.position, Topic.id)))
+    topic_ids = [topic.id for topic in topics]
+    concepts = list(db.scalars(select(Concept).where(Concept.topic_id.in_(topic_ids)).order_by(Concept.position, Concept.id))) if topic_ids else []
+    concepts_by_topic: dict[int, list[dict]] = {}
+    for concept in concepts:
+        concepts_by_topic.setdefault(concept.topic_id, []).append({
+            "id": concept.id, "title": concept.title, "description": concept.description,
+            "position": concept.position, "source_pages": concept.source_pages,
+        })
+    return {"topics": [{
+        "id": topic.id, "title": topic.title, "parent_topic_id": topic.parent_topic_id,
+        "description": topic.description, "position": topic.position,
+        "source_pages": topic.source_pages, "concepts": concepts_by_topic.get(topic.id, []),
+    } for topic in topics]}
 
 @router.post("/subjects/{subject_id}/syllabus/draft")
 async def create_syllabus_draft(
@@ -98,6 +126,32 @@ def confirm_syllabus_import(
         db.rollback()
         raise
     return {"subject_id": subject_id, "topics_created": topic_count, "concepts_created": concept_count}
+
+
+
+@router.get("/subjects/{subject_id}/syllabus/versions", response_model=list[SyllabusVersionOut])
+def list_syllabus_versions(subject_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    owned_subject(db, subject_id, user.id)
+    return list(db.scalars(select(SyllabusVersion).where(SyllabusVersion.subject_id == subject_id).order_by(SyllabusVersion.created_at.desc())))
+
+
+@router.post("/subjects/{subject_id}/syllabus/versions", response_model=SyllabusVersionOut, status_code=201)
+def create_syllabus_version(subject_id: int, data: SyllabusVersionCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    owned_subject(db, subject_id, user.id)
+    version = SyllabusVersion(subject_id=subject_id, version_name=data.version_name, snapshot=syllabus_snapshot(db, subject_id))
+    db.add(version)
+    db.commit()
+    db.refresh(version)
+    return version
+
+
+@router.get("/subjects/{subject_id}/syllabus/versions/{version_id}")
+def get_syllabus_version(subject_id: int, version_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    owned_subject(db, subject_id, user.id)
+    version = db.scalar(select(SyllabusVersion).where(SyllabusVersion.id == version_id, SyllabusVersion.subject_id == subject_id))
+    if not version:
+        raise HTTPException(404, "Syllabus version not found")
+    return {"id": version.id, "subject_id": subject_id, "version_name": version.version_name, "created_at": version.created_at, "snapshot": version.snapshot}
 
 
 @router.get("/subjects/{subject_id}/topics", response_model=list[TopicOut])
@@ -181,9 +235,27 @@ def update_progress(concept_id: int, data: ProgressUpdate, db: Session = Depends
         progress = ConceptProgress(user_id=user.id, concept_id=concept_id)
         db.add(progress)
     for key, value in data.model_dump(exclude_unset=True).items(): setattr(progress, key, value)
-    progress.last_reviewed = datetime.now(timezone.utc)
+    reviewed_at = datetime.now(timezone.utc)
+    progress.last_reviewed = reviewed_at
+    progress.next_review_at = reviewed_at + timedelta(days=review_interval_days(progress))
+    review = ConceptReview(
+        user_id=user.id, concept_id=concept_id, exposure=progress.exposure,
+        understanding=progress.understanding, recall=progress.recall,
+        confidence=progress.confidence, notes=progress.notes,
+        reviewed_at=reviewed_at, next_review_at=progress.next_review_at,
+    )
+    db.add(review)
     db.commit(); db.refresh(progress)
     return progress
+
+
+@router.get("/concepts/{concept_id}/reviews", response_model=list[ConceptReviewOut])
+def list_concept_reviews(concept_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    owned_concept(db, concept_id, user.id)
+    return list(db.scalars(
+        select(ConceptReview).where(ConceptReview.user_id == user.id, ConceptReview.concept_id == concept_id)
+        .order_by(ConceptReview.reviewed_at.desc()).limit(50)
+    ))
 
 @router.get("/subjects/{subject_id}/readiness")
 def subject_readiness(subject_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -198,6 +270,33 @@ def subject_readiness(subject_id: int, db: Session = Depends(get_db), user: User
     total = db.scalar(select(func.count(Concept.id)).join(Topic, Topic.id == Concept.topic_id).where(Topic.subject_id == subject_id)) or 0
     counts = {key: count for key, count in rows}
     assessed = sum(counts.values())
+    now = datetime.now(timezone.utc)
+    upcoming_exam = db.scalar(select(Exam).where(Exam.user_id == user.id, Exam.subject_id == subject_id, Exam.exam_date >= now).order_by(Exam.exam_date).limit(1))
+    concept_rows = db.execute(
+        select(Concept, Topic, ConceptProgress)
+        .join(Topic, Topic.id == Concept.topic_id)
+        .outerjoin(ConceptProgress, and_(ConceptProgress.concept_id == Concept.id, ConceptProgress.user_id == user.id))
+        .where(Topic.subject_id == subject_id)
+        .order_by(Topic.position, Concept.position, Concept.id)
+    ).all()
+    items = []
+    for concept, topic, progress in concept_rows:
+        reason = None
+        due_at = progress.next_review_at if progress else None
+        if progress is None or progress.understanding == "not_assessed":
+            reason = "not_assessed"
+        elif progress.understanding == "weak" or progress.recall == "needs_practice":
+            reason = "needs_practice"
+        elif due_at is not None and due_at <= now:
+            reason = "review_due"
+        if reason:
+            items.append({
+                "concept_id": concept.id, "title": concept.title, "topic_title": topic.title,
+                "reason": reason, "next_review_at": due_at,
+                "exam_date": upcoming_exam.exam_date if upcoming_exam else None,
+                "exam_title": upcoming_exam.title if upcoming_exam else None,
+            })
+    items.sort(key=lambda item: (0 if item["reason"] == "needs_practice" else 1 if item["reason"] == "review_due" else 2, item["next_review_at"] or now))
     return {
         "subject_id": subject_id,
         "total_concepts": total,
@@ -205,6 +304,8 @@ def subject_readiness(subject_id: int, db: Session = Depends(get_db), user: User
         "developing": counts.get("developing", 0),
         "weak": counts.get("weak", 0),
         "not_assessed": total - assessed + counts.get("not_assessed", 0),
+        "next_exam": {"title": upcoming_exam.title, "exam_date": upcoming_exam.exam_date} if upcoming_exam else None,
+        "items": items[:12],
         "recommendations": [
             {"reason": "weak_understanding", "count": counts.get("weak", 0), "message": "Revisit concepts marked as weak."},
             {"reason": "not_assessed", "count": total - assessed + counts.get("not_assessed", 0), "message": "Assess concepts you have not reviewed yet."},
