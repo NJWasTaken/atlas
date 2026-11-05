@@ -399,7 +399,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
     {error && <div className="atlas-academics-alert" role="alert"><AlertCircle size={15}/>{error}<button onClick={()=>setError("")}>Dismiss</button></div>}
     {notice && <div className="atlas-academics-notice" role="status"><Check size={15}/>{notice}<button onClick={()=>setNotice("")}>×</button></div>}
     <div className="atlas-academics-toolbar">
-      <label><span>WORKING IN</span><select value={subjectId ?? ""} onChange={e=>{setSubjectId(Number(e.target.value));setSelectedConcept(null);setReviews([]);setSelectedVersion(null);setShowVersionHistory(false);setImportDraft(null);}}>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}{s.code?` · ${s.code}`:""}</option>)}</select></label>
+      <label><span>WORKING IN</span><select value={subjectId ?? ""} onChange={e=>{setSubjectId(Number(e.target.value));setSelectedConcept(null);setReviews([]);setPrerequisites([]);setPrerequisiteIds([]);setPrerequisiteSearch("");setSelectedVersion(null);setShowVersionHistory(false);setImportDraft(null);}}>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}{s.code?` · ${s.code}`:""}</option>)}</select></label>
       <div className="atlas-academics-actions"><button className="atlas-button atlas-secondary" onClick={()=>void loadWorkspace(subjectId!)}><RefreshCw size={14}/> Refresh</button><button className="atlas-button atlas-secondary" onClick={()=>setShowVersionHistory(value=>!value)}>History ({versions.length})</button><button className="atlas-button atlas-primary" onClick={()=>{setParentId(null);setAddingTopic(true);}}><Plus size={14}/> Add chapter</button></div>
     </div>
 
@@ -457,6 +457,15 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
         <div className="atlas-panel-heading"><div><p className="eyebrow">LEARNING, NOT JUST CHECKLISTS</p><h3>Concept progress</h3></div><span className="atlas-panel-icon"><Target size={17}/></span></div>
         {selectedConcept ? <form className="atlas-progress-form" onSubmit={saveProgress}>
           <div className="atlas-selected-concept"><span>SELECTED CONCEPT</span><h4>{selectedConcept.title}</h4><p>{topicMap.get(selectedConcept.topic_id)?.title}</p></div>
+          <section className="atlas-prerequisite-panel">
+            <div><p className="eyebrow">BUILD THE FOUNDATION</p><h4>Prerequisites</h4><span>What should you understand before tackling this concept?</span></div>
+            <input className="atlas-prerequisite-search" value={prerequisiteSearch} onChange={e=>setPrerequisiteSearch(e.target.value)} placeholder="Find a concept in this subject…"/>
+            <div className="atlas-prerequisite-list">
+              {concepts.filter(item=>item.id!==selectedConcept.id&&item.title.toLowerCase().includes(prerequisiteSearch.toLowerCase())).map(item=><label key={item.id}><input type="checkbox" checked={prerequisiteIds.includes(item.id)} onChange={e=>setPrerequisiteIds(current=>e.target.checked?[...current,item.id]:current.filter(id=>id!==item.id))}/><span><strong>{item.title}</strong><small>{topicMap.get(item.topic_id)?.title} · {prerequisites.find(link=>link.id===item.id)?.understanding??"not assessed"}</small></span></label>)}
+              {!concepts.some(item=>item.id!==selectedConcept.id&&item.title.toLowerCase().includes(prerequisiteSearch.toLowerCase()))&&<p>No matching concepts in this subject yet.</p>}
+            </div>
+            <button type="button" className="atlas-button atlas-secondary" disabled={busy} onClick={()=>void savePrerequisites()}>Save prerequisites</button>
+          </section>
           <label>Exposure<select value={progress.exposure} onChange={e=>setProgress({...progress,exposure:e.target.value as Progress["exposure"]})}><option value="not_started">Not started</option><option value="studied">I've studied this</option></select></label>
           <label>Understanding<select value={progress.understanding} onChange={e=>setProgress({...progress,understanding:e.target.value as Progress["understanding"]})}><option value="not_assessed">Not assessed</option><option value="weak">Weak — needs a rethink</option><option value="developing">Developing — getting there</option><option value="strong">Strong — I can explain it</option></select></label>
           <label>Recall<select value={progress.recall} onChange={e=>setProgress({...progress,recall:e.target.value as Progress["recall"]})}><option value="not_assessed">Not assessed</option><option value="needs_practice">Needs practice</option><option value="comfortable">Comfortable</option></select></label>
