@@ -12,7 +12,8 @@ function installApiMock(page, options = {}) {
     const url = new URL(request.url());
     const path = url.pathname.replace("/api/v1", "");
     const method = request.method();
-    let body = {};\n    if (method !== "GET" && method !== "DELETE") { try { body = request.postDataJSON?.() ?? {}; } catch { body = {}; } }
+    let body = {};
+    if (method !== "GET" && method !== "DELETE") { try { body = request.postDataJSON?.() ?? {}; } catch { body = {}; } }
     const json = data => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(data) });
     const created = data => route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(data) });
     const empty = () => route.fulfill({ status: 204, body: "" });
