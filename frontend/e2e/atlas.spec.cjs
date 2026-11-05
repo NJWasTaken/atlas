@@ -117,7 +117,7 @@ test("student can build a chapter and concept manually, then save a review", asy
   await expect(page.getByText("Graph Algorithms",{exact:true})).toBeVisible();
   await page.getByTitle("Add concept").click();
   await page.getByLabel("New concept").fill("Dijkstra's algorithm");
-  await page.getByRole("button",{name:"Add concept"}).click();
+  await page.locator(".atlas-add-concept-form").getByRole("button",{name:"Add concept"}).click();
   await page.getByText("Dijkstra's algorithm",{exact:true}).click();
   await page.getByRole("button",{name:/Save progress/}).click();
   await expect(page.getByText(/Next suggested review:/)).toBeVisible();
@@ -131,7 +131,7 @@ test("calendar offers a weekly view and saves a day note", async ({ page }) => {
   await page.getByLabel("Edit day note").click();
   await page.getByLabel("Leave something for this day").fill("Review lecture notes");
   await page.getByRole("button",{name:"Save note"}).click();
-  await expect(page.getByText("Saved",{exact:true})).toBeVisible();
+  await expect(page.locator(".atlas-note-save")).toContainText("Saved");
 });
 
 
@@ -149,7 +149,7 @@ test("student can create, edit and delete an exam from Academics and Overview", 
   const examDate = new Date(Date.now()+60*60*1000);
   const localDate = new Date(examDate.getTime()-examDate.getTimezoneOffset()*60000).toISOString().slice(0,16);
   await page.getByLabel("Exam date").fill(localDate);
-  await page.getByRole("button",{name:"Add exam"}).click();
+  await page.locator(".atlas-exam-form").getByRole("button",{name:"Add exam"}).click();
   await expect(page.getByText("Networks midterm",{exact:true})).toBeVisible();
 
   await page.getByLabel("Edit Networks midterm").click();
