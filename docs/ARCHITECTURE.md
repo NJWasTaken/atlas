@@ -111,6 +111,20 @@ Daily/random quote requests are proxied by the backend to API Ninjas, keeping th
 
 The README's [Running Locally](../README.md#running-locally) section is the detailed setup guide.
 
+## Backend tests
+
+The backend test suite lives in `backend/tests/` and uses pytest with FastAPI's `TestClient`. Each test gets an isolated in-memory SQLite database; it does not connect to or modify the configured PostgreSQL development database. The app factory accepts `create_tables=False` so tests can import and exercise the API without running the normal startup table-creation hook.
+
+From the repository root, install the backend dependencies and run:
+
+```bash
+cd backend
+pip install -r requirements.txt
+python -m pytest
+```
+
+The initial API suite covers authentication, duplicate registration, subject ownership, topic hierarchy validation, partial concept-progress PATCH behavior, readiness counts, calendar-note ownership/range validation, and exam CRUD/ownership. These tests provide a fast regression layer; PostgreSQL-specific integration behavior and broader remaining CRUD edge cases still need coverage. The suite has been added but has not yet been executed in this environment.
+
 ## File guide
 
 This list covers the tracked project source, documentation, and configuration files. Generated dependencies and build output (`node_modules`, `.next`, Python virtual environments, caches, and bytecode) are deliberately excluded. Next.js may generate an ignored `frontend/next-env.d.ts` locally. `.env` is a local ignored file and is not documented by value.
@@ -131,14 +145,17 @@ This list covers the tracked project source, documentation, and configuration fi
 | `ARCHITECTURE.md` | Current implementation and file guide; this document. |
 | `MODULE_A_IMPLEMENTATION.md` | Notes for the first Academics backend slice, including endpoints, schema compatibility, and suggested next steps. Some next-slice bullets predate the current UI; use this architecture and `TODO.md` for current status. |
 | `TODO.md` | Ordered implementation backlog derived from the README and checked against the code currently present. |
+| `pytest.ini` | Backend pytest import path and test discovery configuration. |
+| `tests/conftest.py` | Isolated in-memory database fixture and authenticated API test helpers. |
+| `tests/test_api.py` | Backend API regression tests for authentication, ownership, academics, calendar, and exams. |
 
 ### `backend/`
 
 | File | Responsibility |
 |---|---|
-| `requirements.txt` | Pinned Python runtime dependencies for FastAPI, SQLAlchemy, PostgreSQL, configuration, JWT, and password hashing. |
+| `requirements.txt` | Pinned Python runtime dependencies for FastAPI, SQLAlchemy, PostgreSQL, configuration, JWT, password hashing, and the pytest/HTTP test client. |
 | `app/__init__.py` | Marks `app` as a Python package. |
-| `app/main.py` | Builds the FastAPI application, configures CORS, creates tables, mounts routers, and exposes the health endpoint. |
+| `app/main.py` | Builds the FastAPI application, configures CORS, defers optional table creation to startup, mounts routers, and exposes the health endpoint. |
 | `app/db.py` | SQLAlchemy base, engine, session factory, and request-scoped database dependency. |
 | `app/models.py` | Core `User`, `Subject`, and `DayNote` ORM models. |
 | `app/academics_models.py` | `Topic`, `Concept`, `ConceptProgress`, and `Exam` ORM models and relationships. |
@@ -181,6 +198,6 @@ This list covers the tracked project source, documentation, and configuration fi
 - The application is a prototype, not yet a production deployment architecture.
 - Authentication tokens are stored in browser local storage; refresh/revocation flows are not implemented.
 - Startup `create_all()` is not a substitute for versioned database migrations.
-- No automated test files or CI workflows are currently present in the tracked tree.
+- A pytest-based backend API suite now exists, using isolated SQLite fixtures; it has not yet been run in this environment. Frontend tests and CI workflows are still absent.
 - The Overview calendar currently provides a monthly grid and date notes; it is not a full event-planning system or weekly calendar.
 - Explore, My Universe, syllabus document ingestion, AI integrations, and data export remain future work.
