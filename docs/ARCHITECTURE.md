@@ -9,10 +9,10 @@ Atlas is intended to connect university coursework with independent learning and
 The current working slice includes:
 
 - Account registration, login, and sign-out.
-- A subject list with create, edit, and delete actions for subject name, course code, and description.
-- An Academics workspace for a subject: nested topics and concepts with inline renaming, concept self-assessments, readiness counts, and exam management.
-- An Overview calendar with monthly navigation, editable date notes, and exams shown on their dates. Exams can be edited or deleted from either the Academics workspace or the Overview calendar.
-- Daily and random quotations from an external API Ninjas quote service. The service requires a backend API key.
+- A subject list with create, edit, and delete actions for subject name, course code, description, and optional term/semester metadata; subjects can be filtered by term in Academics.
+- An Academics workspace for a subject: nested topics and concepts, manual and PDF syllabus construction, named syllabus snapshots, concept self-assessments, review history, suggested next-review dates, exam-aware revision suggestions, and exam management.
+- An Overview with subject/concept summaries, continue-learning shortcuts, recent review activity, upcoming exams, and a calendar with monthly and weekly navigation. Date notes and exams remain separate records.
+- Daily and random quotations from an external API Ninjas provider. Successful quotes are cached in-process and a stale cached quote can be served during provider outages; the API key remains optional.
 - A dark celestial visual treatment and a reduced-motion-aware animated background.
 
 Explore and My Universe are navigation destinations with placeholder content. Syllabus PDFs can be uploaded, parsed into an editable draft, and explicitly confirmed into the subject's topic/concept tree. There is no OCR for scanned PDFs, personal knowledge repository, revision scheduler, AI gateway, or data export yet.
@@ -29,7 +29,7 @@ Browser (Next.js / React / TypeScript)
                                                    ├─ users, subjects, day_notes
                                                    └─ topics (with optional source page refs), concepts (with optional source page refs), progress, exams
 
-FastAPI ── optional API Ninjas request ── quotation endpoints
+FastAPI ── cached API Ninjas provider adapter ── quotation endpoints
 Docker Compose ── local PostgreSQL service
 ```
 
@@ -37,9 +37,9 @@ Docker Compose ── local PostgreSQL service
 
 The App Router entry is `frontend/app/page.tsx`. It handles authentication state, navigation, subject loading, the Overview shell, and top-level errors. It composes the Academics and calendar components rather than implementing their detailed interactions inline.
 
-`frontend/lib/api.ts` is the shared JSON request helper. It reads the bearer token from browser local storage, adds it to requests, disables fetch caching, and turns non-success responses into errors. The API base URL comes from `NEXT_PUBLIC_API_URL`, defaulting to `http://localhost:8000/api/v1`.
+`frontend/lib/api.ts` is the shared JSON request helper. It reads the bearer token from browser local storage, adds it to requests, disables fetch caching, and turns non-success responses into errors. The API base URL comes from `NEXT_PUBLIC_API_URL`, defaulting to `http://localhost:8000/api/v1`. The Academics UI includes term filtering, named syllabus snapshots, concept review history, and exam-aware revision suggestions.
 
-The API is called directly from client components. The browser does not connect to PostgreSQL.
+The API is called directly from client components. The browser does not connect to PostgreSQL. The Overview requests a user-scoped aggregate endpoint; it renders only actual concept progress, recorded reviews, and upcoming exams. It does not calculate a grade prediction or invent a readiness percentage.
 
 ### Backend
 
@@ -49,9 +49,9 @@ Each protected route obtains the current user through `backend/app/security.py`.
 
 ### Persistence and schema
 
-The database URL is supplied by settings and targets PostgreSQL by default. `docker-compose.yml` runs a local PostgreSQL 16 container with a persistent named volume. Alembic revision `0002_source_pages` adds nullable JSON page-reference columns to topics and concepts; backend CI validates the full migration chain on SQLite.
+The database URL is supplied by settings and targets PostgreSQL by default. `docker-compose.yml` runs a local PostgreSQL 16 container with a persistent named volume. Alembic revision `0002_source_pages` adds nullable JSON page-reference columns to topics and concepts. Revision `0003_academic_planning` adds optional subject term metadata, next-review timestamps, syllabus snapshot storage, and concept review history. CI validates the migration chain on SQLite and PostgreSQL.
 
-Existing models use integer primary keys. `Base.metadata.create_all()` remains enabled at application startup for backward-compatible local development; it creates missing tables but does not manage schema changes. Alembic is now configured with an initial baseline migration covering the current seven tables. The backend CI workflow upgrades an empty SQLite database through both revisions, checks the final schema against SQLAlchemy metadata, and downgrades it again. The full migration chain and 21 API tests passed in [run #41983287215](https://github.com/NJWasTaken/atlas/actions/runs/41983287215). The application has not yet switched startup to Alembic, so do not remove `create_all()` until existing databases have been safely adopted.
+Existing models use integer primary keys. `Base.metadata.create_all()` remains available only as a local-development convenience; it creates missing tables but does not manage schema changes. Production settings require a strong non-default JWT secret, explicit CORS origins, and `CREATE_TABLES_ON_STARTUP=false`, so production must use Alembic. Alembic is configured with an initial baseline and subsequent versioned migrations. The full migration chain and 21 API tests passed in [run #41983287215](https://github.com/NJWasTaken/atlas/actions/runs/41983287215). The application has not yet switched startup to Alembic, so do not remove `create_all()` until existing databases have been safely adopted.
 
 For a fresh database, run `cd backend && python -m alembic upgrade head` before starting the API. For a database already created by the old `create_all()` flow, take a verified backup and compare its schema to the baseline first; only then mark it as already at the baseline with `python -m alembic stamp 0001_initial`. **Do not run `upgrade head` against an existing un-stamped database**: the initial migration creates the tables and is not an in-place schema repair.
 
@@ -60,11 +60,13 @@ The current entities are:
 | Entity | Purpose |
 |---|---|
 | `User` | Account email, password hash, and owned subjects |
-| `Subject` | A user's subject name, optional code/description |
+| `Subject` | A user's subject name, optional code/description, and optional term label |
+| `SyllabusVersion` | Named, immutable JSON snapshot of a subject's topic/concept structure |
+| `ConceptReview` | Historical self-assessment record and its suggested next-review timestamp |
 | `DayNote` | One note per user and calendar date |
 | `Topic` | Subject syllabus node with optional parent topic |
 | `Concept` | Learning item belonging to a topic |
-| `ConceptProgress` | Per-user exposure, understanding, recall, confidence, notes, and review timestamps |
+| `ConceptProgress` | Per-user exposure, understanding, recall, confidence, notes, last-reviewed and next-review timestamps |
 | `Exam` | User-owned exam associated with a subject and a date/time |
 
 `backend/app/academics_models.py` defines topic, concept, progress, and exam tables. Topics and concepts include optional JSON source-page references for imported syllabus material; `backend/app/models.py` defines users, subjects, and day notes. Foreign keys and ORM cascades connect the records. Progress is unique per user/concept, and confidence is constrained to 1–5 when supplied.
@@ -76,14 +78,15 @@ Concept-progress updates use partial PATCH semantics: only fields explicitly sup
 | Router | Current routes |
 |---|---|
 | Authentication | `POST /auth/register`, `POST /auth/login`, `GET /auth/me` |
-| Subjects | `GET /subjects`, `POST /subjects`, `PATCH /subjects/{subject_id}`, `DELETE /subjects/{subject_id}` |
+| Overview | `GET /overview` |
 | Calendar notes | `GET /calendar?start=…&end=…`, `PUT /calendar/{day}`, `DELETE /calendar/{day}` |
 | Quotes | `GET /quotes/daily`, `GET /quotes/random` |
-| Academics | Subject topic listing/creation; topic update/deletion; subject concept listing; concept creation/update/deletion; syllabus PDF draft extraction and explicit confirmation; progress get/update; subject readiness; exam list/create/update/delete |
+| Academics | Subject topic listing/creation; topic update/deletion; subject concept listing; concept creation/update/deletion; syllabus PDF draft/confirm; syllabus version list/create/read; progress get/update; concept review history; exam-aware subject readiness; exam list/create/update/delete |
+| Subjects | `GET /subjects?term=…`, `POST /subjects`, `PATCH /subjects/{subject_id}`, `DELETE /subjects/{subject_id}` |
 
 All API routes are mounted under `/api/v1` except `/health`. The calendar range is limited to 63 days. Quote endpoints require authentication and return a service error if the API Ninjas key is not configured or the provider cannot be reached.
 
-Subject updates use a partial PATCH contract with user ownership checks. The subject modal supports editing name, course code, and description. The Academics workspace supports manual chapter/subchapter creation, contextual concept creation within a chapter, inline renaming, and PDF import as an alternative. The manual builder and importer are separate entry points; both persist through the existing topic/concept APIs. Topic and concept edits use partial PATCH requests, preserving fields not included in the request. Concept confidence uses a five-step themed choice control rather than the browser-native range slider, with reduced-motion-aware transitions and visible keyboard focus.
+Subject updates use a partial PATCH contract with user ownership checks. The subject modal supports editing name, course code, description, and term. The Academics subject picker can filter by term. The Academics workspace supports manual chapter/subchapter creation, contextual concept creation within a chapter, inline renaming, and PDF import as an alternative. The manual builder and importer are separate entry points; both persist through the existing topic/concept APIs. Topic and concept edits use partial PATCH requests, preserving fields not included in the request. Concept confidence uses a five-step themed choice control rather than the browser-native range slider, with reduced-motion-aware transitions and visible keyboard focus.
 
 ## Main user flows
 
@@ -93,17 +96,17 @@ The root page restores a token from local storage, shows registration/login when
 
 ### Academics
 
-`AcademicsWorkspace.tsx` loads the selected subject's topics, concepts, readiness summary, and exams. Topic nesting is represented by `parent_topic_id`. Topics and concepts can be renamed inline; edits are saved through ownership-checked PATCH endpoints. Concept progress is stored per user. Exam changes use the same persistent exam endpoints used by the Overview calendar.
+`AcademicsWorkspace.tsx` loads the selected subject's topics, concepts, readiness summary, and exams. Topic nesting is represented by `parent_topic_id`. Topics and concepts can be renamed inline; edits are saved through ownership-checked PATCH endpoints. Concept progress is stored per user. Each progress save appends a review-history record and calculates a suggested next review: 1 day for weak/needs-practice, 3 days for developing or low confidence, 14 days for strong + comfortable recall + confidence 4–5, and 7 days otherwise. This is a transparent first scheduling heuristic, not an adaptive learning model. Readiness suggestions include concept/topic names, the reason for review, and proximity to the next exam; the dashboard does not convert these into a predicted grade. Exam changes use the same persistent exam endpoints used by the Overview calendar. Users can explicitly save named syllabus snapshots and inspect their captured topic/concept counts; snapshots are historical copies and are not automatically restored into the live syllabus.
 
 The syllabus importer accepts PDF uploads up to 12 MB and 100 pages, extracts selectable text with `pypdf`, and uses conservative heading/bullet heuristics to suggest top-level chapters and concepts. The API returns an ephemeral draft with warnings and page references; the upload itself is not stored. The user can rename/remove/add chapters and concepts in the review UI. A separate manual builder supports creating chapters and nested chapters from scratch, while each expanded chapter has its own contextual add-concept form. Only the separate confirm endpoint persists the reviewed structure. Confirmed page references are stored as nullable JSON arrays on topics and concepts and shown in the syllabus tree. Scanned/image-only PDFs are rejected with a clear OCR-not-supported message; OCR, complex multi-column layouts, and version history remain future work. Import appends to the existing syllabus rather than replacing it.
 
 ### Overview calendar
 
-`DashboardCalendar.tsx` requests day notes for the visible 42-day calendar grid and loads the user's exam list. Notes and exams remain separate data: notes are edited through `/calendar/{day}`, while exams are changed through `/exams/{exam_id}`. Exam markers are derived from exam dates; selecting a day displays its exam details and allows editing or deletion.
+`DashboardCalendar.tsx` requests day notes for the visible month grid (42 days) or week grid (7 days) and loads the user's exam list. Notes and exams remain separate data: notes are edited through `/calendar/{day}`, while exams are changed through `/exams/{exam_id}`. Exam markers are derived from exam dates; selecting a day displays its exam details and allows editing or deletion. Calendar sync errors have a local retry action and do not block the rest of Overview.
 
 ### Quotations and visual layer
 
-Daily/random quote requests are proxied by the backend to API Ninjas, keeping the provider key out of the browser. The global celestial background is rendered by `CelestialBackground.tsx`; the separate `QuoteRipple.tsx` component exists but is not part of the current page composition.
+Daily/random quote requests are proxied by a backend provider adapter to API Ninjas, keeping the provider key out of the browser. Successful daily quotes are cached for six hours and random quotes for one minute in-process; a stale successful quote is used as a graceful fallback if the provider becomes unavailable. The quote card also has a local, un-attributed fallback message, and quote failures do not prevent Overview data from loading. The global celestial background is rendered by `CelestialBackground.tsx`; the separate `QuoteRipple.tsx` component exists but is not part of the current page composition.
 
 ## Configuration and local development
 
@@ -117,7 +120,7 @@ The README's [Running Locally](../README.md#running-locally) section is the deta
 
 ## Backend tests
 
-The backend test suite lives in `backend/tests/` and uses pytest with FastAPI's `TestClient`. Each test gets an isolated in-memory SQLite database; it does not connect to or modify the configured PostgreSQL development database. The app factory accepts `create_tables=False` so tests can import and exercise the API without running the normal startup table-creation hook.
+The backend test suite lives in `backend/tests/` and uses pytest with FastAPI's `TestClient`. API tests use an isolated in-memory SQLite database; a separate PostgreSQL integration test runs against the CI PostgreSQL service and checks JSON persistence and timezone-aware review timestamps. The browser-flow suite lives in `frontend/e2e/` and mocks the API to test sign-in, subject/term creation, manual chapter/concept creation, progress save, weekly calendar navigation, and day-note persistence. The app factory accepts `create_tables=False` so tests can import and exercise the API without running the normal startup table-creation hook.
 
 From the repository root, install the backend dependencies and run:
 
@@ -141,7 +144,7 @@ This list covers the tracked project source, documentation, and configuration fi
 | `.gitignore` | Excludes local environment files, dependencies, build output, caches, and other generated/local files. |
 | `docker-compose.yml` | Starts the local PostgreSQL service and named data volume. |
 | `.github/workflows/backend-tests.yml` | Runs backend pytest tests and validates Alembic upgrade/check/downgrade on development pushes and relevant pull requests. |
-| `.github/workflows/frontend-checks.yml` | Runs frontend TypeScript checking and a production Next.js build. |
+| `.github/workflows/frontend-checks.yml` | Runs frontend TypeScript checking, a production Next.js build, and Playwright browser-flow tests. |
 | `README.md` | Product vision, requirements, data/API design, roadmap, setup instructions, and representative project structure. |
 
 ### `docs/`
@@ -175,13 +178,13 @@ This list covers the tracked project source, documentation, and configuration fi
 | `app/academics_schemas.py` | Pydantic validation and response types for topics, concepts, progress, and exams. |
 | `app/security.py` | Password hashing/verification, JWT creation, and bearer-token current-user dependency. |
 | `app/core/__init__.py` | Marks the core configuration directory as a Python package. |
-| `app/core/config.py` | Reads backend settings from environment and `.env`, with development defaults. |
+| `app/core/config.py` | Reads backend settings from environment and `.env`; validates production JWT, CORS, and schema-creation settings. |
 | `app/routers/__init__.py` | Marks the router directory as a Python package. |
 | `app/routers/auth.py` | Registration, login, and authenticated current-user endpoint. |
-| `app/routers/subjects.py` | Authenticated subject listing, creation, editing, and deletion. |
+| `app/routers/subjects.py` | Authenticated subject listing/filtering, creation, editing, and deletion. |
 | `app/routers/calendar.py` | Authenticated date-note list, upsert, and delete endpoints, including range validation. |
-| `app/routers/quotes.py` | Authenticated daily/random quote endpoints and the server-side API Ninjas client. |
-| `app/routers/academics.py` | Ownership-checked topic/concept/progress/readiness/exam operations and syllabus draft/confirm endpoints. |
+| `app/routers/quotes.py` | Authenticated daily/random quote endpoints, API Ninjas provider adapter, process-local cache, and stale fallback. |
+| `app/routers/academics.py` | Ownership-checked topic/concept/progress/review-history/readiness/exam operations, syllabus draft/confirm/version endpoints, and Overview aggregation. |
 
 ### `frontend/`
 
