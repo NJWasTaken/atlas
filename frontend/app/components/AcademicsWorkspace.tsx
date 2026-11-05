@@ -80,8 +80,8 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
     const requestId = ++workspaceRequest.current;
     setWorkspaceLoading(true);
     setWorkspaceError("");
-    setTopics([]); setConcepts([]); setReadiness(null); setExams([]); setVersions([]);
     if (!options.preserveSelection) {
+      setTopics([]); setConcepts([]); setReadiness(null); setExams([]); setVersions([]);
       setSelectedConcept(null); setReviews([]); setPrerequisites([]); setPrerequisiteIds([]);
     }
     try {
