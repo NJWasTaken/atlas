@@ -27,6 +27,7 @@ class Concept(Base):
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     topic = relationship("Topic", back_populates="concepts")
     progress = relationship("ConceptProgress", cascade="all, delete-orphan", back_populates="concept")
+    reviews = relationship("ConceptReview", cascade="all, delete-orphan", back_populates="concept")
 
 class ConceptProgress(Base):
     __tablename__ = "concept_progress"
@@ -64,6 +65,7 @@ class SyllabusVersion(Base):
     version_name: Mapped[str] = mapped_column(String(100), nullable=False)
     snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    subject = relationship("Subject", back_populates="syllabus_versions")
 
 
 class ConceptReview(Base):
@@ -78,3 +80,4 @@ class ConceptReview(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     next_review_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    concept = relationship("Concept", back_populates="reviews")
