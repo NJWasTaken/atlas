@@ -20,7 +20,7 @@ const nav = [
   { label: "My Universe", icon: Library },
 ];
 const copy: Record<string, { eyebrow: string; title: string; description: string }> = {
-  Overview: { eyebrow: "YOUR SPACE", title: "Leave a little room to wonder.", description: "this is like your homepage and dashboard stuff." },
+  Overview: { eyebrow: "YOUR SPACE", title: "Leave a little room to wonder.", description: "A clear view of what you are learning, what is coming up, and what deserves a second look." },
   Academics: { eyebrow: "YOUR STUDIES", title: "The foundations.", description: "Keep your subjects, syllabi and learning progress in one quiet place." },
   Explore: { eyebrow: "BEYOND THE SYLLABUS", title: "Follow a question.", description: "Curiosity rarely follows a straight line. That's the interesting part." },
   "My Universe": { eyebrow: "YOUR KNOWLEDGE", title: "Things worth keeping.", description: "A growing collection of ideas, notes and connections that are yours." },
