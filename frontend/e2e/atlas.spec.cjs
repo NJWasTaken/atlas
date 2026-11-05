@@ -296,7 +296,6 @@ test("calendar note deletion is confirmed and mutation errors do not offer a mis
   await page.getByRole("button", { name: "Save note" }).click();
   await expect(page.getByLabel("Leave something for this day")).toHaveValue("");
   await page.locator(".atlas-calendar-day[aria-pressed=false]").first().click();
-  await page.locator(".atlas-calendar-day").filter({ has: page.locator(`[aria-label="${originalDay}"]`) }).first().click().catch(() => {});
   await page.locator(".atlas-calendar-day[aria-label]").evaluateAll((cells, label) => { const target = cells.find(cell => cell.getAttribute("aria-label") === label); target?.click(); }, originalDay);
   await expect(page.getByText("Keep this note")).toBeVisible();
   await page.getByLabel("Edit day note").click();
