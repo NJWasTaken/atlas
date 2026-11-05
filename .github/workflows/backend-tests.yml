@@ -57,7 +57,7 @@ jobs:
           python -m alembic downgrade base
       - name: Validate schema migrations on PostgreSQL
         env:
-          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+          DATABASE_URL: postgresql+psycopg://atlas:atlas_test_password@localhost:5432/atlas_test
         run: |
           python -m alembic upgrade head
           python -m alembic check
