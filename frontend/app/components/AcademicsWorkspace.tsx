@@ -428,7 +428,9 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
             <div className="atlas-confidence-scale"><span>Still learning</span><span>Could teach it</span></div>
           </div>
           <label>Personal notes<textarea rows={3} value={progress.notes??""} onChange={e=>setProgress({...progress,notes:e.target.value})} placeholder="What clicked? What still feels fuzzy?"/></label>
+          {progress.next_review_at&&<p className="atlas-next-review">Next suggested review · {new Date(progress.next_review_at).toLocaleDateString("en-IN",{dateStyle:"medium"})}</p>}
           <button className="atlas-button atlas-primary atlas-full" disabled={busy}><Check size={14}/> Save progress</button>
+          <section className="atlas-review-history"><p className="eyebrow">YOUR REVIEW HISTORY</p>{reviews.length?reviews.slice(0,5).map(review=><div key={review.id}><span>{new Date(review.reviewed_at).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</span><strong>{review.understanding.replace("_"," ")} · {review.recall.replace("_"," ")}</strong>{review.confidence!==null&&<small>Confidence {review.confidence}/5</small>}</div>):<p>No check-ins yet. Your progress saves will appear here.</p>}</section>
         </form> : <div className="atlas-progress-empty"><Brain size={25}/><strong>Pick a concept to check in with yourself.</strong><span>Track understanding and recall separately. Being exposed to a topic isn't the same as knowing it.</span></div>}
       </section>
     </div>
@@ -436,7 +438,7 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
     <div className="atlas-academics-bottom">
       <section className="atlas-academics-panel atlas-readiness-panel">
         <div className="atlas-panel-heading"><div><p className="eyebrow">NO MADE-UP SCORES</p><h3>Where things stand</h3></div><span className="atlas-panel-icon"><Sparkles size={17}/></span></div>
-        {readiness && <><div className="atlas-readiness-total"><strong>{readiness.total_concepts}</strong><span>concepts in this syllabus</span></div>
+        {readiness && <><div className="atlas-readiness-total"><strong>{readiness.total_concepts}</strong><span>concepts in this syllabus</span></div>{readiness.next_exam&&<p className="atlas-readiness-exam">{readiness.next_exam.title} · {readiness.next_exam.days_until===0?"today":"in "+readiness.next_exam.days_until+" days"}</p>}{Boolean(readiness.due_for_review)&&<p className="atlas-recommendation"><span>{readiness.due_for_review}</span>Concepts are due for a spaced review.</p>}
           <div className="atlas-readiness-bars">
             <ReadinessBar label="Strong" value={readiness.strong} total={readiness.total_concepts} tone="teal"/>
             <ReadinessBar label="Developing" value={readiness.developing} total={readiness.total_concepts} tone="blue"/>
