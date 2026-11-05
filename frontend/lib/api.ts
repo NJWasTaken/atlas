@@ -29,3 +29,10 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (response.status === 204) return undefined as T;
   return response.json();
 }
+
+export async function apiBlob(path: string): Promise<Blob> {
+  const token = getToken();
+  const response = await fetch(API + path, { headers: token ? { Authorization: 'Bearer ' + token } : {}, cache: 'no-store' });
+  if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.detail ?? 'Request failed (' + response.status + ')'); }
+  return response.blob();
+}
