@@ -11,7 +11,8 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Establish an isolated pytest/FastAPI test harness and add backend API regression tests for authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation, partial progress PATCH behavior, readiness counts, calendar-note ownership/range validation, and exam CRUD/ownership.
 - [ ] Expand backend coverage for remaining topic/concept CRUD edge cases and PostgreSQL integration; run the current suite and add CI checks before treating backend validation as complete.
 - [ ] Add frontend tests for key user flows: login/register, subject creation, topic/concept progress, calendar note persistence, and exam create/edit/delete from both views.
-- [ ] Add CI checks for frontend TypeScript/build and backend tests.
+- [x] Add CI execution for the backend pytest suite on development pushes and relevant pull requests.
+- [ ] Add CI checks for frontend TypeScript/build.
 - [ ] Introduce Alembic migrations before changing deployed database schemas; replace startup-only `Base.metadata.create_all()` as the schema-evolution mechanism.
 - [ ] Review production configuration: require a strong JWT secret, define safe CORS origins, document required environment variables, and avoid development fallback credentials outside local development.
 - [ ] Improve API error/loading/empty states and accessibility across the current screens.
