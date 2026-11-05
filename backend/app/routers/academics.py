@@ -72,8 +72,10 @@ def confirm_syllabus_import(
     owned_subject(db, subject_id, user.id)
     topic_count = 0
     concept_count = 0
+    existing_position = db.scalar(select(func.max(Topic.position)).where(Topic.subject_id == subject_id))
+    first_position = (existing_position if existing_position is not None else -1) + 1
     try:
-        for topic_position, topic_draft in enumerate(data.topics):
+        for topic_position, topic_draft in enumerate(data.topics, start=first_position):
             topic = Topic(
                 subject_id=subject_id,
                 title=topic_draft.title.strip(),
