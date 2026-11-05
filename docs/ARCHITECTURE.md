@@ -123,7 +123,7 @@ pip install -r requirements.txt
 python -m pytest
 ```
 
-The initial API suite covers authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation, partial concept-progress PATCH behavior, readiness counts, calendar-note ownership/range validation, and exam CRUD/ownership. These tests provide a fast regression layer; PostgreSQL-specific integration behavior and broader remaining CRUD edge cases still need coverage. A GitHub Actions workflow runs this suite on pushes to `main` and `work/**`, and on pull requests targeting `main` when backend files change. The suite has been added but has not yet been executed in this environment.
+The initial API suite covers authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation, partial concept-progress PATCH behavior, readiness counts, calendar-note ownership/range validation, and exam CRUD/ownership. These tests provide a fast regression layer; PostgreSQL-specific integration behavior and broader remaining CRUD edge cases still need coverage. A GitHub Actions workflow runs this suite on pushes to `main` and `work/**`, and on pull requests targeting `main` when backend files change. The initial 10-test suite passed in [GitHub Actions run #41979038349](https://github.com/NJWasTaken/atlas/actions/runs/41979038349). This is the first green baseline; it does not replace broader CRUD edge-case or PostgreSQL integration coverage.
 
 ## File guide
 
@@ -199,6 +199,6 @@ This list covers the tracked project source, documentation, and configuration fi
 - The application is a prototype, not yet a production deployment architecture.
 - Authentication tokens are stored in browser local storage; refresh/revocation flows are not implemented.
 - Startup `create_all()` is not a substitute for versioned database migrations.
-- A pytest-based backend API suite and GitHub Actions workflow now exist; the suite has not yet been run in this environment. Frontend tests and frontend CI checks are still absent.
+- A pytest-based backend API suite and GitHub Actions workflow now exist, and the initial 10-test suite has passed in CI. Broader backend coverage, frontend tests, and frontend CI checks are still outstanding.
 - The Overview calendar currently provides a monthly grid and date notes; it is not a full event-planning system or weekly calendar.
 - Explore, My Universe, syllabus document ingestion, AI integrations, and data export remain future work.
