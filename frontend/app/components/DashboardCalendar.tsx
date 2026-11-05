@@ -35,6 +35,7 @@ const markdownTools: { action: MarkdownAction; label: string; icon: typeof Bold 
 export default function DashboardCalendar() {
   const today = useMemo(() => new Date(), []);
   const [month,setMonth] = useState(() => new Date(today.getFullYear(),today.getMonth(),1));
+  const [view,setView] = useState<"month"|"week">("month");
   const [selected,setSelected] = useState(keyOf(today));
   const [notes,setNotes] = useState<Record<string,string>>({});
   const [exams,setExams] = useState<Exam[]>([]);
@@ -50,8 +51,10 @@ export default function DashboardCalendar() {
   const [error,setError] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const first = new Date(month.getFullYear(),month.getMonth(),1);
-  const start = shift(first,-((first.getDay()+6)%7));
-  const days = Array.from({length:42},(_,i)=>shift(start,i));
+  const selectedAnchor = new Date(selected + "T12:00:00");
+  const anchor = view === "month" ? first : selectedAnchor;
+  const start = view === "month" ? shift(first,-((first.getDay()+6)%7)) : shift(anchor,-((anchor.getDay()+6)%7));
+  const days = Array.from({length:view === "month" ? 42 : 7},(_,i)=>shift(start,i));
   const from = keyOf(days[0]), to = keyOf(days[41]);
   const examsByDay = useMemo(() => {
     const grouped: Record<string, Exam[]> = {};
@@ -225,14 +228,15 @@ export default function DashboardCalendar() {
   return <section className="atlas-calendar-panel">
     <div className="atlas-calendar-main">
       <div className="atlas-calendar-heading">
-        <div><p className="eyebrow">YOUR TIME, YOUR WAY</p><h2>Days on the map</h2><p className="atlas-calendar-caption">A little space to keep track of what matters.</p></div>
+        <div><p className="eyebrow">YOUR TIME, YOUR WAY</p><h2>Days on the map</h2><p className="atlas-calendar-caption">Academic exams appear as events; personal notes stay attached to individual dates.</p></div>
         <div className="atlas-calendar-controls">
+          <div className="atlas-calendar-view-switch" role="group" aria-label="Calendar view"><button type="button" aria-pressed={view==="month"} className={view==="month"?"active":""} onClick={()=>setView("month")}>Month</button><button type="button" aria-pressed={view==="week"} className={view==="week"?"active":""} onClick={()=>setView("week")}>Week</button></div>
           <button type="button" className="atlas-calendar-today" onClick={()=>{setMonth(new Date(today.getFullYear(),today.getMonth(),1));setSelected(todayKey);}}>Today</button>
-          <button type="button" className="atlas-calendar-arrow" aria-label="Previous month" onClick={()=>setMonth(m=>new Date(m.getFullYear(),m.getMonth()-1,1))}><ArrowLeft size={15}/></button>
-          <button type="button" className="atlas-calendar-arrow" aria-label="Next month" onClick={()=>setMonth(m=>new Date(m.getFullYear(),m.getMonth()+1,1))}><ArrowRight size={15}/></button>
+          <button type="button" className="atlas-calendar-arrow" aria-label={view==="month"?"Previous month":"Previous week"} onClick={()=>view==="month"?setMonth(m=>new Date(m.getFullYear(),m.getMonth()-1,1)):setSelected(keyOf(shift(selectedAnchor,-7)))}><ArrowLeft size={15}/></button>
+          <button type="button" className="atlas-calendar-arrow" aria-label={view==="month"?"Next month":"Next week"} onClick={()=>view==="month"?setMonth(m=>new Date(m.getFullYear(),m.getMonth()+1,1)):setSelected(keyOf(shift(selectedAnchor,7)))}><ArrowRight size={15}/></button>
         </div>
       </div>
-      <div className="atlas-calendar-monthline"><h3>{month.toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</h3><span>{loading?"SYNCING":"SYNCED"} <i className={loading?"is-syncing":""}/></span></div>
+      <div className="atlas-calendar-monthline"><h3>{view==="month"?month.toLocaleDateString("en-IN",{month:"long",year:"numeric"}):start.toLocaleDateString("en-IN",{day:"numeric",month:"short"}) + " – " + days[6].toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</h3><span>{loading?"SYNCING":"SYNCED"} <i className={loading?"is-syncing":""}/></span></div>
       <div className="atlas-calendar-grid" role="grid" aria-label="Calendar">
         {weekdays.map(d=><div key={d} className="atlas-calendar-weekday" role="columnheader">{d}</div>)}
         {days.map(d=>{const k=keyOf(d),hasNote=Boolean(notes[k]?.trim()),hasExam=Boolean(examsByDay[k]?.length);return <button key={k} type="button" role="gridcell" aria-pressed={selected===k} aria-label={`${d.toLocaleDateString()}${hasExam?`, ${examsByDay[k].length} exam${examsByDay[k].length===1?"":"s"}`:""}${hasNote?", has a note":""}`} onClick={()=>setSelected(k)} className={`atlas-calendar-day${d.getMonth()!==month.getMonth()?" outside":""}${selected===k?" selected":""}${k===todayKey?" today":""}${hasNote?" has-note":""}${hasExam?" has-event":""}`}><span>{d.getDate()}</span>{hasNote&&<i/>}{hasExam&&<i className="exam-dot"/>}</button>;})}
