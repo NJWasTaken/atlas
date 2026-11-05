@@ -68,7 +68,9 @@ def fetch_from_provider(endpoint: str) -> QuoteOutput:
 def fetch_quote(endpoint: str) -> QuoteOutput:
     now = time.monotonic()
     cached = _quote_cache.get(endpoint)
-    if cached and cached[0] > now:
+    # A random quote is an explicit user request for a fresh result. Keep the
+    # last successful response only as an outage fallback, never as a cache hit.
+    if endpoint != "randomquotes" and cached and cached[0] > now:
         return cached[1]
     try:
         quote = fetch_from_provider(endpoint)
