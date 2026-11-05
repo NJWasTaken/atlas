@@ -756,4 +756,4 @@ def test_syllabus_versions_capture_changes_and_can_be_restored(client: TestClien
     assert restored.status_code == 200
     current = client.get(f"/api/v1/subjects/{subject['id']}/concepts", headers=headers)
     assert current.json()[0]["title"] == "Process states"
-    assert len(client.get(f"/api/v1/subjects/{subject['id']}/syllabus/versions", headers=headers).json()) == 4
+    assert len(client.get(f"/api/v1/subjects/{subject['id']}/syllabus/versions", headers=headers).json()) == 5
