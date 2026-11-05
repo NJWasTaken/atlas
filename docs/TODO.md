@@ -34,6 +34,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Add PDF upload and selectable-text extraction with conservative chapter/concept heading detection and page references. Scanned PDF OCR remains unsupported.
 - [x] Add an editable draft review/confirmation step; imported items are only persisted after explicit confirmation and append to existing syllabus content.
 - [x] Add migration-backed syllabus snapshots, automatic version capture for structural edits/imports, version inspection, and restore with pre-restore checkpointing.
+- [x] Flush pending structural edits and prerequisite links before creating version snapshots.
 - [x] Add exam-aware readiness context, due-review counts, and explainable priorities for weak, unassessed, recall-practice, and overdue concepts.
 - [x] Record each concept check-in in review history and calculate a transparent next-review interval from understanding and recall. This is a simple heuristic, not an adaptive SM-2 scheduler.
 - [x] Add same-subject concept prerequisites with ownership checks, self/cross-subject/cycle validation, a themed editor, and versioned restore support.
