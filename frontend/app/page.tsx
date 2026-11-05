@@ -197,11 +197,11 @@ export default function Home() {
               <div className={`atlas-welcome-copy quote-${quotePhase}`}>
                 <p className="eyebrow">A NUGGET OF KNOWLEDGE, JUST FOR YOU</p>
                 <h2 className="atlas-quote-text" aria-live="polite">
-                  {quote ? `“${quote.quote}”` : quoteLoading ? "Finding today's thought…" : "Today's thought is waiting."}
+                  {quote ? `“${quote.quote}”` : quoteLoading ? "Finding today's thought…" : quoteError ? "A little curiosity goes a long way." : "Today's thought is waiting."}
                 </h2>
                 {quote && <p className="atlas-quote-author">— {quote.author}{quote.work ? `, ${quote.work}` : ""}</p>}
-                {quoteError && <p className="atlas-quote-error" role="alert">{quoteError}</p>}
-                <p className="atlas-quote-hint">{quoteLoading ? "Turning the page…" : "Click anywhere to discover another thought"}</p>
+                {quoteError && <p className="atlas-quote-error" role="status">The quote service is taking a breather. The rest of Atlas is still ready for you.</p>}
+                <p className="atlas-quote-hint">{quoteLoading ? "Turning the page…" : quoteError ? "Tap to try again" : "Click anywhere to discover another thought"}</p>
               </div>
               <div className="atlas-orbit-art" aria-hidden="true">
                 <div className="orbit-ring one"/><div className="orbit-ring two"/><div className="orbit-ring three"/>
