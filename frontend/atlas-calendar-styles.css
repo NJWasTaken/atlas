@@ -95,3 +95,14 @@
 @media(max-width:1000px){.atlas-calendar-panel{grid-template-columns:minmax(0,1.2fr) minmax(230px,.8fr)}.atlas-calendar-main{padding:23px 20px}.atlas-day-note{padding:23px 19px}}
 @media(max-width:760px){.atlas-calendar-panel{grid-template-columns:1fr}.atlas-day-note{border-top:1px solid rgba(197,168,117,.14);border-left:0}.atlas-day-note textarea,.atlas-day-note-preview{min-height:100px}}
 @media(max-width:480px){.atlas-calendar-main{padding:20px 13px}.atlas-calendar-heading{flex-direction:column}.atlas-calendar-controls{align-self:flex-end;margin-top:-4px}.atlas-calendar-day{min-height:31px;font-size:9px}.atlas-day-note{padding:22px 18px}}
+
+
+/* Semester metadata and weekly calendar */
+.atlas-subject-filter{display:flex;align-items:center;justify-content:flex-end;gap:9px;margin:12px 0 2px;color:#7e8da0;font-size:8px;letter-spacing:.16em}
+.atlas-subject-filter select{min-width:145px;padding:8px 10px;color:#d8e0e7;border:1px solid rgba(166,187,211,.16);background:#0c1b2d;font:10px 'DM Sans',sans-serif}
+.atlas-subject-term-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.atlas-subject-term{margin-top:5px;color:#8fb9d6;font-size:9px;letter-spacing:.07em}
+.atlas-calendar-view-switch{display:flex;align-items:center;padding:3px;border:1px solid rgba(166,187,211,.16);background:rgba(4,13,24,.3)}
+.atlas-calendar-view-switch button{padding:6px 9px;color:#8392a4;font-size:9px;transition:background .2s,color .2s}
+.atlas-calendar-view-switch button.active{color:#e9e4d9;background:rgba(197,168,117,.15)}
+@media(max-width:560px){.atlas-subject-term-fields{grid-template-columns:1fr}.atlas-calendar-controls{flex-wrap:wrap}}
