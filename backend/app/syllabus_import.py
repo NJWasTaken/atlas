@@ -71,8 +71,8 @@ def parse_syllabus_pdf(pdf_bytes: bytes) -> dict:
 
     def add_topic(title: str, page: int) -> None:
         nonlocal current_topic
-        normalized = re.sub(r"^(?:UNIT|MODULE|CHAPTER|PART|SECTION)\\s+(?:[0-9IVX]+|[A-Z])\\s*[:.\\-–—)]?\\s*", "", title, flags=re.IGNORECASE)
-        normalized = re.sub(r"^\\d+(?:\\.\\d+)*[.)]?\\s+", "", normalized).strip(" .:-–—")
+        normalized = re.sub(r"^(?:UNIT|MODULE|CHAPTER|PART|SECTION)\s+(?:[0-9IVX]+|[A-Z])\s*[:.\-–—)]?\s*", "", title, flags=re.IGNORECASE)
+        normalized = re.sub(r"^\d+(?:\.\d+)*[.)]?\s+", "", normalized).strip(" .:-–—")
         key = (normalized.casefold(), page)
         if not normalized or key in seen:
             return
