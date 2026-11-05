@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 
 from .conftest import auth_headers, register
@@ -548,7 +549,7 @@ def test_syllabus_pdf_parser_rejects_non_pdf_and_detects_page_references(monkeyp
     fake_reader = SimpleNamespace(
         is_encrypted=False,
         pages=[
-            FakePage("UNIT I: INTRODUCTION\\n1. Overview\\n1.1 Data structures\\n- Arrays and lists"),
+            FakePage("UNIT I: INTRODUCTION\\n1.1 Overview\\n1.2 Data structures\\n- Arrays and lists"),
             FakePage("UNIT II: TREES\\n2.1 Binary trees\\n- Traversals"),
         ],
     )
