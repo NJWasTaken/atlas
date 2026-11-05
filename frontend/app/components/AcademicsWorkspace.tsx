@@ -14,9 +14,12 @@ type Progress = {
   id?: number; concept_id: number; exposure: "not_started" | "studied";
   understanding: "not_assessed" | "weak" | "developing" | "strong";
   recall: "not_assessed" | "needs_practice" | "comfortable";
-  confidence: number | null; notes: string | null; last_reviewed?: string | null;
+  confidence: number | null; notes: string | null; last_reviewed?: string | null; next_review_at?: string | null;
 };
-type Readiness = { subject_id: number; total_concepts: number; strong: number; developing: number; weak: number; not_assessed: number; recommendations: {reason:string;count:number;message:string}[] };
+type Review = { id:number; concept_id:number; reviewed_at:string; exposure:string; understanding:string; recall:string; confidence:number|null; notes:string|null };
+type SyllabusVersion = { id:number; subject_id:number; version_number:number; label:string; created_at:string };
+type SyllabusVersionDetail = SyllabusVersion & { snapshot:{topics:{id:number;title:string;concepts:{id:number;title:string}[]}[]} };
+type Readiness = { subject_id: number; total_concepts: number; strong: number; developing: number; weak: number; not_assessed: number; due_for_review?:number; next_exam?:{title:string;exam_date:string;days_until:number}|null; recommendations: {reason:string;count:number;message:string}[] };
 type Exam = { id:number; subject_id:number; title:string; exam_date:string };
 type DraftConcept = { title:string; source_pages:number[] };
 type DraftTopic = { title:string; source_pages:number[]; concepts:DraftConcept[] };
@@ -29,6 +32,10 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
   const [topics, setTopics] = useState<Topic[]>([]);
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [readiness, setReadiness] = useState<Readiness | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [versions, setVersions] = useState<SyllabusVersion[]>([]);
+  const [selectedVersion, setSelectedVersion] = useState<SyllabusVersionDetail | null>(null);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [exams, setExams] = useState<Exam[]>([]);
   const [selectedConcept, setSelectedConcept] = useState<Concept | null>(null);
   const [progress, setProgress] = useState<Progress>(blankProgress);
@@ -62,14 +69,14 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
   async function loadWorkspace(id: number) {
     setError("");
     try {
-      const [nextTopics, nextConcepts, nextReadiness, nextExams] = await Promise.all([
+      const [nextTopics, nextConcepts, nextReadiness, nextExams, nextVersions] = await Promise.all([
         api<Topic[]>(`/subjects/${id}/topics`),
         api<Concept[]>(`/subjects/${id}/concepts`),
         api<Readiness>(`/subjects/${id}/readiness`),
         api<Exam[]>(`/exams`),
+        api<SyllabusVersion[]>(`/subjects/${id}/syllabus/versions`),
       ]);
-      setTopics(nextTopics); setConcepts(nextConcepts); setReadiness(nextReadiness);
-      setExams(nextExams.filter(e => e.subject_id === id));
+      setTopics(nextTopics); setConcepts(nextConcepts); setReadiness(nextReadiness); setVersions(nextVersions);
       setExpanded(nextTopics.filter(t => !t.parent_topic_id).map(t => t.id));
     } catch (e) { setError(e instanceof Error ? e.message : "Could not load this subject."); }
   }
@@ -177,8 +184,12 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
   async function chooseConcept(concept: Concept) {
     setSelectedConcept(concept); setError("");
     try {
-      const result = await api<Progress | null>(`/concepts/${concept.id}/progress`);
+      const [result, history] = await Promise.all([
+        api<Progress | null>(`/concepts/${concept.id}/progress`),
+        api<Review[]>(`/concepts/${concept.id}/reviews`),
+      ]);
       setProgress(result ?? {...blankProgress, concept_id:concept.id});
+      setReviews(history);
     } catch(e) { setError(e instanceof Error ? e.message : "Could not load progress."); }
   }
 
@@ -190,7 +201,9 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
         exposure:progress.exposure, understanding:progress.understanding, recall:progress.recall,
         confidence:progress.confidence, notes:progress.notes
       })});
-      setProgress(saved); if(subjectId!==null) await loadWorkspace(subjectId);
+      setProgress(saved);
+      setReviews(await api<Review[]>(`/concepts/${selectedConcept.id}/reviews`));
+      if(subjectId!==null) await loadWorkspace(subjectId);
       setNotice("Progress saved. Nice work showing up.");
     } catch(e) { setError(e instanceof Error ? e.message : "Could not save progress."); }
     finally { setBusy(false); }
