@@ -17,7 +17,8 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Verify the frontend TypeScript check and production build pass in GitHub Actions.
 - [x] Add CI execution for the backend pytest suite on development pushes and relevant pull requests.
 - [x] Add CI checks for frontend TypeScript and production build.
-- [ ] Introduce Alembic migrations before changing deployed database schemas; replace startup-only `Base.metadata.create_all()` as the schema-evolution mechanism.
+- [x] Add Alembic configuration and an initial migration baseline matching the current seven-table schema; CI validates upgrade, metadata consistency, and downgrade on SQLite.
+- [ ] Document and execute safe baseline adoption for existing databases, then switch application startup away from `Base.metadata.create_all()` once all environments are migrated.
 - [ ] Review production configuration: require a strong JWT secret, define safe CORS origins, document required environment variables, and avoid development fallback credentials outside local development.
 - [ ] Improve API error/loading/empty states and accessibility across the current screens.
 
