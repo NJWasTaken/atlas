@@ -443,7 +443,7 @@ export default function AcademicsWorkspace({ subjects, focusSubjectId = null }: 
           </div><p className="atlas-readiness-foot">This is a count of your self-assessments, not a predicted grade or exam score.</p>
           {readiness.recommendations.filter(r=>r.count>0).map(r=><p className="atlas-recommendation" key={r.reason}><span>{r.count}</span>{r.message}</p>)}
           {readiness.next_exam && <p className="atlas-readiness-exam-context">Next exam: <strong>{readiness.next_exam.title}</strong> · {readiness.next_exam.days_until===0?"Today":`${readiness.next_exam.days_until} days away`}</p>}
-          {readiness.items?.length ? <div className="atlas-revision-suggestions"><p className="eyebrow">SUGGESTED NEXT REVIEWS</p>{readiness.items.slice(0,6).map(item=><button type="button" key={item.concept_id} onClick={()=>{const concept=concepts.find(c=>c.id===item.concept_id);if(concept)void chooseConcept(concept);}}><span><strong>{item.title}</strong><small>{item.topic_title} · {item.reason.replaceAll("_"," ")}</small></span>{item.priority==="high"&&<em>Exam soon</em>}</button>)}</div> : null}
+          {readiness.items?.length ? <div className="atlas-revision-suggestions"><p className="eyebrow">SUGGESTED NEXT REVIEWS</p>{readiness.items.slice(0,6).map(item=><button type="button" key={item.concept_id} onClick={()=>{const concept=concepts.find(c=>c.id===item.concept_id);if(concept)void chooseConcept(concept);}}><span><strong>{item.title}</strong><small>{item.topic_title} · {item.reason.replace(/_/g," ")}</small></span>{item.priority==="high"&&<em>Exam soon</em>}</button>)}</div> : null}
         </>}
       </section>
       <section className="atlas-academics-panel atlas-exams-panel">
