@@ -298,14 +298,18 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
         {children.map(child=>renderTopic(child,depth+1))}
         {!items.length&&!children.length&&<p className="atlas-topic-empty">No concepts here yet. Add the first one.</p>}
       </div>}
+      {isOpen && addingConcept===topic.id && <form className="atlas-inline-form atlas-add-concept-form" onSubmit={addConcept}>
+        <label>New concept<input autoFocus value={conceptTitle} onChange={e=>setConceptTitle(e.target.value)} placeholder="e.g. Backpropagation" required maxLength={180}/></label>
+        <div><button className="atlas-button atlas-primary" disabled={busy}>{busy?"Saving…":"Add concept"}<Check size={14}/></button><button type="button" className="atlas-button atlas-secondary" onClick={()=>{setAddingConcept(null);setConceptTitle("");}}>Cancel</button></div>
+      </form>}
     </div>;
   }
 
   if (!subjects.length) return <div className="atlas-academics-empty"><div className="atlas-academics-empty-icon"><BookOpen size={24}/></div><h3>Start with a subject</h3><p>Add a subject first, then build its syllabus manually or import a PDF and review the suggested chapters before saving.</p></div>;
 
   return <div className="atlas-academics-workspace">
-    {error && <div className="atlas-academics-alert"><AlertCircle size={15}/>{error}<button onClick={()=>setError("")}>Dismiss</button></div>}
-    {notice && <div className="atlas-academics-notice"><Check size={15}/>{notice}<button onClick={()=>setNotice("")}>×</button></div>}
+    {error && <div className="atlas-academics-alert" role="alert"><AlertCircle size={15}/>{error}<button onClick={()=>setError("")}>Dismiss</button></div>}
+    {notice && <div className="atlas-academics-notice" role="status"><Check size={15}/>{notice}<button onClick={()=>setNotice("")}>×</button></div>}
     <div className="atlas-academics-toolbar">
       <label><span>WORKING IN</span><select value={subjectId ?? ""} onChange={e=>{setSubjectId(Number(e.target.value));setSelectedConcept(null);setImportDraft(null);}}>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}{s.code?` · ${s.code}`:""}</option>)}</select></label>
       <div className="atlas-academics-actions"><button className="atlas-button atlas-secondary" onClick={()=>void loadWorkspace(subjectId!)}><RefreshCw size={14}/> Refresh</button><button className="atlas-button atlas-primary" onClick={()=>{setParentId(null);setAddingTopic(true);}}><Plus size={14}/> Add chapter</button></div>
@@ -318,7 +322,16 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
 
     <div className="atlas-academics-columns">
       <section className="atlas-academics-panel atlas-syllabus-panel">
-        <div className="atlas-panel-heading"><div><p className="eyebrow">THE KNOWLEDGE MAP</p><h3>Chapters & concepts</h3></div><div className="atlas-syllabus-heading-actions"><label className="atlas-button atlas-secondary atlas-upload-button"><FileUp size={14}/>{uploadingSyllabus?"Reading PDF…":"Import from PDF"}<input type="file" accept="application/pdf,.pdf" disabled={uploadingSyllabus||busy} onChange={e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value="";if(file)void uploadSyllabus(file);}}/></label></div></div>
+        <div className="atlas-panel-heading"><div><p className="eyebrow">THE KNOWLEDGE MAP</p><h3>Chapters & concepts</h3></div><div className="atlas-syllabus-heading-actions">
+          <button type="button" className="atlas-button atlas-secondary" onClick={()=>{setImportDraft(null);setParentId(null);setTopicTitle("");setAddingTopic(true);}}><Plus size={14}/> Build manually</button>
+          <label className="atlas-button atlas-secondary atlas-upload-button"><FileUp size={14}/>{uploadingSyllabus?"Reading PDF…":"Import from PDF"}<input type="file" accept="application/pdf,.pdf" disabled={uploadingSyllabus||busy} onChange={e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value="";if(file)void uploadSyllabus(file);}}/></label>
+        </div></div>
+        {addingTopic && <form className="atlas-inline-form atlas-manual-topic-form" onSubmit={addTopic}>
+          <div className="atlas-manual-form-intro"><strong>Build your syllabus</strong><span>Add a chapter or nest it under an existing one. You can add concepts as you go.</span></div>
+          <label>Chapter or subchapter title<input autoFocus value={topicTitle} onChange={e=>setTopicTitle(e.target.value)} placeholder="e.g. Neural Networks" required maxLength={180}/></label>
+          <label>Parent chapter<select value={parentId??""} onChange={e=>setParentId(e.target.value?Number(e.target.value):null)}><option value="">Top-level chapter</option>{topics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></label>
+          <div><button className="atlas-button atlas-primary" disabled={busy}>{busy?"Saving…":"Add chapter"}<Check size={14}/></button><button type="button" className="atlas-button atlas-secondary" onClick={()=>{setAddingTopic(false);setTopicTitle("");setParentId(null);}}>Cancel</button></div>
+        </form>}
         {importDraft && <section className="atlas-import-review">
           <div className="atlas-import-review-heading">
             <div><p className="eyebrow">NOT SAVED YET</p><h4>Review your syllabus draft</h4><p>{importDraft.file_name} · {importDraft.page_count} pages · {importDraft.topics.length} detected chapters</p></div>
@@ -347,9 +360,7 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
           </div>
           <p className="atlas-import-footnote">This adds the reviewed items alongside any chapters already in this subject. It does not replace your existing syllabus.</p>
         </section>}
-        {roots.length ? roots.map(t=>renderTopic(t)) : <div className="atlas-syllabus-empty"><BookOpen size={22}/><strong>Your syllabus is a blank page.</strong><span>Add your first chapter to start shaping it.</span></div>}
-        {addingTopic && <form className="atlas-inline-form" onSubmit={addTopic}><label>Chapter or topic title<input autoFocus value={topicTitle} onChange={e=>setTopicTitle(e.target.value)} placeholder="e.g. Neural Networks" required/></label><label>Nested under<select value={parentId??""} onChange={e=>setParentId(e.target.value?Number(e.target.value):null)}><option value="">Top-level chapter</option>{topics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></label><div><button className="atlas-button atlas-primary" disabled={busy}>Save topic</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setAddingTopic(false)}>Cancel</button></div></form>}
-        {addingConcept!==null && <form className="atlas-inline-form" onSubmit={addConcept}><label>Concept title<input autoFocus value={conceptTitle} onChange={e=>setConceptTitle(e.target.value)} placeholder="e.g. Backpropagation" required/></label><div><button className="atlas-button atlas-primary" disabled={busy}>Save concept</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setAddingConcept(null)}>Cancel</button></div></form>}
+        {roots.length ? roots.map(t=>renderTopic(t)) : <div className="atlas-syllabus-empty"><BookOpen size={22}/><strong>Your syllabus is a blank page.</strong><span>Start from scratch with a chapter, or bring in an existing syllabus PDF.</span><button type="button" className="atlas-button atlas-primary" onClick={()=>{setParentId(null);setTopicTitle("");setAddingTopic(true);}}><Plus size={14}/> Add your first chapter</button></div>}
       </section>
 
       <section className="atlas-academics-panel atlas-progress-panel">
@@ -359,7 +370,14 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
           <label>Exposure<select value={progress.exposure} onChange={e=>setProgress({...progress,exposure:e.target.value as Progress["exposure"]})}><option value="not_started">Not started</option><option value="studied">I've studied this</option></select></label>
           <label>Understanding<select value={progress.understanding} onChange={e=>setProgress({...progress,understanding:e.target.value as Progress["understanding"]})}><option value="not_assessed">Not assessed</option><option value="weak">Weak — needs a rethink</option><option value="developing">Developing — getting there</option><option value="strong">Strong — I can explain it</option></select></label>
           <label>Recall<select value={progress.recall} onChange={e=>setProgress({...progress,recall:e.target.value as Progress["recall"]})}><option value="not_assessed">Not assessed</option><option value="needs_practice">Needs practice</option><option value="comfortable">Comfortable</option></select></label>
-          <label>Confidence <strong className="atlas-confidence-value">{progress.confidence===null?"—":`${progress.confidence}/5`}</strong><input type="range" min="1" max="5" value={progress.confidence??3} onChange={e=>setProgress({...progress,confidence:Number(e.target.value)})}/></label>
+          <div className="atlas-confidence-control">
+            <div className="atlas-confidence-heading"><label>Confidence</label><strong className="atlas-confidence-value">{progress.confidence===null?"Not rated":`${progress.confidence} / 5`}</strong></div>
+            <p>How sure are you that you could explain this without looking at your notes?</p>
+            <div className="atlas-confidence-options" role="radiogroup" aria-label="Confidence level">
+              {[1,2,3,4,5].map(value=><button key={value} type="button" role="radio" aria-checked={progress.confidence===value} className={progress.confidence===value?"active":""} onClick={()=>setProgress({...progress,confidence:value})}><span>{value}</span><small>{["Unsure","Shaky","Okay","Good","Solid"][value-1]}</small></button>)}
+            </div>
+            <div className="atlas-confidence-scale"><span>Still learning</span><span>Could teach it</span></div>
+          </div>
           <label>Personal notes<textarea rows={3} value={progress.notes??""} onChange={e=>setProgress({...progress,notes:e.target.value})} placeholder="What clicked? What still feels fuzzy?"/></label>
           <button className="atlas-button atlas-primary atlas-full" disabled={busy}><Check size={14}/> Save progress</button>
         </form> : <div className="atlas-progress-empty"><Brain size={25}/><strong>Pick a concept to check in with yourself.</strong><span>Track understanding and recall separately. Being exposed to a topic isn't the same as knowing it.</span></div>}
