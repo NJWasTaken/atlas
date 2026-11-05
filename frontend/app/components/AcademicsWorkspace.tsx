@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  BookOpen, ChevronDown, ChevronRight, Plus, Trash2, Brain, Target,
+  BookOpen, ChevronDown, ChevronRight, Plus, Trash2, Pencil, Brain, Target,
   CalendarDays, RefreshCw, Check, AlertCircle, Layers3, Sparkles
 } from "lucide-react";
 import { api } from "../../lib/api";
@@ -34,6 +34,7 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
   const [conceptTitle, setConceptTitle] = useState("");
   const [examTitle, setExamTitle] = useState("End-semester examination");
   const [examDate, setExamDate] = useState("");
+  const [editingExamId, setEditingExamId] = useState<number | null>(null);
   const [parentId, setParentId] = useState<number | null>(null);
   const [addingTopic, setAddingTopic] = useState(false);
   const [addingConcept, setAddingConcept] = useState<number | null>(null);
@@ -126,6 +127,50 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
     finally { setBusy(false); }
   }
 
+  function editExam(exam: Exam) {
+    const date = new Date(exam.exam_date);
+    const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    setExamTitle(exam.title);
+    setExamDate(localDate.toISOString().slice(0, 16));
+    setEditingExamId(exam.id);
+    setAddingExam(true);
+    setError("");
+  }
+
+  function cancelExamEdit() {
+    setEditingExamId(null);
+    setExamTitle("End-semester examination");
+    setExamDate("");
+    setAddingExam(false);
+  }
+
+  async function saveExamEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (editingExamId === null || !examDate) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await api<Exam>(`/exams/${editingExamId}`, {
+        method:"PATCH",
+        body:JSON.stringify({title:examTitle.trim(),exam_date:new Date(examDate).toISOString()})
+      });
+      cancelExamEdit();
+      if(subjectId!==null) await loadWorkspace(subjectId);
+      setNotice("Exam updated.");
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not update exam."); }
+    finally { setBusy(false); }
+  }
+
+  async function removeExam(exam: Exam) {
+    if(!confirm(`Delete "${exam.title}"?`)) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await api<void>(`/exams/${exam.id}`,{method:"DELETE"});
+      if(subjectId!==null) await loadWorkspace(subjectId);
+      setNotice("Exam deleted.");
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not delete exam."); }
+    finally { setBusy(false); }
+  }
+
   async function removeTopic(id:number) {
     if(!confirm("Delete this topic, its nested topics, concepts and progress?")) return;
     try { await api<void>(`/topics/${id}`,{method:"DELETE"}); if(subjectId!==null) await loadWorkspace(subjectId); if(selectedConcept && topics.some(t=>t.id===id)) setSelectedConcept(null); }
@@ -180,7 +225,7 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
 
     <div className="atlas-academics-columns">
       <section className="atlas-academics-panel atlas-syllabus-panel">
-        <div className="atlas-panel-heading"><div><p className="eyebrow">THE KNOWLEDGE MAP</p><h3>Chapters & concepts</h3></div><span className="atlas-panel-tag">MANUAL SYLLABUS</span></div>
+        <div className="atlas-panel-heading"><div><p className="eyebrow">THE KNOWLEDGE MAP</p><h3>Chapters & concepts</h3></div><span className="atlas-panel-tag">FILL IN YOUR SYLLABUS HERE</span></div>
         {roots.length ? roots.map(t=>renderTopic(t)) : <div className="atlas-syllabus-empty"><BookOpen size={22}/><strong>Your syllabus is a blank page.</strong><span>Add your first chapter to start shaping it.</span></div>}
         {addingTopic && <form className="atlas-inline-form" onSubmit={addTopic}><label>Chapter or topic title<input autoFocus value={topicTitle} onChange={e=>setTopicTitle(e.target.value)} placeholder="e.g. Neural Networks" required/></label><label>Nested under<select value={parentId??""} onChange={e=>setParentId(e.target.value?Number(e.target.value):null)}><option value="">Top-level chapter</option>{topics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></label><div><button className="atlas-button atlas-primary" disabled={busy}>Save topic</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setAddingTopic(false)}>Cancel</button></div></form>}
         {addingConcept!==null && <form className="atlas-inline-form" onSubmit={addConcept}><label>Concept title<input autoFocus value={conceptTitle} onChange={e=>setConceptTitle(e.target.value)} placeholder="e.g. Backpropagation" required/></label><div><button className="atlas-button atlas-primary" disabled={busy}>Save concept</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setAddingConcept(null)}>Cancel</button></div></form>}
@@ -215,8 +260,8 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
       </section>
       <section className="atlas-academics-panel atlas-exams-panel">
         <div className="atlas-panel-heading"><div><p className="eyebrow">DATES THAT MATTER</p><h3>Upcoming exams</h3></div><button className="atlas-mini-action" onClick={()=>setAddingExam(!addingExam)} title="Add exam"><Plus size={16}/></button></div>
-        {addingExam && <form className="atlas-exam-form" onSubmit={addExam}><input value={examTitle} onChange={e=>setExamTitle(e.target.value)} aria-label="Exam title" placeholder="Exam title"/><input type="datetime-local" value={examDate} onChange={e=>setExamDate(e.target.value)} required aria-label="Exam date"/><button className="atlas-button atlas-primary" disabled={busy}>Add exam</button></form>}
-        {exams.length ? exams.map(ex=><div className="atlas-exam-row" key={ex.id}><CalendarDays size={16}/><div><strong>{ex.title}</strong><span>{new Date(ex.exam_date).toLocaleString(undefined,{dateStyle:"medium",timeStyle:"short"})}</span></div></div>) : <p className="atlas-exams-empty">No exam dates yet. Add one when you know it.</p>}
+        {addingExam && <form className="atlas-exam-form" onSubmit={editingExamId===null?addExam:saveExamEdit}><input value={examTitle} onChange={e=>setExamTitle(e.target.value)} aria-label="Exam title" placeholder="Exam title" required/><input type="datetime-local" value={examDate} onChange={e=>setExamDate(e.target.value)} required aria-label="Exam date"/><div className="atlas-exam-form-actions"><button className="atlas-button atlas-primary" disabled={busy}>{editingExamId===null?"Add exam":"Save changes"}</button>{editingExamId!==null&&<button type="button" className="atlas-button atlas-secondary" onClick={cancelExamEdit} disabled={busy}>Cancel</button>}</div></form>}
+        {exams.length ? exams.map(ex=><div className="atlas-exam-row" key={ex.id}><CalendarDays size={16}/><div className="atlas-exam-details"><strong>{ex.title}</strong><span>{new Date(ex.exam_date).toLocaleString(undefined,{dateStyle:"medium",timeStyle:"short"})}</span></div><div className="atlas-exam-actions"><button type="button" className="atlas-mini-action" onClick={()=>editExam(ex)} disabled={busy} title={`Edit ${ex.title}`} aria-label={`Edit ${ex.title}`}><Pencil size={14}/></button><button type="button" className="atlas-mini-action danger" onClick={()=>void removeExam(ex)} disabled={busy} title={`Delete ${ex.title}`} aria-label={`Delete ${ex.title}`}><Trash2 size={14}/></button></div></div>) : <p className="atlas-exams-empty">No exam dates yet. Add one when you know it.</p>}
       </section>
     </div>
   </div>;

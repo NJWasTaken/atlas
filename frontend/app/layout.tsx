@@ -6,8 +6,8 @@ import type { Metadata } from "next";
 import CelestialBackground from "./components/CelestialBackground";
 
 export const metadata: Metadata = {
-  title: "Atlas — Find your way through knowledge",
-  description: "A quiet space for the things you need to learn, and everything you're curious about.",
+  title: "Atlas",
+  description: "yk cuz its like youre mapping your knowledge or smn",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

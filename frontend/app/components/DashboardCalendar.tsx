@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Bold, CalendarDays, Check, Code, Heading1, Heading2, Heading3, Italic, Link, List, ListOrdered, ListTodo, LoaderCircle, Minus, Quote, Save, Strikethrough, Table2, Trash2, Underline } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bold, CalendarDays, Check, Code, Heading1, Heading2, Heading3, Italic, Link, List, ListOrdered, ListTodo, LoaderCircle, Minus, Pencil, Quote, Save, Strikethrough, Table2, Trash2, Underline } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -38,6 +38,10 @@ export default function DashboardCalendar() {
   const [selected,setSelected] = useState(keyOf(today));
   const [notes,setNotes] = useState<Record<string,string>>({});
   const [exams,setExams] = useState<Exam[]>([]);
+  const [editingExamId,setEditingExamId] = useState<number | null>(null);
+  const [examTitle,setExamTitle] = useState("");
+  const [examDate,setExamDate] = useState("");
+  const [examSaving,setExamSaving] = useState(false);
   const [draft,setDraft] = useState("");
   const [loading,setLoading] = useState(true);
   const [saving,setSaving] = useState(false);
@@ -80,6 +84,55 @@ export default function DashboardCalendar() {
   const selectedDate = new Date(`${selected}T12:00:00`);
   const weekdays = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
   const todayKey = keyOf(today);
+
+  function startExamEdit(exam: Exam) {
+    const date = examDateOf(exam.exam_date);
+    const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    setEditingExamId(exam.id);
+    setExamTitle(exam.title);
+    setExamDate(localDate.toISOString().slice(0, 16));
+    setError("");
+  }
+
+  function cancelExamEdit() {
+    setEditingExamId(null);
+    setExamTitle("");
+    setExamDate("");
+  }
+
+  async function saveExamEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (editingExamId === null || !examDate) return;
+    setExamSaving(true);
+    setError("");
+    try {
+      const updated = await api<Exam>(`/exams/${editingExamId}`, {
+        method:"PATCH",
+        body:JSON.stringify({title:examTitle.trim(),exam_date:new Date(examDate).toISOString()})
+      });
+      setExams(old => old.map(exam => exam.id === updated.id ? updated : exam));
+      cancelExamEdit();
+    } catch(e) {
+      setError(e instanceof Error ? e.message : "Could not update exam");
+    } finally {
+      setExamSaving(false);
+    }
+  }
+
+  async function deleteExam(exam: Exam) {
+    if (!confirm(`Delete "${exam.title}"?`)) return;
+    setExamSaving(true);
+    setError("");
+    try {
+      await api<void>(`/exams/${exam.id}`,{method:"DELETE"});
+      setExams(old => old.filter(item => item.id !== exam.id));
+      if (editingExamId === exam.id) cancelExamEdit();
+    } catch(e) {
+      setError(e instanceof Error ? e.message : "Could not delete exam");
+    } finally {
+      setExamSaving(false);
+    }
+  }
 
   async function save() {
     setSaving(true); setError("");
@@ -190,7 +243,16 @@ export default function DashboardCalendar() {
       <div className="atlas-day-note-top"><div className="atlas-day-note-icon"><CalendarDays size={17}/></div><p className="eyebrow">DAY NOTES</p></div>
       <h3>{selectedDate.toLocaleDateString("en-IN",{weekday:"long",day:"numeric"})}</h3>
       <p className="atlas-day-note-date">{selectedDate.toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</p>
-      {examsByDay[selected]?.length ? <div className="atlas-calendar-exams" aria-label="Exams on this day"><p className="eyebrow">EXAMS THIS DAY</p>{examsByDay[selected].map(exam=><div className="atlas-calendar-exam" key={exam.id}><CalendarDays size={13}/><span><strong>{exam.title}</strong><small>{examDateOf(exam.exam_date).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})}</small></span></div>)}</div> : null}
+      {examsByDay[selected]?.length ? <div className="atlas-calendar-exams" aria-label="Exams on this day"><p className="eyebrow">EXAMS THIS DAY</p>{examsByDay[selected].map(exam=><div className="atlas-calendar-exam-group" key={exam.id}>
+        {editingExamId === exam.id ? <form className="atlas-calendar-exam-edit" onSubmit={saveExamEdit}>
+          <label>Exam title<input value={examTitle} onChange={e=>setExamTitle(e.target.value)} required maxLength={160}/></label>
+          <label>Date and time<input type="datetime-local" value={examDate} onChange={e=>setExamDate(e.target.value)} required/></label>
+          <div><button type="submit" className="atlas-calendar-exam-save" disabled={examSaving}><Save size={13}/>{examSaving?"Saving…":"Save"}</button><button type="button" className="atlas-calendar-exam-cancel" onClick={cancelExamEdit} disabled={examSaving}>Cancel</button></div>
+        </form> : <div className="atlas-calendar-exam">
+          <CalendarDays size={13}/><span><strong>{exam.title}</strong><small>{examDateOf(exam.exam_date).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})}</small></span>
+          <div className="atlas-calendar-exam-actions"><button type="button" onClick={()=>startExamEdit(exam)} disabled={examSaving} aria-label={`Edit ${exam.title}`} title="Edit exam"><Pencil size={13}/></button><button type="button" onClick={()=>void deleteExam(exam)} disabled={examSaving} aria-label={`Delete ${exam.title}`} title="Delete exam"><Trash2 size={13}/></button></div>
+        </div>}
+      </div>)}</div> : null}
       <label htmlFor="atlas-day-note-input">Leave something for this day</label>
       {editing ? (
         <>

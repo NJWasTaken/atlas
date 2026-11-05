@@ -50,10 +50,22 @@
 .atlas-day-note-date{margin-top:5px;color:#8b99aa;font-size:10px}
 .atlas-calendar-exams{display:grid;gap:9px;margin-top:19px;padding:12px;border:1px solid rgba(168,200,221,.16);background:rgba(168,200,221,.035)}
 .atlas-calendar-exams>.eyebrow{color:#a8c8dd}
+.atlas-calendar-exam-group{min-width:0}
 .atlas-calendar-exam{display:flex;align-items:flex-start;gap:8px;color:#a8c8dd}
 .atlas-calendar-exam>span{display:grid;gap:3px;min-width:0}
+.atlas-calendar-exam>svg{flex:0 0 auto}
 .atlas-calendar-exam strong{overflow-wrap:anywhere;color:var(--ivory);font-size:10px;font-weight:500}
 .atlas-calendar-exam small{color:#8b99aa;font-size:9px}
+.atlas-calendar-exam-actions{display:flex;flex:0 0 auto;gap:3px;margin-left:auto}
+.atlas-calendar-exam-actions button,.atlas-calendar-exam-edit button{display:flex;align-items:center;justify-content:center;gap:5px;min-width:25px;height:25px;padding:0 5px;color:#9aabc0;border:1px solid rgba(166,187,211,.14);background:rgba(4,13,24,.25)}
+.atlas-calendar-exam-actions button:hover,.atlas-calendar-exam-edit button:hover{color:var(--gold-hi);border-color:rgba(197,168,117,.4)}
+.atlas-calendar-exam-actions button:last-child:hover{color:#e6b2ad;border-color:rgba(180,93,93,.45)}
+.atlas-calendar-exam-actions button:disabled,.atlas-calendar-exam-edit button:disabled{opacity:.5;cursor:default}
+.atlas-calendar-exam-edit{display:grid;gap:8px}
+.atlas-calendar-exam-edit label{display:grid;gap:4px;color:#aeb9c6;font-size:9px}
+.atlas-calendar-exam-edit input{width:100%;min-width:0;height:32px;padding:0 8px;color:var(--ivory);border:1px solid rgba(166,187,211,.2);border-radius:2px;background:#0b1c2e;font:10px 'DM Sans',sans-serif}
+.atlas-calendar-exam-edit>div{display:flex;gap:6px}
+.atlas-calendar-exam-edit button{height:28px;padding:0 8px;font-size:9px}
 .atlas-day-note label{margin-top:24px;margin-bottom:8px;color:#aeb9c6;font-size:9px}
 .atlas-day-note textarea{width:100%;min-height:130px;resize:vertical;padding:12px;color:var(--ivory);border:1px solid rgba(166,187,211,.15);border-radius:2px;outline:none;background:rgba(4,13,24,.4);font:10px/1.7 'DM Sans',sans-serif}
 .atlas-day-note textarea:focus{border-color:rgba(197,168,117,.55);box-shadow:0 0 0 3px rgba(197,168,117,.06)}
