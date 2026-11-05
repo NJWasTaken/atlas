@@ -7,17 +7,19 @@ import {
 } from "lucide-react";
 import { api } from "../../lib/api";
 
-type Subject = { id: number; name: string; code?: string | null; description?: string | null };
+type Subject = { id: number; name: string; code?: string | null; description?: string | null; term?: string | null };
 type Topic = { id: number; subject_id: number; parent_topic_id: number | null; title: string; description?: string | null; source_pages?: number[] | null; position: number };
 type Concept = { id: number; topic_id: number; title: string; description?: string | null; source_pages?: number[] | null; position: number };
 type Progress = {
   id?: number; concept_id: number; exposure: "not_started" | "studied";
   understanding: "not_assessed" | "weak" | "developing" | "strong";
   recall: "not_assessed" | "needs_practice" | "comfortable";
-  confidence: number | null; notes: string | null; last_reviewed?: string | null;
+  confidence: number | null; notes: string | null; last_reviewed?: string | null; next_review_at?: string | null;
 };
 type Readiness = { subject_id: number; total_concepts: number; strong: number; developing: number; weak: number; not_assessed: number; recommendations: {reason:string;count:number;message:string}[] };
 type Exam = { id:number; subject_id:number; title:string; exam_date:string };
+type SyllabusVersion = { id:number; subject_id:number; version_name:string; created_at:string };
+type ConceptReview = { id:number; concept_id:number; understanding:string; recall:string; confidence:number|null; reviewed_at:string; next_review_at:string };
 type DraftConcept = { title:string; source_pages:number[] };
 type DraftTopic = { title:string; source_pages:number[]; concepts:DraftConcept[] };
 type SyllabusDraft = { file_name:string; page_count:number; extracted_characters:number; topics:DraftTopic[]; warnings:string[] };
@@ -26,6 +28,12 @@ const blankProgress: Progress = { concept_id: 0, exposure:"not_started", underst
 
 export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }) {
   const [subjectId, setSubjectId] = useState<number | null>(subjects[0]?.id ?? null);
+  const [termFilter, setTermFilter] = useState("all");
+  const [versions, setVersions] = useState<SyllabusVersion[]>([]);
+  const [versionName, setVersionName] = useState("");
+  const [showVersionForm, setShowVersionForm] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState<{version_name:string;snapshot:{topics:{concepts:unknown[]}[]}}|null>(null);
+  const [reviews, setReviews] = useState<ConceptReview[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [readiness, setReadiness] = useState<Readiness | null>(null);
@@ -50,6 +58,8 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
   const [importDraft, setImportDraft] = useState<SyllabusDraft | null>(null);
   const [uploadingSyllabus, setUploadingSyllabus] = useState(false);
 
+  const terms = [...new Set(subjects.map(s => s.term).filter((term): term is string => Boolean(term)))].sort();
+  const visibleSubjects = termFilter === "all" ? subjects : subjects.filter(s => s.term === termFilter);
   const subject = subjects.find(s => s.id === subjectId) ?? null;
   const topicMap = useMemo(() => new Map(topics.map(t => [t.id, t])), [topics]);
   const conceptsByTopic = useMemo(() => {
@@ -62,22 +72,23 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
   async function loadWorkspace(id: number) {
     setError("");
     try {
-      const [nextTopics, nextConcepts, nextReadiness, nextExams] = await Promise.all([
+      const [nextTopics, nextConcepts, nextReadiness, nextExams, nextVersions] = await Promise.all([
         api<Topic[]>(`/subjects/${id}/topics`),
         api<Concept[]>(`/subjects/${id}/concepts`),
         api<Readiness>(`/subjects/${id}/readiness`),
         api<Exam[]>(`/exams`),
+        api<SyllabusVersion[]>(`/subjects/${id}/syllabus/versions`),
       ]);
       setTopics(nextTopics); setConcepts(nextConcepts); setReadiness(nextReadiness);
-      setExams(nextExams.filter(e => e.subject_id === id));
+      setExams(nextExams.filter(e => e.subject_id === id)); setVersions(nextVersions);
       setExpanded(nextTopics.filter(t => !t.parent_topic_id).map(t => t.id));
     } catch (e) { setError(e instanceof Error ? e.message : "Could not load this subject."); }
   }
 
   useEffect(() => {
-    if (!subjects.length) { setSubjectId(null); return; }
-    if (!subjects.some(s => s.id === subjectId)) setSubjectId(subjects[0].id);
-  }, [subjects, subjectId]);
+    if (!visibleSubjects.length) { setSubjectId(null); return; }
+    if (!visibleSubjects.some(s => s.id === subjectId)) setSubjectId(visibleSubjects[0].id);
+  }, [visibleSubjects, subjectId]);
   useEffect(() => { if (subjectId !== null) void loadWorkspace(subjectId); }, [subjectId]);
 
   async function addTopic(e: React.FormEvent) {
@@ -177,9 +188,33 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
   async function chooseConcept(concept: Concept) {
     setSelectedConcept(concept); setError("");
     try {
-      const result = await api<Progress | null>(`/concepts/${concept.id}/progress`);
+      const [result, history] = await Promise.all([
+        api<Progress | null>(`/concepts/${concept.id}/progress`),
+        api<ConceptReview[]>(`/concepts/${concept.id}/reviews`),
+      ]);
       setProgress(result ?? {...blankProgress, concept_id:concept.id});
+      setReviews(history);
     } catch(e) { setError(e instanceof Error ? e.message : "Could not load progress."); }
+  }
+
+  async function createSyllabusVersion(e: React.FormEvent) {
+    e.preventDefault();
+    if (subjectId === null || !versionName.trim()) return;
+    setBusy(true); setError("");
+    try {
+      await api<SyllabusVersion>(`/subjects/${subjectId}/syllabus/versions`, {method:"POST",body:JSON.stringify({version_name:versionName.trim()})});
+      setVersionName(""); setShowVersionForm(false); await loadWorkspace(subjectId);
+      setNotice("Syllabus snapshot saved.");
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not save syllabus snapshot."); }
+    finally { setBusy(false); }
+  }
+
+  async function viewSyllabusVersion(versionId:number) {
+    if (subjectId === null) return;
+    try {
+      const version = await api<{version_name:string;snapshot:{topics:{concepts:unknown[]}[]}}>(`/subjects/${subjectId}/syllabus/versions/${versionId}`);
+      setSelectedVersion(version);
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not load this syllabus version."); }
   }
 
   async function saveProgress(e: React.FormEvent) {
@@ -311,21 +346,25 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
     {error && <div className="atlas-academics-alert" role="alert"><AlertCircle size={15}/>{error}<button onClick={()=>setError("")}>Dismiss</button></div>}
     {notice && <div className="atlas-academics-notice" role="status"><Check size={15}/>{notice}<button onClick={()=>setNotice("")}>×</button></div>}
     <div className="atlas-academics-toolbar">
-      <label><span>WORKING IN</span><select value={subjectId ?? ""} onChange={e=>{setSubjectId(Number(e.target.value));setSelectedConcept(null);setImportDraft(null);}}>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}{s.code?` · ${s.code}`:""}</option>)}</select></label>
+      <label><span>FILTER BY TERM</span><select value={termFilter} onChange={e=>setTermFilter(e.target.value)}><option value="all">All terms</option>{terms.map(term=><option key={term} value={term}>{term}</option>)}</select></label>
+      <label><span>WORKING IN</span><select value={subjectId ?? ""} onChange={e=>{setSubjectId(Number(e.target.value));setSelectedConcept(null);setImportDraft(null);}}>{visibleSubjects.map(s=><option key={s.id} value={s.id}>{s.name}{s.code?` · ${s.code}`:""}</option>)}</select></label>
       <div className="atlas-academics-actions"><button className="atlas-button atlas-secondary" onClick={()=>void loadWorkspace(subjectId!)}><RefreshCw size={14}/> Refresh</button><button className="atlas-button atlas-primary" onClick={()=>{setParentId(null);setAddingTopic(true);}}><Plus size={14}/> Add chapter</button></div>
     </div>
 
     <div className="atlas-academics-summary">
-      <div><p className="eyebrow">YOUR SYLLABUS</p><h2>{subject?.name ?? "Subject workspace"}</h2><p>{subject?.description || "Build a map of what you need to learn. Small, clear pieces beat one intimidating syllabus."}</p></div>
+      <div><p className="eyebrow">YOUR SYLLABUS {subject?.term ? `· ${subject.term.toUpperCase()}` : ""}</p><h2>{subject?.name ?? "Subject workspace"}</h2><p>{subject?.description || "Build a map of what you need to learn. Small, clear pieces beat one intimidating syllabus."}</p></div>
       <div className="atlas-summary-stats"><div><strong>{topics.length}</strong><span>TOPICS</span></div><div><strong>{concepts.length}</strong><span>CONCEPTS</span></div><div><strong>{readiness?.weak ?? 0}</strong><span>NEEDS ATTENTION</span></div></div>
     </div>
 
     <div className="atlas-academics-columns">
       <section className="atlas-academics-panel atlas-syllabus-panel">
-        <div className="atlas-panel-heading"><div><p className="eyebrow">THE KNOWLEDGE MAP</p><h3>Chapters & concepts</h3></div><div className="atlas-syllabus-heading-actions">
+        <div className="atlas-panel-heading"><div><p className="eyebrow">THE KNOWLEDGE MAP</p><h3>Chapters & concepts</h3></div><div className="atlas-syllabus-heading-actions"><button type="button" className="atlas-button atlas-secondary" onClick={()=>setShowVersionForm(v=>!v)}><Layers3 size={14}/> Save version</button>
           <button type="button" className="atlas-button atlas-secondary" onClick={()=>{setParentId(null);setTopicTitle("");setAddingTopic(true);}}><Plus size={14}/> Build manually</button>
           <label className="atlas-button atlas-secondary atlas-upload-button"><FileUp size={14}/>{uploadingSyllabus?"Reading PDF…":"Import from PDF"}<input type="file" accept="application/pdf,.pdf" disabled={uploadingSyllabus||busy} onChange={e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value="";if(file)void uploadSyllabus(file);}}/></label>
         </div></div>
+        {showVersionForm && <form className="atlas-inline-form atlas-version-form" onSubmit={createSyllabusVersion}><label>Snapshot name<input autoFocus value={versionName} onChange={e=>setVersionName(e.target.value)} placeholder="e.g. Updated university syllabus" required maxLength={100}/></label><div><button className="atlas-button atlas-primary" disabled={busy}>Save snapshot</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setShowVersionForm(false)}>Cancel</button></div></form>}
+        {versions.length>0 && <div className="atlas-version-history"><div className="atlas-version-history-heading"><strong>Syllabus history</strong><span>{versions.length} saved</span></div>{versions.map(version=><button type="button" key={version.id} onClick={()=>void viewSyllabusVersion(version.id)} className={selectedVersion?.version_name===version.version_name?"active":""}><span>{version.version_name}</span><small>{new Date(version.created_at).toLocaleDateString()}</small></button>)}</div>}
+        {selectedVersion && <div className="atlas-version-snapshot"><strong>{selectedVersion.version_name}</strong><span>{selectedVersion.snapshot.topics.length} chapters · {selectedVersion.snapshot.topics.reduce((n,t)=>n+t.concepts.length,0)} concepts captured</span></div>}
         {addingTopic && <form className="atlas-inline-form atlas-manual-topic-form" onSubmit={addTopic}>
           <div className="atlas-manual-form-intro"><strong>Build your syllabus</strong><span>Add a chapter or nest it under an existing one. You can add concepts as you go.</span></div>
           <label>Chapter or subchapter title<input autoFocus value={topicTitle} onChange={e=>setTopicTitle(e.target.value)} placeholder="e.g. Neural Networks" required maxLength={180}/></label>
@@ -379,7 +418,9 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
             <div className="atlas-confidence-scale"><span>Still learning</span><span>Could teach it</span></div>
           </div>
           <label>Personal notes<textarea rows={3} value={progress.notes??""} onChange={e=>setProgress({...progress,notes:e.target.value})} placeholder="What clicked? What still feels fuzzy?"/></label>
+          {progress.next_review_at && <p className="atlas-next-review">Next suggested review: <strong>{new Date(progress.next_review_at).toLocaleString(undefined,{dateStyle:"medium",timeStyle:"short"})}</strong></p>}
           <button className="atlas-button atlas-primary atlas-full" disabled={busy}><Check size={14}/> Save progress</button>
+          {reviews.length>0 && <details className="atlas-review-history"><summary>Review history <span>{reviews.length}</span></summary>{reviews.slice(0,5).map(review=><div key={review.id}><strong>{review.understanding.replace("_"," ")}</strong><span>{review.recall.replace("_"," ")} · {review.confidence===null?"No confidence rating":`Confidence ${review.confidence}/5`}</span><small>{new Date(review.reviewed_at).toLocaleString()}</small></div>)}</details>}
         </form> : <div className="atlas-progress-empty"><Brain size={25}/><strong>Pick a concept to check in with yourself.</strong><span>Track understanding and recall separately. Being exposed to a topic isn't the same as knowing it.</span></div>}
       </section>
     </div>
