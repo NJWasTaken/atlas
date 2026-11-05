@@ -217,3 +217,31 @@ def test_exam_crud_is_scoped_to_owner(client: TestClient):
     deleted = client.delete(f"/api/v1/exams/{exam_id}", headers=owner)
     assert deleted.status_code == 204
     assert client.get("/api/v1/exams", headers=owner).json() == []
+
+def test_academic_resources_are_hidden_from_other_users(client: TestClient):
+    owner = auth_headers(register(client, "academic-owner@example.com"))
+    other = auth_headers(register(client, "academic-other@example.com"))
+    subject = client.post(
+        "/api/v1/subjects", headers=owner, json={"name": "Algorithms"}
+    ).json()
+    topic = client.post(
+        f"/api/v1/subjects/{subject['id']}/topics",
+        headers=owner,
+        json={"title": "Graph algorithms"},
+    ).json()
+    concept = client.post(
+        f"/api/v1/topics/{topic['id']}/concepts",
+        headers=owner,
+        json={"title": "Dijkstra's algorithm"},
+    ).json()
+
+    assert client.get(
+        f"/api/v1/subjects/{subject['id']}/topics", headers=other
+    ).status_code == 404
+    assert client.get(
+        f"/api/v1/subjects/{subject['id']}/concepts", headers=other
+    ).status_code == 404
+    assert client.get(
+        f"/api/v1/concepts/{concept['id']}/progress", headers=other
+    ).status_code == 404
+
