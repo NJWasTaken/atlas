@@ -13,7 +13,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Expand backend regression coverage for topic updates, required-field validation, concept deletion, calendar-note update/delete, and exam validation/ownership.
 - [x] Run the expanded 15-test backend API suite successfully in GitHub Actions.
 - [x] Verify subject/concept partial-update endpoints and ownership validation in the expanded backend suite.
-- [ ] Add PostgreSQL-backed integration coverage for database-specific behavior before treating backend validation as complete.
+- [x] Add a PostgreSQL 16 CI service, validate the Alembic chain on PostgreSQL, and test JSON persistence plus database constraints against PostgreSQL.
 - [ ] Add frontend tests for key user flows: login/register, subject creation, topic/concept progress, calendar note persistence, and exam create/edit/delete from both views.
 - [x] Verify the syllabus-import UI TypeScript check and production build pass in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983099966).
 - [x] Verify the 21-test syllabus/backend suite and full SQLite migration chain in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983287215).
@@ -21,8 +21,8 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Add CI checks for frontend TypeScript and production build.
 - [x] Add Alembic configuration, the initial seven-table baseline, and the follow-up source-page-reference migration; CI validates upgrade, metadata consistency, and downgrade on SQLite.
 - [ ] Document and execute safe baseline adoption for existing databases, then switch application startup away from `Base.metadata.create_all()` once all environments are migrated.
-- [ ] Review production configuration: require a strong JWT secret, define safe CORS origins, document required environment variables, and avoid development fallback credentials outside local development.
-- [ ] Improve API error/loading/empty states and accessibility across the current screens.
+- [x] Require a unique 32+ character JWT secret and explicit non-local CORS origins in production; disable startup create_all in production while retaining the local-development default.
+- [ ] Add frontend interaction tests for the key authenticated flows and continue the cross-screen API error/loading/empty-state and accessibility pass.
 
 ## Academics completion
 
@@ -40,11 +40,12 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 ## Home / Overview
 
-- [ ] Expand the Overview beyond the current subject summary, calendar, and quotation into recent activity, continue-learning shortcuts, concept summaries, and revision suggestions.
+- [x] Expand the Overview with recent concept activity, continue-learning shortcuts, revision suggestions, upcoming exam summaries, and optional subject term filtering.
 - [x] Add weekly calendar navigation/view and clarify that exams are academic events while day notes are personal date notes.
 - [x] Return curated quote fallbacks when the quote provider is unavailable or unconfigured, and cache successful daily quote responses for one hour.
-- [ ] Improve calendar error/loading states and add retry affordances for failed calendar requests.
-- [ ] Consider caching or a provider abstraction for quotations; the current quote endpoints call API Ninjas and require `X_API_KEY`.
+- [x] Add a calendar retry affordance and loading semantics; keep calendar errors local to the calendar panel.
+- [ ] Add broader empty/loading/error states across remaining screens.
+- [x] Add an in-process cache for successful daily quote responses and curated fallbacks when API Ninjas is unavailable or unconfigured. The provider remains optional.
 
 ## Explore
 
