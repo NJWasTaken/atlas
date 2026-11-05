@@ -156,9 +156,6 @@ test("calendar offers a weekly view and saves a day note", async ({ page }) => {
 test("student can create, edit and delete an exam from Academics and Overview", async ({ page }) => {
   installApiMock(page);
   page.on("dialog", dialog => dialog.accept());
-  page.on("response", async response => {
-    if (response.url().includes("exams")) console.log("E2E_EXAMS", response.request().method(), response.status(), response.request().postData(), await response.text());
-  });
   await signIn(page);
   await page.getByRole("button",{name:/Add subject/}).first().click();
   await page.getByLabel("Subject name").fill("Computer Networks");
@@ -187,7 +184,7 @@ test("student can create, edit and delete an exam from Academics and Overview", 
   await page.getByLabel("Exam date").fill(localDate);
   await page.locator(".atlas-exam-form").getByRole("button",{name:"Add exam"}).click();
   await page.getByRole("button",{name:"Overview"}).click();
-  await expect(page.getByText("Overview exam",{exact:true})).toBeVisible();
+  await expect(page.locator(".atlas-overview-exam").filter({hasText:"Overview exam"})).toBeVisible();
   const examDayLabel = new Date(examDate).toLocaleDateString();
   await page.locator(".atlas-calendar-day[aria-label^='" + examDayLabel + "']").click();
   await page.getByLabel("Edit Overview exam").click();
