@@ -681,3 +681,43 @@ def test_production_settings_reject_unsafe_defaults():
         frontend_origin="https://atlas.example.com,https://www.atlas.example.com",
     )
     assert secure.allowed_origins == ["https://atlas.example.com", "https://www.atlas.example.com"]
+
+
+def test_partial_first_progress_save_creates_valid_review_snapshot(client: TestClient):
+    headers = auth_headers(register(client, "partial-review@example.com"))
+    subject = client.post("/api/v1/subjects", headers=headers, json={"name": "Statistics"}).json()
+    topic = client.post(f"/api/v1/subjects/{subject['id']}/topics", headers=headers, json={"title": "Distributions"}).json()
+    concept = client.post(f"/api/v1/topics/{topic['id']}/concepts", headers=headers, json={"title": "Normal distribution"}).json()
+
+    saved = client.patch(
+        f"/api/v1/concepts/{concept['id']}/progress",
+        headers=headers,
+        json={"notes": "Just started this concept"},
+    )
+    assert saved.status_code == 200
+    assert saved.json()["exposure"] == "not_started"
+    assert saved.json()["understanding"] == "not_assessed"
+    history = client.get(f"/api/v1/concepts/{concept['id']}/reviews", headers=headers)
+    assert history.status_code == 200
+    assert history.json()[0]["understanding"] == "not_assessed"
+
+
+def test_readiness_recommendations_include_exam_context(client: TestClient):
+    headers = auth_headers(register(client, "exam-priority@example.com"))
+    subject = client.post("/api/v1/subjects", headers=headers, json={"name": "Compiler Design"}).json()
+    topic = client.post(f"/api/v1/subjects/{subject['id']}/topics", headers=headers, json={"title": "Parsing"}).json()
+    concept = client.post(f"/api/v1/topics/{topic['id']}/concepts", headers=headers, json={"title": "LR parsing"}).json()
+    exam_date = (date.today() + timedelta(days=10)).isoformat() + "T10:00:00"
+    client.post("/api/v1/exams", headers=headers, json={"subject_id": subject["id"], "title": "Final", "exam_date": exam_date})
+    client.patch(
+        f"/api/v1/concepts/{concept['id']}/progress",
+        headers=headers,
+        json={"understanding": "weak", "recall": "needs_practice"},
+    )
+
+    readiness = client.get(f"/api/v1/subjects/{subject['id']}/readiness", headers=headers)
+    assert readiness.status_code == 200
+    assert readiness.json()["next_exam"]["title"] == "Final"
+    assert readiness.json()["items"][0]["concept_id"] == concept["id"]
+    assert readiness.json()["items"][0]["priority"] == "high"
+    assert readiness.json()["items"][0]["days_until_exam"] <= 14
