@@ -532,6 +532,7 @@ def test_syllabus_confirm_rejects_empty_draft_and_other_users(client: TestClient
 
     assert client.post(url, headers=owner, json={"topics": []}).status_code == 422
     assert client.post(url, headers=owner, json={"topics": [{"title": "   ", "concepts": []}]}).status_code == 422
+    assert client.post(url, headers=owner, json={"topics": [{"title": "Valid", "source_pages": [0], "concepts": []}]}).status_code == 422
     assert client.post(url, headers=other, json={"topics": [{"title": "Hidden", "concepts": []}]}).status_code == 404
 
 
