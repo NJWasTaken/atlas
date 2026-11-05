@@ -568,3 +568,34 @@ def test_syllabus_pdf_parser_rejects_non_pdf_and_detects_page_references(monkeyp
     monkeypatch.setattr(syllabus_import, "PdfReader", lambda *_args, **_kwargs: SimpleNamespace(is_encrypted=False, pages=[FakePage("")]))
     with pytest.raises(ValueError, match="selectable text"):
         syllabus_import.parse_syllabus_pdf(b"%PDF-scanned-image-only")
+
+
+def test_subject_term_metadata_can_be_created_updated_and_cleared(client: TestClient):
+    headers = auth_headers(register(client, "subject-term@example.com"))
+    created = client.post(
+        "/api/v1/subjects",
+        headers=headers,
+        json={"name": "Machine Learning", "term": "Semester 5", "academic_year": "2026-27"},
+    )
+    assert created.status_code == 201
+    subject = created.json()
+    assert subject["term"] == "Semester 5"
+    assert subject["academic_year"] == "2026-27"
+
+    updated = client.patch(
+        f"/api/v1/subjects/{subject['id']}",
+        headers=headers,
+        json={"term": "Semester 6"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["term"] == "Semester 6"
+    assert updated.json()["academic_year"] == "2026-27"
+
+    cleared = client.patch(
+        f"/api/v1/subjects/{subject['id']}",
+        headers=headers,
+        json={"term": None, "academic_year": None},
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["term"] is None
+    assert cleared.json()["academic_year"] is None
