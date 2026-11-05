@@ -85,6 +85,8 @@ def parse_syllabus_pdf(pdf_bytes: bytes) -> dict:
             line = _clean_line(raw_line)
             if not line or len(line) < 3:
                 continue
+            if current_topic is not None and page_number not in current_topic["source_pages"]:
+                current_topic["source_pages"].append(page_number)
             if _is_heading(line):
                 # Deeply numbered headings are treated as concepts under the
                 # current unit; major numbered headings start a new unit.
