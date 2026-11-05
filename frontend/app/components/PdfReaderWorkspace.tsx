@@ -131,8 +131,8 @@ export default function PdfReaderWorkspace(props:Props) {
     setLoading(true);setPdf(null);
     (async()=>{
       try{
-        const pdfjs:any=await import("pdfjs-dist");
-        pdfjs.GlobalWorkerOptions.workerSrc=new URL("pdfjs-dist/build/pdf.worker.min.mjs",import.meta.url).toString();
+        const pdfjs:any=await import("pdfjs-dist/legacy/build/pdf.mjs");
+        pdfjs.GlobalWorkerOptions.workerSrc=new URL("pdfjs-dist/legacy/build/pdf.worker.mjs",import.meta.url).toString();
         const response=await fetch(pdfUrl);
         if(!response.ok)throw new Error("Could not load this PDF.");
         const data=await response.arrayBuffer();
