@@ -5,6 +5,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 ## Recently completed
 
 - [x] Fix concept-progress PATCH handling so omitted fields retain their stored values instead of being overwritten by schema defaults. Regression coverage remains part of the automated-test task below.
+- [x] Ensure every random-quote request fetches a fresh quote instead of replaying the one-minute cache; retain the last successful random quote only as an outage fallback and cover both behaviors with backend tests.
 
 ## Near-term: make the current slice dependable
 
