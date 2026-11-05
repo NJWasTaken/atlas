@@ -13,13 +13,13 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Expand backend regression coverage for topic updates, required-field validation, concept deletion, calendar-note update/delete, and exam validation/ownership.
 - [x] Run the expanded 15-test backend API suite successfully in GitHub Actions.
 - [x] Verify subject/concept partial-update endpoints and ownership validation in the expanded backend suite.
-- [x] Add a PostgreSQL 16 CI service, validate the Alembic chain on PostgreSQL, and test JSON persistence plus database constraints against PostgreSQL.
+- [x] Configure a PostgreSQL 16 CI service, Alembic upgrade/check/downgrade validation, and integration coverage for JSON persistence and database constraints; latest CI result pending.
 - [ ] Add frontend tests for key user flows: login/register, subject creation, topic/concept progress, calendar note persistence, and exam create/edit/delete from both views.
 - [x] Verify the syllabus-import UI TypeScript check and production build pass in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983099966).
 - [x] Verify the 21-test syllabus/backend suite and full SQLite migration chain in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983287215).
 - [x] Add CI execution for the backend pytest suite on development pushes and relevant pull requests.
 - [x] Add CI checks for frontend TypeScript and production build.
-- [x] Add Alembic configuration, the initial seven-table baseline, and the follow-up source-page-reference migration; CI validates upgrade, metadata consistency, and downgrade on SQLite.
+- [x] Add Alembic configuration and four ordered revisions (initial baseline, source-page references, subject term metadata, syllabus versions/review history); CI validates upgrade, metadata consistency, and downgrade on SQLite and PostgreSQL.
 - [ ] Complete verified backup/schema comparison and baseline stamping for existing database environments. Production startup now leaves schema management to Alembic and no longer runs `Base.metadata.create_all()`; local development retains the convenience behavior.
 - [x] Require a unique 32+ character JWT secret and explicit non-local CORS origins in production; disable startup create_all in production while retaining the local-development default.
 - [ ] Add frontend interaction tests for the key authenticated flows and continue the cross-screen API error/loading/empty-state and accessibility pass.
@@ -45,7 +45,6 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Return curated quote fallbacks when the quote provider is unavailable or unconfigured, and cache successful daily quote responses for one hour.
 - [x] Add a calendar retry affordance and loading semantics; keep calendar errors local to the calendar panel.
 - [ ] Add broader empty/loading/error states across remaining screens.
-- [x] Add an in-process cache for successful daily quote responses and curated fallbacks when API Ninjas is unavailable or unconfigured. The provider remains optional.
 
 ## Explore
 
