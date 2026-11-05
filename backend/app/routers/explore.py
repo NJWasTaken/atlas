@@ -1,4 +1,5 @@
 import ipaddress
+import re
 import socket
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -148,7 +149,7 @@ def get_document_file(document_id: int, db: Session = Depends(get_db), user: Use
     document = owned_document(db, document_id, user.id)
     return Response(
         content=document.pdf_data, media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{document.filename.replace(chr(34), "")}"', "Cache-Control": "private, no-store"},
+        headers={"Content-Disposition": f'inline; filename="{re.sub(r"[^A-Za-z0-9._-]", "_", document.filename) or "document.pdf"}"', "Cache-Control": "private, no-store"},
     )
 
 
