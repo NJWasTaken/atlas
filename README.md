@@ -386,9 +386,9 @@ Explore includes a private PDF reading library for independent study.
 
 Students can upload PDFs from their device or import them from public HTTP(S) links. Atlas stores the document in the student's account so it remains available with reading progress, bookmarks, and notes.
 
-The reading workspace provides page navigation, zoom and fit controls, and a focused layout. Browser-native PDF rendering supplies text search, page thumbnails, and document outline when supported by the browser. Atlas adds a searchable document library, saved reading position, page bookmarks, and notes attached to a page. A note may include a copied passage for context.
+The reading workspace is powered by a bundled PDF.js renderer rather than the browser's built-in viewer. It provides smooth continuous scrolling, page thumbnails, PDF document outline, in-document text search, zoom, fit-to-width, fit-to-page, and a distraction-free focus mode. Atlas tracks the visible page while scrolling and persists reading progress and page bookmarks. Students can select text, save page-relative highlights, and attach notes to either a page or a selected passage.
 
-The initial reader supports PDFs up to 12 MB. Password-protected documents and scanned-document OCR are not supported. Direct in-reader highlight overlays are a later enhancement; students can currently paste a selected passage into a page-linked note.
+The initial reader supports PDFs up to 12 MB. Password-protected documents and scanned-document OCR are not supported. Highlights and notes are stored by Atlas as document annotations; they do not modify the underlying PDF file.
 
 ### 3.1 Discovery
 
