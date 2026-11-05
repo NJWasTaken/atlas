@@ -274,9 +274,44 @@ def update_progress(concept_id: int, data: ProgressUpdate, db: Session = Depends
         progress = ConceptProgress(user_id=user.id, concept_id=concept_id)
         db.add(progress)
     for key, value in data.model_dump(exclude_unset=True).items(): setattr(progress, key, value)
-    progress.last_reviewed = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
+    progress.last_reviewed = now
+    if progress.understanding == "weak" or progress.recall == "needs_practice":
+        interval_days = 2
+    elif progress.understanding == "strong" and progress.recall == "comfortable":
+        interval_days = 14
+    elif progress.understanding == "strong":
+        interval_days = 7
+    elif progress.understanding == "developing":
+        interval_days = 4
+    else:
+        interval_days = 1
+    progress.next_review_at = now + timedelta(days=interval_days)
+    db.flush()
+    db.add(ConceptReview(
+        user_id=user.id,
+        concept_id=concept_id,
+        reviewed_at=now,
+        exposure=progress.exposure,
+        understanding=progress.understanding,
+        recall=progress.recall,
+        confidence=progress.confidence,
+        notes=progress.notes,
+    ))
     db.commit(); db.refresh(progress)
     return progress
+
+
+@router.get("/concepts/{concept_id}/reviews", response_model=list[ConceptReviewOut])
+def list_concept_reviews(concept_id: int, limit: int = 20, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    owned_concept(db, concept_id, user.id)
+    safe_limit = min(max(limit, 1), 100)
+    return list(db.scalars(
+        select(ConceptReview)
+        .where(ConceptReview.user_id == user.id, ConceptReview.concept_id == concept_id)
+        .order_by(ConceptReview.reviewed_at.desc())
+        .limit(safe_limit)
+    ))
 
 @router.get("/subjects/{subject_id}/readiness")
 def subject_readiness(subject_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
