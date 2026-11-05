@@ -10,7 +10,8 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 - [x] Establish an isolated pytest/FastAPI test harness and add backend API regression tests for authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation, partial progress PATCH behavior, readiness counts, calendar-note ownership/range validation, and exam CRUD/ownership.
 - [x] Run the initial 10-test backend API suite successfully in GitHub Actions.
-- [ ] Expand backend coverage for remaining topic/concept CRUD edge cases and PostgreSQL integration before treating backend validation as complete.
+- [x] Expand backend regression coverage for topic updates, required-field validation, concept deletion, calendar-note update/delete, and exam validation/ownership.
+- [ ] Add PostgreSQL-backed integration coverage for database-specific behavior before treating backend validation as complete.
 - [ ] Add frontend tests for key user flows: login/register, subject creation, topic/concept progress, calendar note persistence, and exam create/edit/delete from both views.
 - [x] Add CI execution for the backend pytest suite on development pushes and relevant pull requests.
 - [ ] Add CI checks for frontend TypeScript/build.
