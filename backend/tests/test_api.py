@@ -245,3 +245,164 @@ def test_academic_resources_are_hidden_from_other_users(client: TestClient):
         f"/api/v1/concepts/{concept['id']}/progress", headers=other
     ).status_code == 404
 
+def test_topic_patch_updates_fields_and_rejects_null_required_values(client: TestClient):
+    headers = auth_headers(register(client, "topic-patch@example.com"))
+    subject = client.post(
+        "/api/v1/subjects", headers=headers, json={"name": "Mathematics"}
+    ).json()
+    root = client.post(
+        f"/api/v1/subjects/{subject['id']}/topics",
+        headers=headers,
+        json={"title": "Algebra"},
+    ).json()
+    child = client.post(
+        f"/api/v1/subjects/{subject['id']}/topics",
+        headers=headers,
+        json={"title": "Groups", "parent_topic_id": root["id"]},
+    ).json()
+
+    updated = client.patch(
+        f"/api/v1/topics/{child['id']}",
+        headers=headers,
+        json={"title": "Group theory", "description": "Abstract structures", "position": 2},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["title"] == "Group theory"
+    assert updated.json()["description"] == "Abstract structures"
+    assert updated.json()["position"] == 2
+
+    moved_to_root = client.patch(
+        f"/api/v1/topics/{child['id']}",
+        headers=headers,
+        json={"parent_topic_id": None},
+    )
+    assert moved_to_root.status_code == 200
+    assert moved_to_root.json()["parent_topic_id"] is None
+
+    assert client.patch(
+        f"/api/v1/topics/{child['id']}", headers=headers, json={"title": None}
+    ).status_code == 422
+    assert client.patch(
+        f"/api/v1/topics/{child['id']}", headers=headers, json={"position": None}
+    ).status_code == 422
+
+
+def test_topic_and_concept_creation_validate_required_titles(client: TestClient):
+    headers = auth_headers(register(client, "required-title@example.com"))
+    subject = client.post(
+        "/api/v1/subjects", headers=headers, json={"name": "Computer Science"}
+    ).json()
+
+    invalid_topic = client.post(
+        f"/api/v1/subjects/{subject['id']}/topics",
+        headers=headers,
+        json={"title": ""},
+    )
+    assert invalid_topic.status_code == 422
+
+    topic = client.post(
+        f"/api/v1/subjects/{subject['id']}/topics",
+        headers=headers,
+        json={"title": "Data structures"},
+    ).json()
+    invalid_concept = client.post(
+        f"/api/v1/topics/{topic['id']}/concepts",
+        headers=headers,
+        json={"title": ""},
+    )
+    assert invalid_concept.status_code == 422
+
+
+def test_concept_delete_removes_its_progress(client: TestClient):
+    headers = auth_headers(register(client, "concept-delete@example.com"))
+    subject = client.post(
+        "/api/v1/subjects", headers=headers, json={"name": "Algorithms"}
+    ).json()
+    topic = client.post(
+        f"/api/v1/subjects/{subject['id']}/topics",
+        headers=headers,
+        json={"title": "Trees"},
+    ).json()
+    concept = client.post(
+        f"/api/v1/topics/{topic['id']}/concepts",
+        headers=headers,
+        json={"title": "Binary search tree"},
+    ).json()
+    progress = client.patch(
+        f"/api/v1/concepts/{concept['id']}/progress",
+        headers=headers,
+        json={"understanding": "strong"},
+    )
+    assert progress.status_code == 200
+
+    deleted = client.delete(f"/api/v1/concepts/{concept['id']}", headers=headers)
+    assert deleted.status_code == 204
+    assert client.get(
+        f"/api/v1/concepts/{concept['id']}/progress", headers=headers
+    ).status_code == 404
+    assert client.get(
+        f"/api/v1/subjects/{subject['id']}/concepts", headers=headers
+    ).json() == []
+
+
+def test_exam_patch_rejects_null_required_fields_and_foreign_subject(client: TestClient):
+    owner = auth_headers(register(client, "exam-validation-owner@example.com"))
+    other = auth_headers(register(client, "exam-validation-other@example.com"))
+    foreign_subject = client.post(
+        "/api/v1/subjects", headers=other, json={"name": "Private subject"}
+    ).json()
+
+    rejected = client.post(
+        "/api/v1/exams",
+        headers=owner,
+        json={
+            "subject_id": foreign_subject["id"],
+            "title": "Unauthorized exam",
+            "exam_date": "2026-12-10T10:00:00",
+        },
+    )
+    assert rejected.status_code == 404
+
+    own_subject = client.post(
+        "/api/v1/subjects", headers=owner, json={"name": "Databases"}
+    ).json()
+    exam = client.post(
+        "/api/v1/exams",
+        headers=owner,
+        json={
+            "subject_id": own_subject["id"],
+            "title": "Final",
+            "exam_date": "2026-12-15T10:00:00",
+        },
+    ).json()
+
+    assert client.patch(
+        f"/api/v1/exams/{exam['id']}", headers=owner, json={"title": None}
+    ).status_code == 422
+    assert client.patch(
+        f"/api/v1/exams/{exam['id']}", headers=owner, json={"exam_date": None}
+    ).status_code == 422
+
+
+def test_calendar_note_can_be_updated_and_deleted(client: TestClient):
+    headers = auth_headers(register(client, "calendar-crud@example.com"))
+    day = date.today().isoformat()
+
+    first = client.put(
+        f"/api/v1/calendar/{day}", headers=headers, json={"note": "Read chapter 1"}
+    )
+    second = client.put(
+        f"/api/v1/calendar/{day}", headers=headers, json={"note": "Solve exercises"}
+    )
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert second.json()["note"] == "Solve exercises"
+
+    deleted = client.delete(f"/api/v1/calendar/{day}", headers=headers)
+    assert deleted.status_code == 204
+    listed = client.get(
+        f"/api/v1/calendar?start={day}&end={day}", headers=headers
+    )
+    assert listed.status_code == 200
+    assert listed.json() == []
+
