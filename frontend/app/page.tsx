@@ -80,15 +80,20 @@ export default function Home() {
     setInitialized(true);
   }, []);
   useEffect(() => { if (token) loadSubjects().catch(e => setError(e.message)); }, [token]);
-  useEffect(() => {
-    if (!token) return;
-    let live = true;
+  const loadOverview = useCallback(async () => {
     setOverviewLoading(true);
-    api<OverviewData>("/overview").then(data => { if(live) { setOverview(data); setOverviewError(""); } })
-      .catch(e => { if(live) setOverviewError(e instanceof Error ? e.message : "Could not load your learning overview"); })
-      .finally(() => { if(live) setOverviewLoading(false); });
-    return () => { live = false; };
-  }, [token]);
+    try {
+      setOverview(await api<OverviewData>("/overview"));
+      setOverviewError("");
+    } catch(e) {
+      setOverviewError(e instanceof Error ? e.message : "Could not load your learning overview");
+    } finally {
+      setOverviewLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    if (token && active === "Overview") void loadOverview();
+  }, [token, active, loadOverview]);
   useEffect(() => { if (token) void loadQuote(); }, [token, loadQuote]);
 
   async function authenticate(e: React.FormEvent) {
