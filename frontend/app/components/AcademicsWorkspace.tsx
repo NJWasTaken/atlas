@@ -343,6 +343,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
       await api<void>(`/exams/${exam.id}`,{method:"DELETE"});
       if(subjectId!==null) await loadWorkspace(subjectId);
       setNotice("Exam deleted.");
+      onOverviewRefresh?.();
     } catch(e) { setError(e instanceof Error ? e.message : "Could not delete exam."); }
     finally { setBusy(false); }
   }
