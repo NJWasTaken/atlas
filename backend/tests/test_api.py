@@ -568,3 +568,116 @@ def test_syllabus_pdf_parser_rejects_non_pdf_and_detects_page_references(monkeyp
     monkeypatch.setattr(syllabus_import, "PdfReader", lambda *_args, **_kwargs: SimpleNamespace(is_encrypted=False, pages=[FakePage("")]))
     with pytest.raises(ValueError, match="selectable text"):
         syllabus_import.parse_syllabus_pdf(b"%PDF-scanned-image-only")
+
+
+def test_subject_term_metadata_and_filtering(client: TestClient):
+    headers = auth_headers(register(client, "terms@example.com"))
+    first = client.post("/api/v1/subjects", headers=headers, json={"name": "Machine Learning", "term": "Semester 5"}).json()
+    second = client.post("/api/v1/subjects", headers=headers, json={"name": "Computer Networks", "term": "Semester 6"}).json()
+    assert first["term"] == "Semester 5"
+    assert second["term"] == "Semester 6"
+    filtered = client.get("/api/v1/subjects?term=Semester%205", headers=headers)
+    assert [subject["id"] for subject in filtered.json()] == [first["id"]]
+    updated = client.patch(f"/api/v1/subjects/{first['id']}", headers=headers, json={"term": None})
+    assert updated.status_code == 200
+    assert updated.json()["term"] is None
+
+
+def test_syllabus_versions_snapshot_current_structure_and_are_user_scoped(client: TestClient):
+    owner = auth_headers(register(client, "versions-owner@example.com"))
+    other = auth_headers(register(client, "versions-other@example.com"))
+    subject = client.post("/api/v1/subjects", headers=owner, json={"name": "Deep Learning"}).json()
+    topic = client.post(f"/api/v1/subjects/{subject['id']}/topics", headers=owner, json={"title": "Neural Networks"}).json()
+    concept = client.post(f"/api/v1/topics/{topic['id']}/concepts", headers=owner, json={"title": "Backpropagation"}).json()
+
+    created = client.post(
+        f"/api/v1/subjects/{subject['id']}/syllabus/versions",
+        headers=owner,
+        json={"version_name": "Before midterms"},
+    )
+    assert created.status_code == 201
+    version_id = created.json()["id"]
+    snapshot = client.get(
+        f"/api/v1/subjects/{subject['id']}/syllabus/versions/{version_id}",
+        headers=owner,
+    )
+    assert snapshot.status_code == 200
+    assert snapshot.json()["snapshot"]["topics"][0]["title"] == "Neural Networks"
+    assert snapshot.json()["snapshot"]["topics"][0]["concepts"][0]["id"] == concept["id"]
+    assert len(client.get(f"/api/v1/subjects/{subject['id']}/syllabus/versions", headers=owner).json()) == 1
+    assert client.get(
+        f"/api/v1/subjects/{subject['id']}/syllabus/versions",
+        headers=other,
+    ).status_code == 404
+    assert client.post(
+        f"/api/v1/subjects/{subject['id']}/syllabus/versions",
+        headers=owner,
+        json={"version_name": "   "},
+    ).status_code == 422
+
+
+def test_progress_creates_review_history_and_schedules_next_review(client: TestClient):
+    headers = auth_headers(register(client, "review-history@example.com"))
+    subject = client.post("/api/v1/subjects", headers=headers, json={"name": "Algorithms"}).json()
+    topic = client.post(f"/api/v1/subjects/{subject['id']}/topics", headers=headers, json={"title": "Graphs"}).json()
+    concept = client.post(f"/api/v1/topics/{topic['id']}/concepts", headers=headers, json={"title": "Dijkstra"}).json()
+
+    saved = client.patch(
+        f"/api/v1/concepts/{concept['id']}/progress",
+        headers=headers,
+        json={"exposure": "studied", "understanding": "weak", "recall": "needs_practice", "confidence": 2, "notes": "Need more practice"},
+    )
+    assert saved.status_code == 200
+    assert saved.json()["next_review_at"]
+    history = client.get(f"/api/v1/concepts/{concept['id']}/reviews", headers=headers)
+    assert history.status_code == 200
+    assert len(history.json()) == 1
+    assert history.json()[0]["understanding"] == "weak"
+    assert history.json()[0]["notes"] == "Need more practice"
+
+
+def test_overview_returns_real_subject_exam_review_and_activity_data(client: TestClient):
+    headers = auth_headers(register(client, "overview-data@example.com"))
+    subject = client.post("/api/v1/subjects", headers=headers, json={"name": "Operating Systems", "term": "Semester 6"}).json()
+    topic = client.post(f"/api/v1/subjects/{subject['id']}/topics", headers=headers, json={"title": "Processes"}).json()
+    concept = client.post(f"/api/v1/topics/{topic['id']}/concepts", headers=headers, json={"title": "Scheduling"}).json()
+    tomorrow = (date.today() + timedelta(days=1)).isoformat() + "T10:00:00"
+    exam = client.post(
+        "/api/v1/exams",
+        headers=headers,
+        json={"subject_id": subject["id"], "title": "Operating Systems exam", "exam_date": tomorrow},
+    )
+    assert exam.status_code == 201
+    client.patch(
+        f"/api/v1/concepts/{concept['id']}/progress",
+        headers=headers,
+        json={"exposure": "studied", "understanding": "weak", "recall": "needs_practice", "confidence": 2},
+    )
+
+    overview = client.get("/api/v1/overview", headers=headers)
+    assert overview.status_code == 200
+    payload = overview.json()
+    assert payload["subjects"][0]["term"] == "Semester 6"
+    assert payload["subjects"][0]["total_concepts"] == 1
+    assert payload["upcoming_exams"][0]["title"] == "Operating Systems exam"
+    assert payload["continue_learning"][0]["title"] == "Scheduling"
+    assert payload["recent_activity"][0]["concept_title"] == "Scheduling"
+
+
+def test_production_settings_reject_unsafe_defaults():
+    from pydantic import ValidationError
+    from app.core.config import Settings
+
+    with pytest.raises(ValidationError, match="JWT_SECRET"):
+        Settings(environment="production", create_tables_on_startup=False)
+    with pytest.raises(ValidationError, match="CREATE_TABLES_ON_STARTUP"):
+        Settings(environment="production", jwt_secret="s" * 48)
+    with pytest.raises(ValidationError, match="FRONTEND_ORIGIN"):
+        Settings(environment="production", jwt_secret="s" * 48, create_tables_on_startup=False, frontend_origin="*")
+    secure = Settings(
+        environment="production",
+        jwt_secret="s" * 48,
+        create_tables_on_startup=False,
+        frontend_origin="https://atlas.example.com,https://www.atlas.example.com",
+    )
+    assert secure.allowed_origins == ["https://atlas.example.com", "https://www.atlas.example.com"]
