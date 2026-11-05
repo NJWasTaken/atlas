@@ -10,7 +10,7 @@ The current working slice includes:
 
 - Account registration, login, and sign-out.
 - A subject list and subject creation/deletion.
-- An Academics workspace for a subject: nested topics, concepts, concept self-assessments, readiness counts, and exam management.
+- An Academics workspace for a subject: nested topics and concepts with inline renaming, concept self-assessments, readiness counts, and exam management.
 - An Overview calendar with monthly navigation, editable date notes, and exams shown on their dates. Exams can be edited or deleted from either the Academics workspace or the Overview calendar.
 - Daily and random quotations from an external API Ninjas quote service. The service requires a backend API key.
 - A dark celestial visual treatment and a reduced-motion-aware animated background.
@@ -79,11 +79,11 @@ Concept-progress updates use partial PATCH semantics: only fields explicitly sup
 | Subjects | `GET /subjects`, `POST /subjects`, `DELETE /subjects/{subject_id}` |
 | Calendar notes | `GET /calendar?start=…&end=…`, `PUT /calendar/{day}`, `DELETE /calendar/{day}` |
 | Quotes | `GET /quotes/daily`, `GET /quotes/random` |
-| Academics | Subject topic listing/creation; topic update/deletion; subject concept listing; concept creation/deletion; progress get/update; subject readiness; exam list/create/update/delete |
+| Academics | Subject topic listing/creation; topic update/deletion; subject concept listing; concept creation/update/deletion; progress get/update; subject readiness; exam list/create/update/delete |
 
 All API routes are mounted under `/api/v1` except `/health`. The calendar range is limited to 63 days. Quote endpoints require authentication and return a service error if the API Ninjas key is not configured or the provider cannot be reached.
 
-The subject endpoints do not currently include subject update, despite the broader README language describing subject CRUD. The Academics backend supports topic updates, but the current workspace UI focuses on creating/deleting topics and concepts and recording progress.
+The subject endpoints do not currently include subject update, despite the broader README language describing subject CRUD. The Academics workspace exposes inline renaming for topics and concepts. Topic and concept edits use partial PATCH requests, preserving fields not included in the request.
 
 ## Main user flows
 
@@ -93,7 +93,7 @@ The root page restores a token from local storage, shows registration/login when
 
 ### Academics
 
-`AcademicsWorkspace.tsx` loads the selected subject's topics, concepts, readiness summary, and exams. Topic nesting is represented by `parent_topic_id`. Concept progress is stored per user. Exam changes use the same persistent exam endpoints used by the Overview calendar.
+`AcademicsWorkspace.tsx` loads the selected subject's topics, concepts, readiness summary, and exams. Topic nesting is represented by `parent_topic_id`. Topics and concepts can be renamed inline; edits are saved through ownership-checked PATCH endpoints. Concept progress is stored per user. Exam changes use the same persistent exam endpoints used by the Overview calendar.
 
 ### Overview calendar
 
@@ -125,7 +125,7 @@ pip install -r requirements.txt
 python -m pytest
 ```
 
-The 15-test API suite covers authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation and updates, required-field validation, partial concept-progress PATCH behavior, readiness counts, concept deletion, calendar-note CRUD/ownership/range validation, and exam CRUD/ownership/validation. These tests provide a fast regression layer; PostgreSQL-specific integration behavior and broader remaining CRUD edge cases still need coverage. A GitHub Actions workflow runs this suite on pushes to `main` and `work/**`, and on pull requests targeting `main` when backend files change. It also validates the Alembic baseline by upgrading an empty SQLite database, checking for metadata drift, and downgrading to base. A separate frontend workflow installs the locked npm dependencies, runs TypeScript checking, and builds the production Next.js app on matching frontend changes. Both checks passed in [GitHub Actions run #41979561434](https://github.com/NJWasTaken/atlas/actions/runs/41979561434); automated frontend interaction tests have not yet been added. The initial 10-test suite passed in [GitHub Actions run #41979038349](https://github.com/NJWasTaken/atlas/actions/runs/41979038349). The expanded 15-test suite passed in [GitHub Actions run #41979455642](https://github.com/NJWasTaken/atlas/actions/runs/41979455642). PostgreSQL-backed integration coverage remains outstanding.
+The 16-test API suite covers authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation and updates, concept update/ownership/null validation, required-field validation, partial concept-progress PATCH behavior, readiness counts, concept deletion, calendar-note CRUD/ownership/range validation, and exam CRUD/ownership/validation. These tests provide a fast regression layer; PostgreSQL-specific integration behavior and broader remaining CRUD edge cases still need coverage. A GitHub Actions workflow runs this suite on pushes to `main` and `work/**`, and on pull requests targeting `main` when backend files change. It also validates the Alembic baseline by upgrading an empty SQLite database, checking for metadata drift, and downgrading to base. A separate frontend workflow installs the locked npm dependencies, runs TypeScript checking, and builds the production Next.js app on matching frontend changes. Both checks passed in [GitHub Actions run #41979561434](https://github.com/NJWasTaken/atlas/actions/runs/41979561434); automated frontend interaction tests have not yet been added. The initial 10-test suite passed in [GitHub Actions run #41979038349](https://github.com/NJWasTaken/atlas/actions/runs/41979038349). The expanded 15-test suite passed in [GitHub Actions run #41979455642](https://github.com/NJWasTaken/atlas/actions/runs/41979455642). PostgreSQL-backed integration coverage remains outstanding.
 
 ## File guide
 
