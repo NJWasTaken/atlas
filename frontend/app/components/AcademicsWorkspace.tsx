@@ -26,7 +26,7 @@ type SyllabusDraft = { file_name:string; page_count:number; extracted_characters
 
 const blankProgress: Progress = { concept_id: 0, exposure:"not_started", understanding:"not_assessed", recall:"not_assessed", confidence:null, notes:"" };
 
-export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }) {
+export default function AcademicsWorkspace({ subjects, focusSubjectId = null }: { subjects: Subject[]; focusSubjectId?: number | null }) {
   const [subjectId, setSubjectId] = useState<number | null>(subjects[0]?.id ?? null);
   const [termFilter, setTermFilter] = useState("all");
   const [versions, setVersions] = useState<SyllabusVersion[]>([]);
@@ -89,6 +89,9 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
     if (!visibleSubjects.length) { setSubjectId(null); return; }
     if (!visibleSubjects.some(s => s.id === subjectId)) setSubjectId(visibleSubjects[0].id);
   }, [visibleSubjects, subjectId]);
+  useEffect(() => {
+    if (focusSubjectId !== null && subjects.some(s => s.id === focusSubjectId)) setSubjectId(focusSubjectId);
+  }, [focusSubjectId, subjects]);
   useEffect(() => { if (subjectId !== null) void loadWorkspace(subjectId); }, [subjectId]);
 
   async function addTopic(e: React.FormEvent) {
