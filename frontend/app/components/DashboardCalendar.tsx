@@ -49,6 +49,7 @@ export default function DashboardCalendar() {
   const [saved,setSaved] = useState(false);
   const [editing,setEditing] = useState(false);
   const [error,setError] = useState("");
+  const [reload,setReload] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const first = new Date(month.getFullYear(),month.getMonth(),1);
   const selectedAnchor = new Date(selected + "T12:00:00");
@@ -73,7 +74,7 @@ export default function DashboardCalendar() {
       .catch(e => { if(live) setError(e instanceof Error ? e.message : "Calendar sync failed"); })
       .finally(() => { if(live) setLoading(false); });
     return () => { live = false; };
-  },[from,to]);
+  },[from,to,reload]);
 
   useEffect(() => {
     let live = true;
@@ -81,7 +82,7 @@ export default function DashboardCalendar() {
       .then(rows => { if(live) setExams(rows); })
       .catch(e => { if(live) setError(e instanceof Error ? e.message : "Could not load exams"); });
     return () => { live = false; };
-  },[]);
+  },[reload]);
 
   useEffect(() => { setDraft(notes[selected] ?? ""); setSaved(false); setEditing(false); },[selected,notes]);
   const selectedDate = new Date(`${selected}T12:00:00`);
@@ -237,7 +238,7 @@ export default function DashboardCalendar() {
         </div>
       </div>
       <div className="atlas-calendar-monthline"><h3>{view==="month"?month.toLocaleDateString("en-IN",{month:"long",year:"numeric"}):start.toLocaleDateString("en-IN",{day:"numeric",month:"short"}) + " – " + days[6].toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</h3><span>{loading?"SYNCING":"SYNCED"} <i className={loading?"is-syncing":""}/></span></div>
-      <div className="atlas-calendar-grid" role="grid" aria-label="Calendar">
+      <div className="atlas-calendar-grid" role="grid" aria-label="Calendar" aria-busy={loading}>
         {weekdays.map(d=><div key={d} className="atlas-calendar-weekday" role="columnheader">{d}</div>)}
         {days.map(d=>{const k=keyOf(d),hasNote=Boolean(notes[k]?.trim()),hasExam=Boolean(examsByDay[k]?.length);return <button key={k} type="button" role="gridcell" aria-pressed={selected===k} aria-label={`${d.toLocaleDateString()}${hasExam?`, ${examsByDay[k].length} exam${examsByDay[k].length===1?"":"s"}`:""}${hasNote?", has a note":""}`} onClick={()=>setSelected(k)} className={`atlas-calendar-day${d.getMonth()!==month.getMonth()?" outside":""}${selected===k?" selected":""}${k===todayKey?" today":""}${hasNote?" has-note":""}${hasExam?" has-event":""}`}><span>{d.getDate()}</span>{hasNote&&<i/>}{hasExam&&<i className="exam-dot"/>}</button>;})}
       </div>
@@ -312,7 +313,7 @@ export default function DashboardCalendar() {
         {notes[selected]&&!draft.trim()&&<button type="button" className="atlas-note-delete" onClick={()=>void save()} disabled={saving} aria-label="Delete note"><Trash2 size={14}/></button>}
         <button type="button" className="atlas-button atlas-primary atlas-note-save" onClick={()=>void save()} disabled={saving||draft.trim()===(notes[selected]??"")}>{saving?<LoaderCircle size={14} className="atlas-spin"/>:saved?<Check size={14}/>:<Save size={14}/>} {saving?"Saving":saved?"Saved":"Save note"}</button>
       </div>
-      {error&&<p className="atlas-calendar-error" role="alert">{error}</p>}
+      {error&&<p className="atlas-calendar-error" role="alert">{error}<button type="button" onClick={()=>setReload(value=>value+1)}>Try again</button></p>}
       <p className="atlas-calendar-private">Notes sync to your Atlas account and will be here when you return.</p>
     </aside>
   </section>;
