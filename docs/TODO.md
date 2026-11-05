@@ -12,6 +12,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Run the initial 10-test backend API suite successfully in GitHub Actions.
 - [x] Expand backend regression coverage for topic updates, required-field validation, concept deletion, calendar-note update/delete, and exam validation/ownership.
 - [x] Run the expanded 15-test backend API suite successfully in GitHub Actions.
+- [ ] Verify the concept-edit endpoint and 16-test API suite in GitHub Actions.
 - [ ] Add PostgreSQL-backed integration coverage for database-specific behavior before treating backend validation as complete.
 - [ ] Add frontend tests for key user flows: login/register, subject creation, topic/concept progress, calendar note persistence, and exam create/edit/delete from both views.
 - [x] Verify the frontend TypeScript check and production build pass in GitHub Actions.
@@ -25,7 +26,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 ## Academics completion
 
 - [ ] Complete subject management with edit/update support and semester/term metadata; the API currently supports listing, creating, and deleting subjects.
-- [ ] Add UI controls to rename/reorder topics and edit concepts; topic update exists in the API, but the workspace UI does not expose it.
+- [x] Add inline rename controls for topics and concepts, backed by ownership-checked partial PATCH endpoints. Reordering and richer descriptions remain future work.
 - [ ] Add syllabus editing/import workflows. Manual topic and concept entry exists, but there is no syllabus document upload or extraction.
 - [ ] Implement PDF upload and text extraction, identify headings/hierarchy, and retain page references.
 - [ ] Add a draft review/confirmation step before imported syllabus data is saved.
