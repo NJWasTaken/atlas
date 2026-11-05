@@ -75,6 +75,7 @@ class ProgressOut(ProgressUpdate):
     id: int
     concept_id: int
     last_reviewed: datetime | None
+    next_review_at: datetime | None
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
@@ -132,3 +133,28 @@ class SyllabusTopicDraft(BaseModel):
 
 class SyllabusConfirm(BaseModel):
     topics: list[SyllabusTopicDraft] = Field(min_length=1, max_length=80)
+
+
+class ConceptReviewOut(BaseModel):
+    id: int
+    concept_id: int
+    reviewed_at: datetime
+    exposure: Exposure
+    understanding: Understanding
+    recall: Recall
+    confidence: int | None
+    notes: str | None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SyllabusVersionOut(BaseModel):
+    id: int
+    subject_id: int
+    version_number: int
+    label: str
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SyllabusVersionDetail(SyllabusVersionOut):
+    snapshot: dict
