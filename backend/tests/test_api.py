@@ -457,3 +457,105 @@ def test_subject_update_is_partial_validated_and_user_scoped(client: TestClient)
     assert updated.json()["code"] == "CS301"
     assert client.patch(f"/api/v1/subjects/{subject['id']}", headers=owner, json={"name": None}).status_code == 422
     assert client.patch(f"/api/v1/subjects/{subject['id']}", headers=other, json={"name": "Hijack"}).status_code == 404
+
+
+def test_syllabus_pdf_draft_is_review_only_and_user_scoped(client: TestClient, monkeypatch):
+    owner = auth_headers(register(client, "syllabus-draft-owner@example.com"))
+    other = auth_headers(register(client, "syllabus-draft-other@example.com"))
+    subject = client.post("/api/v1/subjects", headers=owner, json={"name": "Data Structures"}).json()
+
+    parsed = {
+        "page_count": 4,
+        "extracted_characters": 420,
+        "topics": [{"title": "Trees", "source_pages": [2], "concepts": [{"title": "AVL trees", "source_pages": [3]}]}],
+        "warnings": [],
+    }
+    monkeypatch.setattr("app.routers.academics.parse_syllabus_pdf", lambda _content: parsed)
+
+    response = client.post(
+        f"/api/v1/subjects/{subject['id']}/syllabus/draft",
+        headers=owner,
+        files={"file": ("ds-syllabus.pdf", b"%PDF-mock", "application/pdf")},
+    )
+    assert response.status_code == 200
+    assert response.json()["topics"] == parsed["topics"]
+    assert client.get(f"/api/v1/subjects/{subject['id']}/topics", headers=owner).json() == []
+
+    hidden = client.post(
+        f"/api/v1/subjects/{subject['id']}/syllabus/draft",
+        headers=other,
+        files={"file": ("ds-syllabus.pdf", b"%PDF-mock", "application/pdf")},
+    )
+    assert hidden.status_code == 404
+
+    invalid_extension = client.post(
+        f"/api/v1/subjects/{subject['id']}/syllabus/draft",
+        headers=owner,
+        files={"file": ("notes.txt", b"%PDF-mock", "application/pdf")},
+    )
+    assert invalid_extension.status_code == 400
+
+
+def test_syllabus_confirm_persists_reviewed_items_and_page_references(client: TestClient):
+    headers = auth_headers(register(client, "syllabus-confirm@example.com"))
+    subject = client.post("/api/v1/subjects", headers=headers, json={"name": "Operating Systems"}).json()
+    response = client.post(
+        f"/api/v1/subjects/{subject['id']}/syllabus/confirm",
+        headers=headers,
+        json={"topics": [
+            {"title": "Processes", "source_pages": [1, 2], "concepts": [
+                {"title": "Process states", "source_pages": [2]},
+                {"title": "Context switching", "source_pages": [3]},
+            ]},
+            {"title": "Memory management", "source_pages": [8], "concepts": []},
+        ]},
+    )
+    assert response.status_code == 201
+    assert response.json()["topics_created"] == 2
+    assert response.json()["concepts_created"] == 2
+
+    topics = client.get(f"/api/v1/subjects/{subject['id']}/topics", headers=headers).json()
+    concepts = client.get(f"/api/v1/subjects/{subject['id']}/concepts", headers=headers).json()
+    assert topics[0]["source_pages"] == [1, 2]
+    assert concepts[0]["source_pages"] == [2]
+    assert [topic["title"] for topic in topics] == ["Processes", "Memory management"]
+
+
+def test_syllabus_confirm_rejects_empty_draft_and_other_users(client: TestClient):
+    owner = auth_headers(register(client, "syllabus-confirm-owner@example.com"))
+    other = auth_headers(register(client, "syllabus-confirm-other@example.com"))
+    subject = client.post("/api/v1/subjects", headers=owner, json={"name": "Networks"}).json()
+    url = f"/api/v1/subjects/{subject['id']}/syllabus/confirm"
+
+    assert client.post(url, headers=owner, json={"topics": []}).status_code == 422
+    assert client.post(url, headers=other, json={"topics": [{"title": "Hidden", "concepts": []}]}).status_code == 404
+
+
+def test_syllabus_pdf_parser_rejects_non_pdf_and_detects_page_references(monkeypatch):
+    from types import SimpleNamespace
+    from app import syllabus_import
+
+    with pytest.raises(ValueError, match="valid PDF"):
+        syllabus_import.parse_syllabus_pdf(b"not a PDF")
+
+    class FakePage:
+        def __init__(self, text):
+            self.text = text
+
+        def extract_text(self):
+            return self.text
+
+    fake_reader = SimpleNamespace(
+        is_encrypted=False,
+        pages=[
+            FakePage("UNIT I: INTRODUCTION\\n1. Overview\\n1.1 Data structures\\n- Arrays and lists"),
+            FakePage("UNIT II: TREES\\n2.1 Binary trees\\n- Traversals"),
+        ],
+    )
+    monkeypatch.setattr(syllabus_import, "PdfReader", lambda *_args, **_kwargs: fake_reader)
+    parsed = syllabus_import.parse_syllabus_pdf(b"%PDF-mocked-content")
+    assert parsed["page_count"] == 2
+    assert parsed["topics"][0]["title"] == "INTRODUCTION"
+    assert parsed["topics"][0]["source_pages"] == [1]
+    assert parsed["topics"][0]["concepts"][0] == {"title": "Overview", "source_pages": [1]}
+    assert parsed["topics"][1]["title"] == "TREES"
