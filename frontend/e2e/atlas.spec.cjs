@@ -182,15 +182,8 @@ test("student can create, edit and delete an exam from Academics and Overview", 
   await page.locator(".atlas-exam-form").getByRole("button",{name:"Add exam"}).click();
   await page.getByRole("button",{name:"Overview"}).click();
   await expect(page.getByText("Overview exam",{exact:true})).toBeVisible();
-  const examDay = new Date(examDate).toLocaleDateString();
-  await page.getByRole("gridcell",{name:new RegExp(examDay.replace(/[.*+?^${}()|[\]\\]/g,"\\  await page.getByRole("button",{name:"Overview"}).click();
-  await expect(page.getByLabel("Edit Overview exam")).toBeVisible();
-  await page.getByLabel("Edit Overview exam").click();
-  await page.getByLabel("Exam title").fill("Overview exam revised");
-  await page.getByRole("button",{name:"Save"}).click();
-  await expect(page.getByLabel("Delete Overview exam revised")).toBeVisible();
-  await page.getByLabel("Delete Overview exam revised").click();
-  await expect(page.getByText("Overview exam revised",{exact:true})).toHaveCount(0);"))}).click();
+  const examDayLabel = new Date(examDate).toLocaleDateString();
+  await page.locator(".atlas-calendar-day[aria-label^='" + examDayLabel + "']").click();
   await page.getByLabel("Edit Overview exam").click();
   await page.getByLabel("Exam title").fill("Overview exam revised");
   await page.locator(".atlas-calendar-exam-edit").getByRole("button",{name:"Save"}).click();
