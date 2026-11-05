@@ -96,8 +96,8 @@ test("student can create a subject with a term and see it in Academics", async (
   await page.getByRole("button",{name:"Save subject"}).click();
   await expect(page.getByText("Machine Learning",{exact:true})).toBeVisible();
   await page.getByRole("button",{name:"Academics"}).click();
-  await expect(page.getByText("Semester 5",{exact:true})).toBeVisible();
   await expect(page.getByLabel("FILTER BY TERM")).toBeVisible();
+  await page.getByLabel("FILTER BY TERM").selectOption({label:"Semester 5"});
 });
 
 test("student can build a chapter and concept manually, then save a review", async ({ page }) => {
