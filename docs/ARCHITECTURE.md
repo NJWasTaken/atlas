@@ -12,7 +12,7 @@ The current working slice includes:
 - A subject list with create, edit, and delete actions for subject name, course code, description, optional term, and academic year; the Overview can filter subjects by term.
 - An Academics workspace for a subject: nested topics and concepts with inline renaming, concept self-assessments, readiness counts, and exam management.
 - An Overview calendar with monthly and weekly navigation, editable date notes, and exams shown on their dates. Exams can be edited or deleted from either the Academics workspace or the Overview calendar. Calendar notes remain personal date notes; exams remain academic events.
-- Daily and random quotations from API Ninjas when configured, with a curated fallback and one-hour in-process cache for successful daily quotes so provider outages do not block the Overview.
+- Daily and random quotations from API Ninjas when configured, with curated fallbacks, per-endpoint in-process caching (daily: six hours; random: one minute), and stale-cache fallback so provider outages do not block the Overview.
 - A dark celestial visual treatment and a reduced-motion-aware animated background.
 
 Explore and My Universe are navigation destinations with placeholder content. Syllabus PDFs can be uploaded, parsed into an editable draft, and explicitly confirmed into the subject's topic/concept tree. Structural syllabus changes create version snapshots that can be inspected and restored. Concept check-ins are recorded as review history and receive a simple next-review interval based on understanding and recall. There is no OCR for scanned PDFs, adaptive spaced-repetition algorithm, personal knowledge repository, AI gateway, or data export yet.
@@ -49,11 +49,11 @@ Each protected route obtains the current user through `backend/app/security.py`.
 
 ### Persistence and schema
 
-The database URL is supplied by settings and targets PostgreSQL by default. `docker-compose.yml` runs a local PostgreSQL 16 container with a persistent named volume. Alembic revisions `0002_source_pages`, `0003_subject_term`, and `0004_syllabus_versions_reviews` add source-page metadata, subject term/year metadata, and syllabus-version/review-scheduling tables. CI validates the migration chain on SQLite and PostgreSQL.
+The database URL is supplied by settings and targets PostgreSQL by default. `docker-compose.yml` runs a local PostgreSQL 16 container with a persistent named volume. Alembic revisions `0002_source_pages` through `0005_concept_prerequisites` add source-page metadata, subject term/year metadata, syllabus-version/review-history tables, and concept prerequisite relationships. CI validates the migration chain on SQLite and PostgreSQL.
 
 Existing models use integer primary keys. Alembic revision `0001_initial` is the seven-table baseline, followed by the source-page, subject-term, and syllabus-version/review-history revisions. Production startup does not call `Base.metadata.create_all()`; migrations must be applied before the API starts. Development retains `create_all()` for local convenience. Existing databases still require a verified backup, schema comparison, and explicit Alembic stamping/upgrades before production deployment. The earlier SQLite baseline and 21-test suite passed in [run #41983287215](https://github.com/NJWasTaken/atlas/actions/runs/41983287215); the expanded PostgreSQL workflow is now configured and its result is pending.
 
-For a fresh database, run `cd backend && python -m alembic upgrade head` before starting the API. For a database already created by the old `create_all()` flow, take a verified backup and compare its schema carefully. If it matches the original seven-table baseline without the later migration columns, stamp `0001_initial` and then upgrade to head. If it already contains later migration columns/tables, stamp only the exact revision that its schema demonstrably matches. **Do not run `upgrade head` against an existing un-stamped database**: the initial migration creates tables and is not an in-place schema repair. This adoption has not been executed against any existing user database.
+For a fresh database, run `cd backend && python -m alembic upgrade head` before starting the API. For a database already created by the old `create_all()` flow, take a verified backup and compare its schema carefully. If it matches the original seven-table baseline without the later migration columns, stamp `0001_initial` and then upgrade to head. For existing databases, `python -m scripts.adopt_existing_database` performs a read-only schema check and reports the matching revision (`0001_initial` through `0005_concept_prerequisites`). It refuses partial schemas and existing Alembic version tables. Only after taking and verifying a restorable backup should an operator rerun it with `--backup-verified --apply`, then run `python -m alembic upgrade head`. The helper only stamps; it does not alter application tables. **Do not run `upgrade head` against an existing un-stamped database** without first verifying and stamping its exact schema. This adoption has not been executed against any existing user database.
 
 The current entities are:
 
@@ -85,7 +85,7 @@ Concept-progress updates use partial PATCH semantics: only fields explicitly sup
 | Academics | Topic/concept CRUD; syllabus PDF draft/confirm; version list/detail/create/restore; progress get/update; concept review history; prerequisite get/replace; exam-aware readiness; exam CRUD |
 | Overview | Authenticated recent concept activity, continue-learning candidates, revision suggestions, and upcoming exams |
 
-All API routes are mounted under `/api/v1` except `/health`. The calendar range is limited to 63 days. Quote endpoints require authentication; API Ninjas is used when configured, otherwise a curated fallback is returned. Successful daily provider responses are cached in-process for one hour.
+All API routes are mounted under `/api/v1` except `/health`. The calendar range is limited to 63 days. Quote endpoints require authentication; API Ninjas is used when configured, otherwise a curated fallback is returned. Successful provider responses are cached in-process for six hours (daily) or one minute (random); a stale cached quote is served if the provider later fails. Curated fallback quotes keep a first-time or unconfigured dashboard usable.
 
 Subject updates use a partial PATCH contract with user ownership checks. The subject modal supports name, course code, description, optional semester/term, and academic year; the Overview can filter the subject grid by term. The Academics workspace supports manual chapter/subchapter creation, contextual concept creation within a chapter, inline renaming, and PDF import as an alternative. The manual builder and importer are separate entry points; both persist through the existing topic/concept APIs. Topic and concept edits use partial PATCH requests, preserving fields not included in the request. Concept confidence uses a five-step themed choice control rather than the browser-native range slider, with reduced-motion-aware transitions and visible keyboard focus.
 
@@ -132,7 +132,7 @@ pip install -r requirements.txt
 python -m pytest
 ```
 
-The backend suite now contains 26 API tests covering authentication, ownership, academic CRUD, syllabus import/version restore, concept review history, exam-aware readiness, Overview data, calendar notes, and quote fallback; four configuration tests cover production secret/CORS validation; one PostgreSQL integration test covers JSON persistence and database constraints. The earlier 21-test SQLite suite and migration chain passed in [GitHub Actions run #41983287215](https://github.com/NJWasTaken/atlas/actions/runs/41983287215). The current workflow adds PostgreSQL 16 migration upgrade/check/downgrade validation and runs the PostgreSQL integration test; its result is pending. A GitHub Actions workflow runs backend tests on pushes to `main` and `work/**`, and relevant pull requests. A separate frontend workflow installs locked npm dependencies, runs TypeScript checking, and builds the production Next.js app. The syllabus-import UI passed the frontend checks in [GitHub Actions run #41983099966](https://github.com/NJWasTaken/atlas/actions/runs/41983099966); automated frontend interaction tests have not yet been added. The initial 10-test suite passed in [GitHub Actions run #41979038349](https://github.com/NJWasTaken/atlas/actions/runs/41979038349). The expanded 15-test suite passed in [GitHub Actions run #41979455642](https://github.com/NJWasTaken/atlas/actions/runs/41979455642). PostgreSQL-backed integration coverage remains outstanding.
+The backend suite covers API behavior, production settings, migration-adoption detection, quote caching/fallback, and PostgreSQL persistence. The PostgreSQL 16 CI service validates migration upgrade/check/downgrade and runs database-specific integration coverage. Frontend CI runs TypeScript checking, a production build, and Playwright browser flows for authentication, subject/term creation and filtering, manual syllabus construction, progress saves, weekly calendar notes, and exam create/edit/delete. The migration-adoption tests cover each supported revision and reject partial schemas; the helper has not been run against an existing user database.
 
 ## File guide
 
@@ -146,7 +146,7 @@ This list covers the tracked project source, documentation, and configuration fi
 | `.gitignore` | Excludes local environment files, dependencies, build output, caches, and other generated/local files. |
 | `docker-compose.yml` | Starts the local PostgreSQL service and named data volume. |
 | `.github/workflows/backend-tests.yml` | Runs backend tests, validates Alembic upgrade/check/downgrade on SQLite and PostgreSQL 16, and executes PostgreSQL integration coverage. |
-| `.github/workflows/frontend-checks.yml` | Runs frontend TypeScript checking and a production Next.js build. |
+| `.github/workflows/frontend-checks.yml` | Runs frontend TypeScript checking, a production Next.js build, and Playwright browser-flow tests. |
 | `README.md` | Product vision, requirements, data/API design, roadmap, setup instructions, and representative project structure. |
 
 ### `docs/`
@@ -161,6 +161,9 @@ This list covers the tracked project source, documentation, and configuration fi
 | `tests/test_api.py` | 27 API regression tests for authentication, ownership, academics, calendar, exams, quote fallback, Overview data, review history, syllabus version restore, and prerequisite graph validation. |
 | `tests/test_config.py` | Production settings validation tests. |
 | `tests/test_postgres_integration.py` | PostgreSQL-specific JSON persistence and constraint integration coverage. |
+| `scripts/adopt_existing_database.py` | Read-only existing-schema detection and guarded Alembic stamping after a verified backup. |
+| `tests/test_migration_adoption.py` | Covers legacy, source-page, subject metadata, review/version, prerequisite, and partial-schema detection. |
+| `tests/test_quotes.py` | Quote cache and stale-provider-fallback regression tests. |
 | `tests/test_postgres_integration.py` | PostgreSQL-specific JSON persistence and constraint integration coverage. |
 | `tests/test_config.py` | Production settings validation tests. |
 
@@ -192,7 +195,7 @@ This list covers the tracked project source, documentation, and configuration fi
 | `app/routers/auth.py` | Registration, login, and authenticated current-user endpoint. |
 | `app/routers/subjects.py` | Authenticated subject listing, creation, editing, and deletion. |
 | `app/routers/calendar.py` | Authenticated date-note list, upsert, and delete endpoints, including range validation. |
-| `app/routers/quotes.py` | Authenticated daily/random quote endpoints and the server-side API Ninjas client. |
+| `app/routers/quotes.py` | Authenticated daily/random quote endpoints, per-endpoint TTL caching, curated fallbacks, and stale-cache recovery. |
 | `app/routers/academics.py` | Ownership-checked topic/concept/progress/review-history/readiness/exam and syllabus version/draft/confirm/restore endpoints. |
 | `app/routers/overview.py` | User-scoped recent learning activity, continue-learning candidates, revision suggestions, and upcoming exam summary. |
 
@@ -213,7 +216,9 @@ This list covers the tracked project source, documentation, and configuration fi
 | `app/layout.tsx` | Root App Router layout; imports global styles, sets metadata, and mounts the celestial background. |
 | `app/page.tsx` | Main client page: auth state/forms, navigation, overview, subject operations, quote loading, and module composition. |
 | `app/components/AcademicsWorkspace.tsx` | Subject-level topics/concepts/progress/readiness UI and exam create/edit/delete controls. |
-| `app/components/DashboardCalendar.tsx` | Monthly Overview calendar, date-note editing, and display/edit/delete of exams on selected dates. |
+| `app/components/DashboardCalendar.tsx` | Monthly/weekly Overview calendar, date-note editing, retry states, and display/edit/delete of exams on selected dates. |
+| `e2e/atlas.spec.cjs` | Playwright browser flows for sign-in, academics, progress, calendar notes, and exam management. |
+| `playwright.config.cjs` | Chromium browser-test configuration and local Next.js test server. |
 | `app/components/CelestialBackground.tsx` | Three.js/React Three Fiber animated star-map background with reduced-motion support. |
 | `app/components/QuoteRipple.tsx` | Reusable Three.js ripple effect component; currently not mounted by the page. |
 | `lib/api.ts` | Shared frontend HTTP helper and local-storage token access. |
@@ -223,6 +228,6 @@ This list covers the tracked project source, documentation, and configuration fi
 - The application is a prototype, not yet a production deployment architecture.
 - Authentication tokens are stored in browser local storage; refresh/revocation flows are not implemented.
 - Startup `create_all()` is not a substitute for versioned database migrations. Production does not run it; local development still does. Existing database baseline adoption remains an operator task requiring a verified backup and schema comparison.
-- The backend suite now contains 26 API tests, four production-configuration tests, and one PostgreSQL integration test. GitHub Actions validates SQLite and PostgreSQL migration chains and runs the PostgreSQL service test. The expanded workflow result is pending; the earlier 21-test SQLite suite passed in CI. Frontend TypeScript/build CI is configured, but frontend interaction tests remain outstanding.
+- The backend suite includes API, configuration, quote-cache, migration-adoption, and PostgreSQL integration coverage. GitHub Actions validates the SQLite and PostgreSQL migration chains and runs Playwright browser flows after the frontend typecheck/build. The existing-database adoption helper remains an explicit operator action requiring a verified backup; it has not been run against a user database.
 - The Overview provides monthly and weekly calendar views, date notes, exam events, recent learning activity, revision nudges, and upcoming exams; it is not a general-purpose event planner.
 - Explore, My Universe, scanned-PDF OCR, adaptive spaced repetition, AI integrations, and data export remain future work.
