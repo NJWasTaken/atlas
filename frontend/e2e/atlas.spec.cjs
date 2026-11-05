@@ -112,7 +112,7 @@ test("student can create a subject with a term and see it in Academics", async (
   await page.getByRole("button",{name:/Add subject/}).first().click();
   await page.getByLabel("Subject name").fill("Machine Learning");
   await page.getByLabel("Course code").fill("CS402");
-  await page.getByPlaceholder("e.g. Semester 5 · Fall 2026").fill("Semester 5");
+  await page.getByPlaceholder("e.g. Semester 5").fill("Semester 5");
   await page.getByRole("button",{name:"Save subject"}).click();
   await expect(page.getByText("Machine Learning",{exact:true})).toBeVisible();
   await page.getByRole("button",{name:"Academics"}).click();
@@ -126,7 +126,7 @@ test("student can build a chapter and concept manually, then save a review", asy
   await page.getByRole("button",{name:/Add subject/}).first().click();
   await page.getByLabel("Subject name").fill("Algorithms");
   await page.getByRole("button",{name:"Save subject"}).click();
-  await expect(page.getByText("Algorithms",{exact:true})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"Algorithms"})).toBeVisible();
   await page.getByRole("button",{name:"Academics"}).click();
   await page.getByRole("button",{name:"Build manually"}).click();
   await page.getByLabel("Chapter or subchapter title").fill("Graph Algorithms");
@@ -148,6 +148,7 @@ test("calendar offers a weekly view and saves a day note", async ({ page }) => {
   await page.getByLabel("Edit day note").click();
   await page.getByLabel("Leave something for this day").fill("Review lecture notes");
   await page.getByRole("button",{name:"Save note"}).click();
+  await expect(page.locator(".atlas-note-save")).toBeDisabled();
   await expect(page.locator(".atlas-note-save")).toContainText("Saved");
 });
 
@@ -159,7 +160,7 @@ test("student can create, edit and delete an exam from Academics and Overview", 
   await page.getByRole("button",{name:/Add subject/}).first().click();
   await page.getByLabel("Subject name").fill("Computer Networks");
   await page.getByRole("button",{name:"Save subject"}).click();
-  await expect(page.getByText("Computer Networks",{exact:true})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"Computer Networks"})).toBeVisible();
   await page.getByRole("button",{name:"Academics"}).click();
 
   await page.getByTitle("Add exam").click();
