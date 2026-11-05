@@ -324,7 +324,8 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and pa
     const url = new URL(request.url());
     const path = url.pathname.replace("/api/v1", "");
     const method = request.method();
-    const body = method === "GET" || method === "DELETE" ? {} : request.postDataJSON?.() ?? {};
+    let body = {};
+    if (method !== "GET" && method !== "DELETE") { try { body = request.postDataJSON?.() ?? {}; } catch { body = {}; } }
     const json = data => route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(data)});
     const created = data => route.fulfill({status:201,contentType:"application/json",body:JSON.stringify(data)});
     const empty = () => route.fulfill({status:204,body:""});
