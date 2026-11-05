@@ -27,8 +27,11 @@ RANDOM_QUOTE_CATEGORIES = (
 
 
 def fetch_quote(endpoint: str) -> QuoteOutput:
+    cached = _quote_cache.get("daily") if endpoint == "quoteoftheday" else None
+    if cached and cached[0] > time.monotonic():
+        return cached[1]
     if not settings.x_api_key:
-        raise HTTPException(status_code=503, detail="Quote service is not configured")
+        return fallback_quote(endpoint == "randomquotes")
     url = f"https://api.api-ninjas.com/v2/{endpoint}"
     if endpoint == "randomquotes":
         category = random.choice(RANDOM_QUOTE_CATEGORIES)
@@ -45,21 +48,24 @@ def fetch_quote(endpoint: str) -> QuoteOutput:
             data = json.load(response)
     except HTTPError as exc:
         logger.warning("Quote provider %s request failed with HTTP %s", endpoint, exc.code)
-        raise HTTPException(
-            status_code=502,
-            detail=f"Quote provider request failed with HTTP {exc.code}",
-        ) from exc
+        return fallback_quote(endpoint == "randomquotes")
     except (URLError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError) as exc:
-        raise HTTPException(status_code=502, detail="Could not retrieve a quote") from exc
+        logger.warning("Quote provider %s is unavailable: %s", endpoint, exc)
+        return fallback_quote(endpoint == "randomquotes")
 
     if isinstance(data, list):
         data = data[0] if data else None
     if not isinstance(data, dict):
-        raise HTTPException(status_code=502, detail="Quote provider returned an invalid response")
+        logger.warning("Quote provider %s returned an invalid response", endpoint)
+        return fallback_quote(endpoint == "randomquotes")
     try:
-        return QuoteOutput.model_validate(data)
-    except ValidationError as exc:
-        raise HTTPException(status_code=502, detail="Quote provider returned an invalid response") from exc
+        result = QuoteOutput.model_validate(data)
+        if endpoint == "quoteoftheday":
+            _quote_cache["daily"] = (time.monotonic() + QUOTE_CACHE_SECONDS, result)
+        return result
+    except ValidationError:
+        logger.warning("Quote provider %s response failed validation", endpoint)
+        return fallback_quote(endpoint == "randomquotes")
 
 
 @router.get("/daily", response_model=QuoteOutput)
