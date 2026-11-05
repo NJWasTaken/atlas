@@ -8,8 +8,8 @@ import {
 import { api } from "../../lib/api";
 
 type Subject = { id: number; name: string; code?: string | null; description?: string | null };
-type Topic = { id: number; subject_id: number; parent_topic_id: number | null; title: string; description?: string | null; position: number };
-type Concept = { id: number; topic_id: number; title: string; description?: string | null; position: number };
+type Topic = { id: number; subject_id: number; parent_topic_id: number | null; title: string; description?: string | null; source_pages?: number[] | null; position: number };
+type Concept = { id: number; topic_id: number; title: string; description?: string | null; source_pages?: number[] | null; position: number };
 type Progress = {
   id?: number; concept_id: number; exposure: "not_started" | "studied";
   understanding: "not_assessed" | "weak" | "developing" | "strong";
@@ -272,6 +272,7 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
         </button>
         <Layers3 size={15} className="atlas-topic-icon"/>
         <span className="atlas-topic-title">{topic.title}</span>
+        {topic.source_pages?.length ? <span className="atlas-topic-source">p. {topic.source_pages.join(", ")}</span> : null}
         <span className="atlas-topic-count">{items.length} concepts</span>
         <button className="atlas-mini-action" onClick={()=>setAddingConcept(topic.id)} title="Add concept"><Plus size={14}/></button>
         <button className="atlas-mini-action" onClick={()=>beginItemEdit("topic",topic)} title="Rename topic" aria-label={`Rename ${topic.title}`}><Pencil size={13}/></button>
@@ -285,6 +286,7 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
         {items.map(c=><div className="atlas-concept-entry" key={c.id}>
           <div className={`atlas-concept-row ${selectedConcept?.id===c.id?"selected":""}`}>
             <button onClick={()=>void chooseConcept(c)}><Brain size={14}/><span>{c.title}</span></button>
+            {c.source_pages?.length ? <small className="atlas-concept-source">p. {c.source_pages.join(", ")}</small> : null}
             <button className="atlas-mini-action" onClick={()=>beginItemEdit("concept",c)} title="Rename concept" aria-label={`Rename ${c.title}`}><Pencil size={12}/></button>
             <button className="atlas-mini-action danger" onClick={()=>removeConcept(c.id)} title="Delete concept"><Trash2 size={12}/></button>
           </div>
@@ -305,7 +307,7 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
     {error && <div className="atlas-academics-alert"><AlertCircle size={15}/>{error}<button onClick={()=>setError("")}>Dismiss</button></div>}
     {notice && <div className="atlas-academics-notice"><Check size={15}/>{notice}<button onClick={()=>setNotice("")}>×</button></div>}
     <div className="atlas-academics-toolbar">
-      <label><span>WORKING IN</span><select value={subjectId ?? ""} onChange={e=>{setSubjectId(Number(e.target.value));setSelectedConcept(null);}}>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}{s.code?` · ${s.code}`:""}</option>)}</select></label>
+      <label><span>WORKING IN</span><select value={subjectId ?? ""} onChange={e=>{setSubjectId(Number(e.target.value));setSelectedConcept(null);setImportDraft(null);}}>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}{s.code?` · ${s.code}`:""}</option>)}</select></label>
       <div className="atlas-academics-actions"><button className="atlas-button atlas-secondary" onClick={()=>void loadWorkspace(subjectId!)}><RefreshCw size={14}/> Refresh</button><button className="atlas-button atlas-primary" onClick={()=>{setParentId(null);setAddingTopic(true);}}><Plus size={14}/> Add chapter</button></div>
     </div>
 
