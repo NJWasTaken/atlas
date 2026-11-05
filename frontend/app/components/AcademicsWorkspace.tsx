@@ -83,7 +83,7 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
         api<Exam[]>(`/exams`),
         api<SyllabusVersion[]>(`/subjects/${id}/syllabus/versions`),
       ]);
-      setTopics(nextTopics); setConcepts(nextConcepts); setReadiness(nextReadiness); setVersions(nextVersions);
+      setTopics(nextTopics); setConcepts(nextConcepts); setReadiness(nextReadiness); setExams(nextExams); setVersions(nextVersions);
       setExpanded(nextTopics.filter(t => !t.parent_topic_id).map(t => t.id));
     } catch (e) { setError(e instanceof Error ? e.message : "Could not load this subject."); }
   }
