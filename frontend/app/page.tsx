@@ -36,6 +36,7 @@ export default function Home() {
   const [subjectsLoading, setSubjectsLoading] = useState(true);
   const [subjectsError, setSubjectsError] = useState("");
   const [deletingSubjectId, setDeletingSubjectId] = useState<number | null>(null);
+  const [subjectNotice, setSubjectNotice] = useState("");
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewError, setOverviewError] = useState("");
@@ -43,6 +44,7 @@ export default function Home() {
   const [academicsFocus, setAcademicsFocus] = useState<{subjectId:number;conceptId:number}|null>(null);
   const handleAcademicsFocusHandled = useCallback(() => setAcademicsFocus(null), []);
   const [showAdd, setShowAdd] = useState(false);
+  const [modalError, setModalError] = useState("");
   const [subjectName, setSubjectName] = useState("");
   const [subjectCode, setSubjectCode] = useState("");
   const [subjectDescription, setSubjectDescription] = useState("");
@@ -127,6 +129,7 @@ export default function Home() {
   function openAddSubject() {
     setEditingSubjectId(null);
     setSubjectName(""); setSubjectCode(""); setSubjectDescription(""); setSubjectTerm(""); setSubjectYear("");
+    setModalError("");
     setShowAdd(true);
   }
   function openEditSubject(subject: Subject) {
@@ -136,27 +139,38 @@ export default function Home() {
     setSubjectDescription(subject.description ?? "");
     setSubjectTerm(subject.term ?? "");
     setSubjectYear(subject.academic_year ?? "");
+    setModalError("");
     setShowAdd(true);
   }
   async function addSubject(e: React.FormEvent) {
-    e.preventDefault(); setError(""); setBusy(true);
+    e.preventDefault();
+    setModalError("");
+    setBusy(true);
     try {
       const payload = { name: subjectName.trim(), code: subjectCode.trim() || null, description: subjectDescription.trim() || null, term: subjectTerm.trim() || null, academic_year: subjectYear.trim() || null };
-      if (editingSubjectId !== null) {
+      const editing = editingSubjectId !== null;
+      if (editing) {
         await api<Subject>(`/subjects/${editingSubjectId}`, { method: "PATCH", body: JSON.stringify(payload) });
       } else {
         await api<Subject>("/subjects", { method: "POST", body: JSON.stringify(payload) });
       }
-      setSubjectName(""); setSubjectCode(""); setSubjectDescription(""); setSubjectTerm(""); setSubjectYear(""); setEditingSubjectId(null); setShowAdd(false); await loadSubjects();
-    } catch (e) { setError(e instanceof Error ? e.message : "Could not save subject"); }
-    finally { setBusy(false); }
+      setSubjectName(""); setSubjectCode(""); setSubjectDescription(""); setSubjectTerm(""); setSubjectYear(""); setEditingSubjectId(null); setShowAdd(false);
+      setSubjectNotice(editing ? "Subject updated." : "Subject added.");
+      await loadSubjects().catch(() => {});
+    } catch (e) {
+      setModalError(e instanceof Error ? e.message : "Could not save subject");
+    } finally { setBusy(false); }
   }
   async function deleteSubject(id: number) {
+    const subject = subjects.find(item => item.id === id);
+    if (!subject || !window.confirm(`Remove "${subject.name}"? Its syllabus, concepts, progress and exam records will also be deleted.`)) return;
     setDeletingSubjectId(id);
     setError("");
+    setSubjectNotice("");
     try {
       await api<void>(`/subjects/${id}`, { method: "DELETE" });
       await loadSubjects();
+      setSubjectNotice(`"${subject.name}" was removed.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not delete subject");
     } finally {
@@ -257,7 +271,7 @@ export default function Home() {
                 <button className="atlas-round-arrow" onClick={()=>setActive("Academics")} aria-label="View academics"><ArrowUpRight size={17}/></button>
               </div>
               <div className="atlas-subject-filter"><label htmlFor="atlas-subject-filter">SHOW</label><select id="atlas-subject-filter" value={subjectFilter} onChange={e=>setSubjectFilter(e.target.value)}><option value="all">All subjects</option>{Array.from(new Set(subjects.map(s=>s.term).filter((term): term is string => Boolean(term)))).sort().map(term=><option key={term} value={term}>{term}</option>)}</select></div>
-              {subjectsError ? <div className="atlas-state-card atlas-state-error" role="alert"><div><strong>Could not load your subjects.</strong><p>{subjectsError}</p></div><button type="button" className="atlas-button atlas-secondary" onClick={()=>void loadSubjects().catch(()=>{})} disabled={subjectsLoading}>{subjectsLoading?"Trying again…":"Try again"}</button></div> : subjectsLoading ? <div className="atlas-state-card" role="status" aria-live="polite" aria-busy="true"><span className="atlas-state-spinner" aria-hidden="true"/><div><strong>Gathering your subjects…</strong><p>Your academic space will be ready in a moment.</p></div></div> : <SubjectGrid subjects={subjects.filter(s=>subjectFilter==="all"||s.term===subjectFilter)} onDelete={deleteSubject} onEdit={openEditSubject} deletingSubjectId={deletingSubjectId}/>}
+              {subjectNotice && <p className="atlas-academics-notice" role="status">{subjectNotice}<button type="button" onClick={()=>setSubjectNotice("")} aria-label="Dismiss notification">×</button></p>}{subjectsError ? <div className="atlas-state-card atlas-state-error" role="alert"><div><strong>Could not load your subjects.</strong><p>{subjectsError}</p></div><button type="button" className="atlas-button atlas-secondary" onClick={()=>void loadSubjects().catch(()=>{})} disabled={subjectsLoading}>{subjectsLoading?"Trying again…":"Try again"}</button></div> : subjectsLoading ? <div className="atlas-state-card" role="status" aria-live="polite" aria-busy="true"><span className="atlas-state-spinner" aria-hidden="true"/><div><strong>Gathering your subjects…</strong><p>Your academic space will be ready in a moment.</p></div></div> : {subjects.filter(s=>subjectFilter==="all"||s.term===subjectFilter).length===0 && subjects.length>0 ? <div className="atlas-empty-subjects"><p>No subjects match this term.</p><span>Try another term or show all your subjects.</span><button type="button" className="atlas-button atlas-secondary" onClick={()=>setSubjectFilter("all")}>Show all subjects</button></div> : <SubjectGrid subjects={subjects.filter(s=>subjectFilter==="all"||s.term===subjectFilter)} onDelete={deleteSubject} onEdit={openEditSubject} deletingSubjectId={deletingSubjectId}/>}}
               <section className="atlas-overview-learning" aria-label="Learning overview">
                 <div className="atlas-overview-section-heading"><div><p className="eyebrow">YOUR LEARNING THREAD</p><h2>Pick up where you left off</h2><p>Small steps add up. Continue from the concepts you last checked in with.</p></div></div>
                 {overview&&<div className="atlas-overview-stats"><div><span>IN YOUR SYLLABI</span><strong>{overview.learning_summary.total_concepts}</strong><small>concepts</small></div><div><span>STRONG</span><strong>{overview.learning_summary.strong}</strong><small>feeling solid</small></div><div><span>DEVELOPING</span><strong>{overview.learning_summary.developing}</strong><small>taking shape</small></div><div><span>NEEDS ATTENTION</span><strong>{overview.learning_summary.weak+overview.learning_summary.not_assessed}</strong><small>{overview.learning_summary.due_for_review} due to revisit</small></div></div>}
@@ -281,13 +295,14 @@ export default function Home() {
         </div>
       </section>
 
-      {showAdd&&<div className="atlas-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowAdd(false);}}>
-        <form onSubmit={addSubject} className="atlas-modal">
-          <div className="atlas-modal-heading"><div><p className="eyebrow">ACADEMICS</p><h2>{editingSubjectId === null ? "Add a subject" : "Edit subject"}</h2></div><button type="button" className="atlas-icon-button" onClick={()=>setShowAdd(false)} aria-label="Close"><X size={18}/></button></div>
+      {showAdd&&<div className="atlas-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setShowAdd(false);}}>
+        <form onSubmit={addSubject} className="atlas-modal" role="dialog" aria-modal="true" aria-labelledby="subject-modal-title">
+          <div className="atlas-modal-heading"><div><p className="eyebrow">ACADEMICS</p><h2 id="subject-modal-title">{editingSubjectId === null ? "Add a subject" : "Edit subject"}</h2></div><button type="button" className="atlas-icon-button" onClick={()=>setShowAdd(false)} disabled={busy} aria-label="Close"><X size={18}/></button></div>
           <label className="atlas-modal-label">Subject name<input autoFocus required value={subjectName} onChange={e=>setSubjectName(e.target.value)} placeholder="e.g. Machine Learning"/></label>
           <label className="atlas-modal-label">Course code <small>OPTIONAL</small><input value={subjectCode} onChange={e=>setSubjectCode(e.target.value)} placeholder="e.g. CS402"/></label>
           <label className="atlas-modal-label">Description <small>OPTIONAL</small><textarea rows={3} value={subjectDescription} onChange={e=>setSubjectDescription(e.target.value)} placeholder="What does this subject cover?"/></label>
           <div className="atlas-subject-term-fields"><label className="atlas-modal-label">Semester / term <small>OPTIONAL</small><input value={subjectTerm} onChange={e=>setSubjectTerm(e.target.value)} placeholder="e.g. Semester 5"/></label><label className="atlas-modal-label">Academic year <small>OPTIONAL</small><input value={subjectYear} onChange={e=>setSubjectYear(e.target.value)} placeholder="e.g. 2026–27"/></label></div>
+          {modalError && <p className="atlas-error" role="alert">{modalError}</p>}
           <button disabled={busy} className="atlas-button atlas-primary atlas-full">{busy?"Saving…":editingSubjectId === null ? "Save subject" : "Save changes"}<ArrowUpRight size={16}/></button>
         </form>
       </div>}
