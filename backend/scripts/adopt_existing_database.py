@@ -65,9 +65,14 @@ def detect_revision(engine: sa.Engine) -> str:
     if has_term != has_year:
         raise RuntimeError("Subject term/year metadata is only partially present; inspect the schema manually.")
 
-    planning_flags = {has_term, has_next_review, has_versions, has_reviews, has_prerequisites}
-    if len(planning_flags) > 1:
-        raise RuntimeError("Academic-planning schema is only partially present. Do not stamp automatically; compare the schema manually.")
+    review_flags = {has_next_review, has_versions, has_reviews}
+    if len(review_flags) > 1:
+        raise RuntimeError("Syllabus/review schema is only partially present. Do not stamp automatically; compare the schema manually.")
+    has_review_schema = all(review_flags)
+    if has_review_schema and not has_term:
+        raise RuntimeError("Syllabus/review schema exists without subject metadata; the migration chain is incomplete.")
+    if has_prerequisites and not has_review_schema:
+        raise RuntimeError("Prerequisite schema exists without syllabus/review tables; the migration chain is incomplete.")
 
     if has_versions:
         require_columns(inspector, "syllabus_versions", {"id", "subject_id", "version_number", "label", "snapshot", "created_by", "created_at"})
