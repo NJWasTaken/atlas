@@ -301,7 +301,10 @@ def update_progress(concept_id: int, data: ProgressUpdate, db: Session = Depends
     owned_concept(db, concept_id, user.id)
     progress = db.scalar(select(ConceptProgress).where(ConceptProgress.user_id == user.id, ConceptProgress.concept_id == concept_id))
     if progress is None:
-        progress = ConceptProgress(user_id=user.id, concept_id=concept_id)
+        progress = ConceptProgress(
+            user_id=user.id, concept_id=concept_id, exposure="not_started",
+            understanding="not_assessed", recall="not_assessed",
+        )
         db.add(progress)
     for key, value in data.model_dump(exclude_unset=True).items(): setattr(progress, key, value)
     reviewed_at = datetime.now(timezone.utc)
