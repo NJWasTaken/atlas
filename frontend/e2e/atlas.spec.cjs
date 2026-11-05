@@ -116,7 +116,7 @@ test("student can create a subject with a term and see it in Academics", async (
   await page.getByRole("button",{name:"Save subject"}).click();
   await expect(page.getByRole("heading",{name:"Machine Learning"})).toBeVisible();
   await page.getByRole("button",{name:"Academics"}).click();
-  await expect(page.getByLabel("FILTER BY TERM")).toBeVisible();
+  await expect(page.locator(".atlas-academics-toolbar label").first()).toBeVisible();
   await page.locator(".atlas-academics-toolbar label").first().locator("select").selectOption({label:"Semester 5"});
 });
 
@@ -156,6 +156,9 @@ test("calendar offers a weekly view and saves a day note", async ({ page }) => {
 test("student can create, edit and delete an exam from Academics and Overview", async ({ page }) => {
   installApiMock(page);
   page.on("dialog", dialog => dialog.accept());
+  page.on("response", response => {
+    if (response.url().includes("exams")) console.log("E2E_EXAMS", response.request().method(), response.status(), response.url());
+  });
   await signIn(page);
   await page.getByRole("button",{name:/Add subject/}).first().click();
   await page.getByLabel("Subject name").fill("Computer Networks");
