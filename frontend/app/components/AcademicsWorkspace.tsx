@@ -27,8 +27,8 @@ type SyllabusDraft = { file_name:string; page_count:number; extracted_characters
 
 const blankProgress: Progress = { concept_id: 0, exposure:"not_started", understanding:"not_assessed", recall:"not_assessed", confidence:null, notes:"" };
 
-export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }) {
-  const [subjectId, setSubjectId] = useState<number | null>(subjects[0]?.id ?? null);
+export default function AcademicsWorkspace({ subjects, initialSubjectId, focusConceptId, onFocusHandled }: { subjects: Subject[]; initialSubjectId?:number; focusConceptId?:number; onFocusHandled?:()=>void }) {
+  const [subjectId, setSubjectId] = useState<number | null>(initialSubjectId ?? subjects[0]?.id ?? null);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [readiness, setReadiness] = useState<Readiness | null>(null);
@@ -85,6 +85,9 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
     if (!subjects.length) { setSubjectId(null); return; }
     if (!subjects.some(s => s.id === subjectId)) setSubjectId(subjects[0].id);
   }, [subjects, subjectId]);
+  useEffect(() => {
+    if (initialSubjectId && subjects.some(s => s.id === initialSubjectId)) setSubjectId(initialSubjectId);
+  }, [initialSubjectId, subjects]);
   useEffect(() => { if (subjectId !== null) void loadWorkspace(subjectId); }, [subjectId]);
 
   async function addTopic(e: React.FormEvent) {
@@ -192,6 +195,21 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
       setReviews(history);
     } catch(e) { setError(e instanceof Error ? e.message : "Could not load progress."); }
   }
+
+  useEffect(() => {
+    if (!focusConceptId) return;
+    const concept = concepts.find(item => item.id === focusConceptId);
+    if (!concept) return;
+    const toExpand:number[] = [];
+    let topic = topics.find(item => item.id === concept.topic_id);
+    while (topic) {
+      toExpand.push(topic.id);
+      topic = topic.parent_topic_id ? topics.find(item => item.id === topic?.parent_topic_id) : undefined;
+    }
+    setExpanded(current => Array.from(new Set([...current, ...toExpand])));
+    void chooseConcept(concept);
+    onFocusHandled?.();
+  }, [focusConceptId, concepts, topics, onFocusHandled]);
 
   async function saveProgress(e: React.FormEvent) {
     e.preventDefault(); if(!selectedConcept) return;
