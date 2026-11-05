@@ -125,7 +125,7 @@ export default function Home() {
     finally { setBusy(false); }
   }
   async function deleteSubject(id: number) {
-    try { await api<void>(`/subjects/${id}`, { method: "DELETE" }); await loadSubjects(); }
+    try { await api<void>(`/subjects/${id}`, { method: "DELETE" }); await Promise.all([loadSubjects(),loadOverview()]); }
     catch (e) { setError(e instanceof Error ? e.message : "Could not delete subject"); }
   }
 
