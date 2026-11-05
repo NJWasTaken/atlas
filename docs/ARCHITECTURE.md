@@ -158,7 +158,7 @@ This list covers the tracked project source, documentation, and configuration fi
 | `TODO.md` | Ordered implementation backlog derived from the README and checked against the code currently present. |
 | `pytest.ini` | Backend pytest import path and test discovery configuration. |
 | `tests/conftest.py` | Isolated in-memory database fixture and authenticated API test helpers. |
-| `tests/test_api.py` | 26 API regression tests for authentication, ownership, academics, calendar, exams, quote fallback, Overview data, review history, and syllabus version restore. |
+| `tests/test_api.py` | 27 API regression tests for authentication, ownership, academics, calendar, exams, quote fallback, Overview data, review history, syllabus version restore, and prerequisite graph validation. |
 | `tests/test_config.py` | Production settings validation tests. |
 | `tests/test_postgres_integration.py` | PostgreSQL-specific JSON persistence and constraint integration coverage. |
 | `tests/test_postgres_integration.py` | PostgreSQL-specific JSON persistence and constraint integration coverage. |
