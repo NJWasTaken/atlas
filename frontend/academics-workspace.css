@@ -124,3 +124,40 @@
 
 .atlas-topic-source{flex:0 0 auto}
 .atlas-concept-source{margin-right:7px}
+
+
+/* Manual syllabus building and interaction polish */
+.atlas-syllabus-heading-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.atlas-manual-topic-form{margin:0 0 15px;border-color:rgba(120,199,183,.28);background:linear-gradient(135deg,rgba(18,48,57,.36),rgba(9,24,40,.82))}
+.atlas-manual-form-intro{display:grid;gap:4px}
+.atlas-manual-form-intro strong{color:#eee8dc;font:500 21px 'Cormorant Garamond',serif}
+.atlas-manual-form-intro span{color:#93a6b8;font-size:11px;line-height:1.5}
+.atlas-add-concept-form{margin:6px 4px 12px 32px;padding:12px}
+.atlas-add-concept-form input{width:100%}
+.atlas-syllabus-empty .atlas-button{margin-top:5px}
+.atlas-confidence-control{display:grid;gap:9px;padding:14px;border:1px solid rgba(133,181,229,.16);background:linear-gradient(135deg,rgba(18,38,57,.75),rgba(10,24,40,.85))}
+.atlas-confidence-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.atlas-confidence-heading label{color:#c4ced7;font-size:12px;font-weight:600}
+.atlas-confidence-value{color:var(--atlas-teal);font-size:12px;font-weight:700}
+.atlas-confidence-control>p{color:#8498ab;font-size:10px;line-height:1.5}
+.atlas-confidence-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.atlas-confidence-options button{display:grid;justify-items:center;gap:4px;min-width:0;padding:9px 3px;color:#a5b4c2;border:1px solid rgba(166,187,211,.16);background:rgba(255,255,255,.025);transition:background .2s ease,border-color .2s ease,color .2s ease,transform .2s ease}
+.atlas-confidence-options button>span{display:grid;width:25px;height:25px;place-items:center;border:1px solid rgba(166,187,211,.2);border-radius:50%;font-size:11px;font-weight:700}
+.atlas-confidence-options button small{font-size:9px}
+.atlas-confidence-options button:hover{transform:translateY(-2px);border-color:rgba(120,199,183,.42);color:#e8eee9}
+.atlas-confidence-options button.active{color:#dff4ed;border-color:rgba(120,199,183,.58);background:rgba(120,199,183,.13);box-shadow:inset 0 0 0 1px rgba(120,199,183,.12)}
+.atlas-confidence-options button.active>span{color:#08251f;border-color:var(--atlas-teal);background:var(--atlas-teal)}
+.atlas-confidence-scale{display:flex;justify-content:space-between;color:#70859a;font-size:9px}
+.atlas-academics-workspace .atlas-button,.atlas-academics-workspace .atlas-mini-action,.atlas-topic-toggle{transition:transform .18s ease,border-color .2s ease,background .2s ease,color .2s ease,box-shadow .2s ease}
+.atlas-academics-workspace .atlas-button:hover:not(:disabled){transform:translateY(-1px)}
+.atlas-academics-workspace .atlas-button:active:not(:disabled),.atlas-mini-action:active{transform:translateY(0) scale(.97)}
+.atlas-academics-workspace button:focus-visible,.atlas-academics-workspace input:focus-visible,.atlas-academics-workspace select:focus-visible,.atlas-academics-workspace textarea:focus-visible{outline:2px solid rgba(120,199,183,.78);outline-offset:2px}
+.atlas-topic-node{animation:atlas-soft-enter .32s ease both}
+.atlas-import-review,.atlas-manual-topic-form,.atlas-progress-form{animation:atlas-soft-enter .28s ease both}
+.atlas-concept-row{transition:background .2s ease,border-color .2s ease}
+.atlas-inline-form input,.atlas-inline-form select,.atlas-progress-form select,.atlas-progress-form textarea{transition:border-color .2s ease,box-shadow .2s ease}
+.atlas-inline-form input:focus,.atlas-inline-form select:focus,.atlas-progress-form select:focus,.atlas-progress-form textarea:focus{border-color:rgba(120,199,183,.55);box-shadow:0 0 0 3px rgba(120,199,183,.08);outline:none}
+.atlas-readiness-track i{transition:width .55s cubic-bezier(.2,.75,.25,1)}
+@keyframes atlas-soft-enter{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:520px){.atlas-confidence-options{gap:4px}.atlas-confidence-options button{padding:8px 1px}.atlas-confidence-options button small{font-size:8px}.atlas-add-concept-form{margin-left:10px}}
+@media(prefers-reduced-motion:reduce){.atlas-academics-workspace *, .atlas-academics-workspace *::before,.atlas-academics-workspace *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
