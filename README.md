@@ -380,6 +380,16 @@ Explore is where students can follow curiosity without needing to justify every 
 
 It should support both spontaneous discovery and structured exploration.
 
+### 3.0 PDF reading library
+
+Explore includes a private PDF reading library for independent study.
+
+Students can upload PDFs from their device or import them from public HTTP(S) links. Atlas stores the document in the student's account so it remains available with reading progress, bookmarks, and notes.
+
+The reading workspace provides page navigation, zoom and fit controls, and a focused layout. Browser-native PDF rendering supplies text search, page thumbnails, and document outline when supported by the browser. Atlas adds a searchable document library, saved reading position, page bookmarks, and notes attached to a page. A note may include a copied passage for context.
+
+The initial reader supports PDFs up to 12 MB. Password-protected documents and scanned-document OCR are not supported. Direct in-reader highlight overlays are a later enhancement; students can currently paste a selected passage into a page-linked note.
+
 ### 3.1 Discovery
 
 The discovery interface should allow students to:
