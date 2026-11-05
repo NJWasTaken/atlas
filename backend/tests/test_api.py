@@ -444,3 +444,16 @@ def test_concept_update_is_partial_validated_and_user_scoped(client: TestClient)
     assert client.patch(
         f"/api/v1/concepts/{concept['id']}", headers=other, json={"title": "Hijack"}
     ).status_code == 404
+
+
+def test_subject_update_is_partial_validated_and_user_scoped(client: TestClient):
+    owner = auth_headers(register(client, "subject-edit-owner@example.com"))
+    other = auth_headers(register(client, "subject-edit-other@example.com"))
+    subject = client.post("/api/v1/subjects", headers=owner, json={"name": "Artificial Intelligence", "code": "CS301", "description": "Old description"}).json()
+    updated = client.patch(f"/api/v1/subjects/{subject['id']}", headers=owner, json={"name": "Applied AI", "description": "Updated description"})
+    assert updated.status_code == 200
+    assert updated.json()["name"] == "Applied AI"
+    assert updated.json()["description"] == "Updated description"
+    assert updated.json()["code"] == "CS301"
+    assert client.patch(f"/api/v1/subjects/{subject['id']}", headers=owner, json={"name": None}).status_code == 422
+    assert client.patch(f"/api/v1/subjects/{subject['id']}", headers=other, json={"name": "Hijack"}).status_code == 404
