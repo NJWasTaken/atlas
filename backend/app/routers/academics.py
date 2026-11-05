@@ -341,6 +341,8 @@ def subject_readiness(subject_id: int, db: Session = Depends(get_db), user: User
     assessed = sum(counts.values())
     now = datetime.now(timezone.utc)
     upcoming_exam = db.scalar(select(Exam).where(Exam.user_id == user.id, Exam.subject_id == subject_id, Exam.exam_date >= now).order_by(Exam.exam_date).limit(1))
+    exam_at = (upcoming_exam.exam_date.replace(tzinfo=timezone.utc) if upcoming_exam and upcoming_exam.exam_date.tzinfo is None else upcoming_exam.exam_date if upcoming_exam else None)
+    days_until_exam = max(0, (exam_at - now).days) if exam_at else None
     concept_rows = db.execute(
         select(Concept, Topic, ConceptProgress)
         .join(Topic, Topic.id == Concept.topic_id)
@@ -364,8 +366,10 @@ def subject_readiness(subject_id: int, db: Session = Depends(get_db), user: User
                 "reason": reason, "next_review_at": due_at,
                 "exam_date": upcoming_exam.exam_date if upcoming_exam else None,
                 "exam_title": upcoming_exam.title if upcoming_exam else None,
+                "days_until_exam": days_until_exam,
+                "priority": "high" if days_until_exam is not None and days_until_exam <= 14 else "normal",
             })
-    items.sort(key=lambda item: (0 if item["reason"] == "needs_practice" else 1 if item["reason"] == "review_due" else 2, (item["next_review_at"].replace(tzinfo=timezone.utc) if item["next_review_at"] and item["next_review_at"].tzinfo is None else item["next_review_at"]) or now))
+    items.sort(key=lambda item: (0 if item["priority"] == "high" else 1, 0 if item["reason"] == "needs_practice" else 1 if item["reason"] == "review_due" else 2, (item["next_review_at"].replace(tzinfo=timezone.utc) if item["next_review_at"] and item["next_review_at"].tzinfo is None else item["next_review_at"]) or now))
     return {
         "subject_id": subject_id,
         "total_concepts": total,
@@ -373,7 +377,7 @@ def subject_readiness(subject_id: int, db: Session = Depends(get_db), user: User
         "developing": counts.get("developing", 0),
         "weak": counts.get("weak", 0),
         "not_assessed": total - assessed + counts.get("not_assessed", 0),
-        "next_exam": {"title": upcoming_exam.title, "exam_date": upcoming_exam.exam_date} if upcoming_exam else None,
+        "next_exam": {"title": upcoming_exam.title, "exam_date": upcoming_exam.exam_date, "days_until": days_until_exam} if upcoming_exam else None,
         "items": items[:12],
         "recommendations": [
             {"reason": "weak_understanding", "count": counts.get("weak", 0), "message": "Revisit concepts marked as weak."},
