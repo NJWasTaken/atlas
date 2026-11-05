@@ -22,7 +22,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Add Alembic configuration and five ordered revisions (initial baseline, source-page references, subject term/year metadata, syllabus versions/review history, and concept prerequisites); CI validates upgrade, metadata consistency, and downgrade on SQLite and PostgreSQL.
 - [x] Add a dry-run schema adoption helper that detects revisions `0001`–`0005`, rejects partial/incompatible schemas, and requires both `--backup-verified` and `--apply` before stamping. Production startup now leaves schema management to Alembic and no longer runs `Base.metadata.create_all()`; local development retains the convenience behavior. **Still pending per environment:** verify a restorable backup, run the helper, and apply migrations only after inspecting the detected revision.
 - [x] Require a unique 32+ character JWT secret and explicit non-local CORS origins in production; disable startup create_all in production while retaining the local-development default.
-- [x] Add frontend interaction tests for the key authenticated flows. Continue the cross-screen API error/loading/empty-state and accessibility pass.
+- [x] Add frontend interaction tests for the key authenticated flows and complete the first cross-screen mutation/error/empty-state pass: confirm destructive subject/topic/concept/exam/note actions, keep subject-save errors inside the modal, prevent modal dismissal during saves, separate calendar sync errors from failed writes, announce successful mutations, and provide clear filtered-empty states. A broader keyboard/screen-reader/responsive audit remains in Release readiness.
 
 ## Academics completion
 
@@ -48,7 +48,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Add explicit subject-list loading/error/retry states on Home, local Overview-summary loading/error feedback, Academics workspace loading/error/retry states, and an announced calendar sync state.
 - [x] Guard Academics workspace requests against out-of-order responses when switching subjects.
 - [x] Add a Playwright regression test for a transient subject-list API failure followed by a successful retry.
-- [ ] Continue the cross-screen pass for individual mutations, modal/dialog feedback, and edge-case empty states.
+- [x] Complete the first cross-screen pass for destructive-action confirmation, modal save/error handling, pending-state protection, calendar mutation feedback, and term-filter empty states. Remaining full accessibility/responsive work is tracked under Release readiness.
 
 ## Explore
 
