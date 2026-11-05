@@ -45,9 +45,9 @@ function installApiMock(page) {
       });
     }
     if (path === "/quotes/daily" || path === "/quotes/random") return json({ quote:"Curiosity is a compass.", author:"Atlas" });
-    if (path === "/exams" && method === "GET") return json(state.exams);
-    if (path === "/exams" && method === "POST") { const exam={id:nextId++,...body}; state.exams.push(exam); return created(exam); }
-    const examPath=path.match(/^\/exams\/(\d+)$/);
+    if (path.endsWith("/exams") && method === "GET") return json(state.exams);
+    if (path.endsWith("/exams") && method === "POST") { const exam={id:nextId++,...body}; state.exams.push(exam); return created(exam); }
+    const examPath=path.match(/\/exams\/(\d+)\/?$/);
     if (examPath && method === "PATCH") { const index=state.exams.findIndex(e=>e.id===Number(examPath[1])); state.exams[index]={...state.exams[index],...body}; return json(state.exams[index]); }
     if (examPath && method === "DELETE") { state.exams=state.exams.filter(e=>e.id!==Number(examPath[1])); return empty(); }
     if (path.startsWith("/calendar?") || (path === "/calendar" && method === "GET")) {
@@ -114,10 +114,10 @@ test("student can create a subject with a term and see it in Academics", async (
   await page.getByLabel("Course code").fill("CS402");
   await page.getByPlaceholder("e.g. Semester 5").fill("Semester 5");
   await page.getByRole("button",{name:"Save subject"}).click();
-  await expect(page.getByText("Machine Learning",{exact:true})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"Machine Learning"})).toBeVisible();
   await page.getByRole("button",{name:"Academics"}).click();
   await expect(page.getByLabel("FILTER BY TERM")).toBeVisible();
-  await page.getByLabel("FILTER BY TERM").selectOption({label:"Semester 5"});
+  await page.locator(".atlas-academics-toolbar label").first().locator("select").selectOption({label:"Semester 5"});
 });
 
 test("student can build a chapter and concept manually, then save a review", async ({ page }) => {
