@@ -88,7 +88,7 @@ function installApiMock(page) {
     }
     const conceptReviews = path.match(/^\/concepts\/(\d+)\/reviews$/);
     if (conceptReviews) return json(state.reviews.filter(r=>r.concept_id===Number(conceptReviews[1])));
-    const conceptPrerequisites = path.match(new RegExp("^/concepts/(\\\\d+)/prerequisites$"));
+    const conceptPrerequisites = path.startsWith("/concepts/") && path.endsWith("/prerequisites");
     if (conceptPrerequisites && method === "GET") return json([]);
     if (path.startsWith("/subjects/") && path.includes("/syllabus/versions/")) {
       const id=Number(path.split("/").pop()); const version=state.versions.find(v=>v.id===id);
