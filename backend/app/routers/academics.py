@@ -144,12 +144,37 @@ def confirm_syllabus_import(
                     source_pages=concept_draft.source_pages or None,
                 ))
                 concept_count += 1
+        save_syllabus_version(db, subject_id, user.id, "Imported syllabus")
         db.commit()
     except Exception:
         db.rollback()
         raise
     return {"subject_id": subject_id, "topics_created": topic_count, "concepts_created": concept_count}
 
+
+
+@router.post("/subjects/{subject_id}/syllabus/versions", response_model=SyllabusVersionOut, status_code=201)
+def create_syllabus_snapshot(subject_id: int, data: SyllabusVersionCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    owned_subject(db, subject_id, user.id)
+    version = save_syllabus_version(db, subject_id, user.id, data.label)
+    db.commit()
+    db.refresh(version)
+    return version
+
+
+@router.get("/subjects/{subject_id}/syllabus/versions", response_model=list[SyllabusVersionOut])
+def list_syllabus_versions(subject_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    owned_subject(db, subject_id, user.id)
+    return list(db.scalars(select(SyllabusVersion).where(SyllabusVersion.subject_id == subject_id).order_by(SyllabusVersion.version_number.desc())))
+
+
+@router.get("/subjects/{subject_id}/syllabus/versions/{version_id}", response_model=SyllabusVersionDetail)
+def get_syllabus_version(subject_id: int, version_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    owned_subject(db, subject_id, user.id)
+    version = db.scalar(select(SyllabusVersion).where(SyllabusVersion.id == version_id, SyllabusVersion.subject_id == subject_id))
+    if not version:
+        raise HTTPException(404, "Syllabus version not found")
+    return version
 
 @router.get("/subjects/{subject_id}/topics", response_model=list[TopicOut])
 def list_topics(subject_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -164,7 +189,9 @@ def create_topic(subject_id: int, data: TopicCreate, db: Session = Depends(get_d
         if parent.subject_id != subject_id:
             raise HTTPException(400, "Parent topic must belong to the same subject")
     topic = Topic(subject_id=subject_id, **data.model_dump())
-    db.add(topic); db.commit(); db.refresh(topic)
+    db.add(topic); db.flush()
+    save_syllabus_version(db, subject_id, user.id, "Chapter added")
+    db.commit(); db.refresh(topic)
     return topic
 
 @router.patch("/topics/{topic_id}", response_model=TopicOut)
@@ -183,13 +210,18 @@ def update_topic(topic_id: int, data: TopicUpdate, db: Session = Depends(get_db)
                 raise HTTPException(400, "A topic cannot be nested under one of its descendants")
             ancestor = db.get(Topic, ancestor.parent_topic_id) if ancestor.parent_topic_id else None
     for key, value in changes.items(): setattr(topic, key, value)
+    if changes:
+        save_syllabus_version(db, topic.subject_id, user.id, "Chapter updated")
     db.commit(); db.refresh(topic)
     return topic
 
 @router.delete("/topics/{topic_id}", status_code=204)
 def delete_topic(topic_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     topic = owned_topic(db, topic_id, user.id)
-    db.delete(topic); db.commit()
+    subject_id = topic.subject_id
+    db.delete(topic); db.flush()
+    save_syllabus_version(db, subject_id, user.id, "Chapter removed")
+    db.commit()
     return None
 
 @router.get("/subjects/{subject_id}/concepts", response_model=list[ConceptOut])
