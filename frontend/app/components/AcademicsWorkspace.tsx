@@ -323,7 +323,7 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
     <div className="atlas-academics-columns">
       <section className="atlas-academics-panel atlas-syllabus-panel">
         <div className="atlas-panel-heading"><div><p className="eyebrow">THE KNOWLEDGE MAP</p><h3>Chapters & concepts</h3></div><div className="atlas-syllabus-heading-actions">
-          <button type="button" className="atlas-button atlas-secondary" onClick={()=>{setImportDraft(null);setParentId(null);setTopicTitle("");setAddingTopic(true);}}><Plus size={14}/> Build manually</button>
+          <button type="button" className="atlas-button atlas-secondary" onClick={()=>{setParentId(null);setTopicTitle("");setAddingTopic(true);}}><Plus size={14}/> Build manually</button>
           <label className="atlas-button atlas-secondary atlas-upload-button"><FileUp size={14}/>{uploadingSyllabus?"Reading PDF…":"Import from PDF"}<input type="file" accept="application/pdf,.pdf" disabled={uploadingSyllabus||busy} onChange={e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value="";if(file)void uploadSyllabus(file);}}/></label>
         </div></div>
         {addingTopic && <form className="atlas-inline-form atlas-manual-topic-form" onSubmit={addTopic}>
