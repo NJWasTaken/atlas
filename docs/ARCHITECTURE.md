@@ -166,9 +166,11 @@ This list covers the tracked project source, documentation, and configuration fi
 | `app/db.py` | SQLAlchemy base, engine, session factory, and request-scoped database dependency. |
 | `migrations/env.py` | Connects Alembic to application settings and SQLAlchemy model metadata. |
 | `migrations/versions/0001_initial_schema.py` | Initial schema baseline for users, subjects, day notes, topics, concepts, progress, and exams. |
+| `migrations/versions/0002_source_pages.py` | Adds nullable JSON page-reference columns to topics and concepts. |
 | `migrations/script.py.mako` | Template for future versioned schema revisions. |
 | `app/models.py` | Core `User`, `Subject`, and `DayNote` ORM models. |
-| `app/academics_models.py` | `Topic`, `Concept`, `ConceptProgress`, and `Exam` ORM models and relationships. |
+| `app/academics_models.py` | `Topic`, `Concept`, `ConceptProgress`, and `Exam` ORM models and relationships, including imported source-page references. |
+| `app/syllabus_import.py` | Bounded PDF text extraction, conservative heading detection, warnings, and page-reference capture. |
 | `app/schemas.py` | Pydantic request/response types for authentication, quotes, subjects, and calendar notes. |
 | `app/academics_schemas.py` | Pydantic validation and response types for topics, concepts, progress, and exams. |
 | `app/security.py` | Password hashing/verification, JWT creation, and bearer-token current-user dependency. |
@@ -176,10 +178,10 @@ This list covers the tracked project source, documentation, and configuration fi
 | `app/core/config.py` | Reads backend settings from environment and `.env`, with development defaults. |
 | `app/routers/__init__.py` | Marks the router directory as a Python package. |
 | `app/routers/auth.py` | Registration, login, and authenticated current-user endpoint. |
-| `app/routers/subjects.py` | Authenticated subject listing, creation, and deletion. |
+| `app/routers/subjects.py` | Authenticated subject listing, creation, editing, and deletion. |
 | `app/routers/calendar.py` | Authenticated date-note list, upsert, and delete endpoints, including range validation. |
 | `app/routers/quotes.py` | Authenticated daily/random quote endpoints and the server-side API Ninjas client. |
-| `app/routers/academics.py` | Ownership-checked topic/concept/progress/readiness/exam operations. |
+| `app/routers/academics.py` | Ownership-checked topic/concept/progress/readiness/exam operations and syllabus draft/confirm endpoints. |
 
 ### `frontend/`
 
