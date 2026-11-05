@@ -243,6 +243,7 @@ def restore_syllabus_version(subject_id: int, version_id: int, db: Session = Dep
     ]
     desired_concept_ids = {concept_item["id"] for _, concept_item in snapshot_concepts}
 
+    concept_id_map = {}
     for topic_item, concept_item in snapshot_concepts:
         old_id = concept_item["id"]
         concept = current_concepts_by_id.get(old_id)
@@ -255,14 +256,26 @@ def restore_syllabus_version(subject_id: int, version_id: int, db: Session = Dep
                 source_pages=concept_item.get("source_pages"),
             )
             db.add(concept)
+            db.flush()
         else:
             concept.topic_id = topic_id_map[topic_item["id"]]
             concept.title = concept_item["title"]
             concept.description = concept_item.get("description")
             concept.position = concept_item.get("position", 0)
             concept.source_pages = concept_item.get("source_pages")
+        concept_id_map[old_id] = concept.id
 
     db.flush()
+    subject_concept_ids = select(Concept.id).join(Topic, Topic.id == Concept.topic_id).where(Topic.subject_id == subject_id)
+    db.execute(delete(ConceptPrerequisite).where(ConceptPrerequisite.concept_id.in_(subject_concept_ids)))
+    for _, concept_item in snapshot_concepts:
+        for prerequisite_old_id in concept_item.get("prerequisite_ids", []):
+            if prerequisite_old_id in concept_id_map:
+                db.add(ConceptPrerequisite(
+                    concept_id=concept_id_map[concept_item["id"]],
+                    prerequisite_concept_id=concept_id_map[prerequisite_old_id],
+                ))
+
     for concept in current_concepts:
         if concept.id not in desired_concept_ids:
             db.delete(concept)
