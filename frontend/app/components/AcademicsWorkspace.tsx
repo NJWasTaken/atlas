@@ -90,7 +90,7 @@ export default function AcademicsWorkspace({ subjects, focusSubjectId = null }: 
     if (!visibleSubjects.some(s => s.id === subjectId)) setSubjectId(visibleSubjects[0].id);
   }, [visibleSubjects, subjectId]);
   useEffect(() => {
-    if (focusSubjectId !== null && subjects.some(s => s.id === focusSubjectId)) setSubjectId(focusSubjectId);
+    if (focusSubjectId !== null && subjects.some(s => s.id === focusSubjectId)) { setTermFilter("all"); setSubjectId(focusSubjectId); setSelectedConcept(null); }
   }, [focusSubjectId, subjects]);
   useEffect(() => { if (subjectId !== null) void loadWorkspace(subjectId); }, [subjectId]);
 
@@ -189,7 +189,7 @@ export default function AcademicsWorkspace({ subjects, focusSubjectId = null }: 
   }
 
   async function chooseConcept(concept: Concept) {
-    setSelectedConcept(concept); setError("");
+    setSelectedConcept(concept); setReviews([]); setError("");
     try {
       const [result, history] = await Promise.all([
         api<Progress | null>(`/concepts/${concept.id}/progress`),
@@ -353,7 +353,7 @@ export default function AcademicsWorkspace({ subjects, focusSubjectId = null }: 
     {notice && <div className="atlas-academics-notice" role="status"><Check size={15}/>{notice}<button onClick={()=>setNotice("")}>×</button></div>}
     <div className="atlas-academics-toolbar">
       <label><span>FILTER BY TERM</span><select value={termFilter} onChange={e=>setTermFilter(e.target.value)}><option value="all">All terms</option>{terms.map(term=><option key={term} value={term}>{term}</option>)}</select></label>
-      <label><span>WORKING IN</span><select value={subjectId ?? ""} onChange={e=>{setSubjectId(Number(e.target.value));setSelectedConcept(null);setImportDraft(null);}}>{visibleSubjects.map(s=><option key={s.id} value={s.id}>{s.name}{s.code?` · ${s.code}`:""}</option>)}</select></label>
+      <label><span>WORKING IN</span><select value={subjectId ?? ""} onChange={e=>{setSubjectId(Number(e.target.value));setSelectedConcept(null);setImportDraft(null);setSelectedVersion(null);setReviews([]);}}>{visibleSubjects.map(s=><option key={s.id} value={s.id}>{s.name}{s.code?` · ${s.code}`:""}</option>)}</select></label>
       <div className="atlas-academics-actions"><button className="atlas-button atlas-secondary" onClick={()=>void loadWorkspace(subjectId!)}><RefreshCw size={14}/> Refresh</button><button className="atlas-button atlas-primary" onClick={()=>{setParentId(null);setAddingTopic(true);}}><Plus size={14}/> Add chapter</button></div>
     </div>
 
