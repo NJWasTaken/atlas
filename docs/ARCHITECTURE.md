@@ -123,7 +123,7 @@ pip install -r requirements.txt
 python -m pytest
 ```
 
-The initial API suite covers authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation, partial concept-progress PATCH behavior, readiness counts, calendar-note ownership/range validation, and exam CRUD/ownership. These tests provide a fast regression layer; PostgreSQL-specific integration behavior and broader remaining CRUD edge cases still need coverage. The suite has been added but has not yet been executed in this environment.
+The initial API suite covers authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation, partial concept-progress PATCH behavior, readiness counts, calendar-note ownership/range validation, and exam CRUD/ownership. These tests provide a fast regression layer; PostgreSQL-specific integration behavior and broader remaining CRUD edge cases still need coverage. A GitHub Actions workflow runs this suite on pushes to `main` and `work/**`, and on pull requests targeting `main` when backend files change. The suite has been added but has not yet been executed in this environment.
 
 ## File guide
 
@@ -145,6 +145,7 @@ This list covers the tracked project source, documentation, and configuration fi
 | `ARCHITECTURE.md` | Current implementation and file guide; this document. |
 | `MODULE_A_IMPLEMENTATION.md` | Notes for the first Academics backend slice, including endpoints, schema compatibility, and suggested next steps. Some next-slice bullets predate the current UI; use this architecture and `TODO.md` for current status. |
 | `TODO.md` | Ordered implementation backlog derived from the README and checked against the code currently present. |
+| `.github/workflows/backend-tests.yml` | Runs the backend pytest suite on development pushes and relevant pull requests. |
 | `pytest.ini` | Backend pytest import path and test discovery configuration. |
 | `tests/conftest.py` | Isolated in-memory database fixture and authenticated API test helpers. |
 | `tests/test_api.py` | Backend API regression tests for authentication, ownership, academics, calendar, and exams. |
@@ -198,6 +199,6 @@ This list covers the tracked project source, documentation, and configuration fi
 - The application is a prototype, not yet a production deployment architecture.
 - Authentication tokens are stored in browser local storage; refresh/revocation flows are not implemented.
 - Startup `create_all()` is not a substitute for versioned database migrations.
-- A pytest-based backend API suite now exists, using isolated SQLite fixtures; it has not yet been run in this environment. Frontend tests and CI workflows are still absent.
+- A pytest-based backend API suite and GitHub Actions workflow now exist; the suite has not yet been run in this environment. Frontend tests and frontend CI checks are still absent.
 - The Overview calendar currently provides a monthly grid and date notes; it is not a full event-planning system or weekly calendar.
 - Explore, My Universe, syllabus document ingestion, AI integrations, and data export remain future work.
