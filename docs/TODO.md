@@ -14,13 +14,14 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Run the expanded 15-test backend API suite successfully in GitHub Actions.
 - [x] Verify subject/concept partial-update endpoints and ownership validation in the expanded backend suite.
 - [x] Add PostgreSQL-backed integration coverage for academic JSON persistence and timezone-aware review timestamps; current branch adds a PostgreSQL service to backend CI (awaiting fresh CI result).
-- [x] Add mock-backed Playwright browser tests for sign-in, subject/term creation, manual topic/concept creation, progress save, weekly calendar navigation, and day-note persistence (awaiting fresh CI result). Exam CRUD browser coverage remains to be expanded.
+- [x] Add mock-backed Playwright browser tests for sign-in, subject/term creation and filtering, manual topic/concept creation, progress save, weekly calendar navigation, day-note persistence, and exam create/edit/delete from Academics and Overview (awaiting fresh CI result).
 - [x] Verify the syllabus-import UI TypeScript check and production build pass in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983099966).
 - [x] Verify the 21-test syllabus/backend suite and full SQLite migration chain in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983287215).
 - [x] Add CI execution for the backend pytest suite on development pushes and relevant pull requests.
 - [x] Add CI checks for frontend TypeScript and production build.
 - [x] Add Alembic configuration, the initial seven-table baseline, and the follow-up source-page-reference migration; CI validates upgrade, metadata consistency, and downgrade on SQLite.
-- [ ] Document and execute safe baseline adoption for existing databases, then switch application startup away from `Base.metadata.create_all()` once all environments are migrated.
+- [x] Add a guarded existing-database adoption helper that detects compatible `0001`, `0002`, or `0003` schemas and requires a verified-backup flag before stamping.
+- [ ] Run the adoption helper against each actual existing database after taking a verified backup, validate the migrated data, and remove the local-development `Base.metadata.create_all()` fallback only after all environments are migrated.
 - [x] Require a unique 32+ character JWT secret, explicit comma-separated CORS origins, and disabled automatic table creation in production settings; local development retains its convenience defaults.
 - [ ] Continue improving API error/loading/empty states and accessibility across all screens; this pass adds calendar retry states, quote-provider fallback messaging, and clearer Overview loading/empty content.
 
