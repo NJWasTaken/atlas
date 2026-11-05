@@ -3,6 +3,8 @@ const { test, expect } = require("@playwright/test");
 function installApiMock(page, options = {}) {
   const state = { subjects: [], topics: [], concepts: [], notes: {}, exams: [], progress: {}, reviews: [], versions: [] };
   let failSubjectsOnce = Boolean(options.failSubjectsOnce);
+  let failSubjectCreateOnce = Boolean(options.failSubjectCreateOnce);
+  let failCalendarNoteSaveOnce = Boolean(options.failCalendarNoteSaveOnce);
   let nextId = 1;
 
   page.route("**/api/v1/**", async route => {
@@ -25,9 +27,28 @@ function installApiMock(page, options = {}) {
       return json(term ? state.subjects.filter(s => s.term === term) : state.subjects);
     }
     if (path === "/subjects" && method === "POST") {
+      if (failSubjectCreateOnce) {
+        failSubjectCreateOnce = false;
+        return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ detail: "Subject save temporarily unavailable." }) });
+      }
       const subject = { id: nextId++, created_at: new Date().toISOString(), ...body };
       state.subjects.push(subject);
       return created(subject);
+    }
+    const subjectPath = path.match(/^\\/subjects\\/(\\d+)\\/?$/);
+    if (subjectPath && method === "PATCH") {
+      const index = state.subjects.findIndex(s => s.id === Number(subjectPath[1]));
+      if (index < 0) return route.fulfill({ status: 404 });
+      state.subjects[index] = { ...state.subjects[index], ...body };
+      return json(state.subjects[index]);
+    }
+    if (subjectPath && method === "DELETE") {
+      const id = Number(subjectPath[1]);
+      state.subjects = state.subjects.filter(s => s.id !== id);
+      const removedTopicIds = state.topics.filter(t => t.subject_id === id).map(t => t.id);
+      state.topics = state.topics.filter(t => t.subject_id !== id);
+      state.concepts = state.concepts.filter(concept => !removedTopicIds.includes(concept.topic_id));
+      return empty();
     }
     if (path === "/overview" && method === "GET") {
       const activity = state.reviews.map(r => ({
@@ -59,6 +80,10 @@ function installApiMock(page, options = {}) {
       return json(Object.entries(state.notes).map(([day,note])=>({day,note})).filter(row=>row.day>=url.searchParams.get("start")&&row.day<=url.searchParams.get("end")));
     }
     if (path.startsWith("/calendar/") && method === "PUT") {
+      if (failCalendarNoteSaveOnce) {
+        failCalendarNoteSaveOnce = false;
+        return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ detail: "Calendar note save temporarily unavailable." }) });
+      }
       const day = path.split("/").pop(); state.notes[day] = body.note;
       return json({ day, note:body.note, created_at:new Date().toISOString(), updated_at:new Date().toISOString() });
     }
@@ -78,6 +103,22 @@ function installApiMock(page, options = {}) {
     if (versions && method === "POST") {
       const version={id:nextId++,subject_id:Number(versions[1]),version_number:state.versions.length+1,label:body.label ?? body.version_name ?? "Automatic snapshot",created_at:new Date().toISOString(),snapshot:{topics:state.topics}};
       state.versions.push(version); return created(version);
+    }
+    const topicDelete = path.match(/^\\/topics\\/(\\d+)\\/?$/);
+    if (topicDelete && method === "DELETE") {
+      const id = Number(topicDelete[1]);
+      const topicIds = state.topics.filter(t => t.id === id || t.parent_topic_id === id).map(t => t.id);
+      state.topics = state.topics.filter(t => !topicIds.includes(t.id));
+      state.concepts = state.concepts.filter(concept => !topicIds.includes(concept.topic_id));
+      return empty();
+    }
+    const conceptDelete = path.match(/^\\/concepts\\/(\\d+)\\/?$/);
+    if (conceptDelete && method === "DELETE") {
+      const id = Number(conceptDelete[1]);
+      state.concepts = state.concepts.filter(concept => concept.id !== id);
+      delete state.progress[id];
+      state.reviews = state.reviews.filter(review => review.concept_id !== id);
+      return empty();
     }
     const topicConcepts = path.match(/^\/topics\/(\d+)\/concepts$/);
     if (topicConcepts && method === "POST") {
@@ -207,4 +248,55 @@ test("Home shows a recoverable subject loading error and retries successfully", 
   await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByText("Your map is waiting for its first pin.")).toBeVisible();
+});
+
+test("subject save errors stay visible inside the open modal", async ({ page }) => {
+  installApiMock(page, { failSubjectCreateOnce: true });
+  await signIn(page);
+  await page.getByRole("button", { name: /Add subject/ }).first().click();
+  await page.getByLabel("Subject name").fill("Distributed Systems");
+  await page.getByRole("button", { name: "Save subject" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add a subject" });
+  await expect(dialog.getByRole("alert")).toContainText("Subject save temporarily unavailable.");
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Save subject" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("status").filter({ hasText: "Subject added." })).toBeVisible();
+});
+
+test("subject deletion explains its impact and confirms before removing it", async ({ page }) => {
+  installApiMock(page);
+  await signIn(page);
+  await page.getByRole("button", { name: /Add subject/ }).first().click();
+  await page.getByLabel("Subject name").fill("Operating Systems");
+  await page.getByRole("button", { name: "Save subject" }).click();
+  await expect(page.getByRole("heading", { name: "Operating Systems" })).toBeVisible();
+  let confirmation = "";
+  page.once("dialog", async dialog => { confirmation = dialog.message(); await dialog.accept(); });
+  await page.getByRole("button", { name: "Remove" }).click();
+  expect(confirmation).toContain("syllabus, concepts, progress and exam records");
+  await expect(page.getByText("Your map is waiting for its first pin.")).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Operating Systems" })).toBeVisible();
+});
+
+test("calendar note deletion is confirmed and mutation errors do not offer a misleading sync retry", async ({ page }) => {
+  installApiMock(page, { failCalendarNoteSaveOnce: true });
+  await signIn(page);
+  await page.getByLabel("Edit day note").click();
+  await page.getByLabel("Leave something for this day").fill("Keep this note");
+  await page.getByRole("button", { name: "Save note" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Calendar note save temporarily unavailable." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry sync" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Dismiss" }).click();
+  await page.getByRole("button", { name: "Save note" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Day note saved." })).toBeVisible();
+  await page.getByLabel("Edit day note").click();
+  await page.getByLabel("Leave something for this day").fill("");
+  page.once("dialog", dialog => dialog.dismiss());
+  await page.getByRole("button", { name: "Save note" }).click();
+  await expect(page.getByLabel("Leave something for this day")).toHaveValue("");
+  await expect(page.getByText("Keep this note")).toBeVisible();
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Save note" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Day note deleted." })).toBeVisible();
 });
