@@ -1,14 +1,15 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Subject, User
-from app.academics_models import Topic, Concept, ConceptProgress, Exam
+from app.academics_models import Topic, Concept, ConceptProgress, ConceptReview, SyllabusVersion, Exam
 from app.syllabus_import import MAX_PDF_BYTES, parse_syllabus_pdf
 from app.academics_schemas import (
     TopicCreate, TopicUpdate, TopicOut, ConceptCreate, ConceptUpdate, ConceptOut,
-    ProgressUpdate, ProgressOut, ExamCreate, ExamUpdate, ExamOut, SyllabusConfirm
+    ProgressUpdate, ProgressOut, ExamCreate, ExamUpdate, ExamOut, SyllabusConfirm,
+    ConceptReviewOut, SyllabusVersionOut, SyllabusVersionDetail, SyllabusVersionCreate
 )
 from app.security import get_current_user
 
@@ -19,6 +20,56 @@ def owned_subject(db: Session, subject_id: int, user_id: int):
     if not subject:
         raise HTTPException(404, "Subject not found")
     return subject
+
+
+
+def save_syllabus_version(db: Session, subject_id: int, user_id: int, label: str):
+    topic_rows = list(db.scalars(
+        select(Topic).where(Topic.subject_id == subject_id).order_by(Topic.position, Topic.id)
+    ))
+    concept_rows = list(db.scalars(
+        select(Concept)
+        .join(Topic, Topic.id == Concept.topic_id)
+        .where(Topic.subject_id == subject_id)
+        .order_by(Concept.position, Concept.id)
+    ))
+    concepts_by_topic = {}
+    for concept in concept_rows:
+        concepts_by_topic.setdefault(concept.topic_id, []).append({
+            "id": concept.id,
+            "title": concept.title,
+            "description": concept.description,
+            "position": concept.position,
+            "source_pages": concept.source_pages,
+        })
+    snapshot = {
+        "topics": [
+            {
+                "id": topic.id,
+                "parent_topic_id": topic.parent_topic_id,
+                "title": topic.title,
+                "description": topic.description,
+                "position": topic.position,
+                "source_pages": topic.source_pages,
+                "concepts": concepts_by_topic.get(topic.id, []),
+            }
+            for topic in topic_rows
+        ]
+    }
+    latest = db.scalar(
+        select(func.max(SyllabusVersion.version_number))
+        .where(SyllabusVersion.subject_id == subject_id)
+    )
+    version = SyllabusVersion(
+        subject_id=subject_id,
+        version_number=(latest or 0) + 1,
+        label=label,
+        snapshot=snapshot,
+        created_by=user_id,
+    )
+    db.add(version)
+    return version
+
 
 def owned_topic(db: Session, topic_id: int, user_id: int):
     topic = db.scalar(select(Topic).join(Subject, Topic.subject_id == Subject.id).where(Topic.id == topic_id, Subject.user_id == user_id))
