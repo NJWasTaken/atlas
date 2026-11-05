@@ -16,10 +16,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("topics", sa.Column("source_pages", sa.JSON(), nullable=True))
-    op.add_column("concepts", sa.Column("source_pages", sa.JSON(), nullable=True))
+    inspector = sa.inspect(op.get_bind())
+    if "source_pages" not in {column["name"] for column in inspector.get_columns("topics")}:
+        op.add_column("topics", sa.Column("source_pages", sa.JSON(), nullable=True))
+    if "source_pages" not in {column["name"] for column in inspector.get_columns("concepts")}:
+        op.add_column("concepts", sa.Column("source_pages", sa.JSON(), nullable=True))
 
 
 def downgrade() -> None:
-    op.drop_column("concepts", "source_pages")
-    op.drop_column("topics", "source_pages")
+    inspector = sa.inspect(op.get_bind())
+    if "source_pages" in {column["name"] for column in inspector.get_columns("concepts")}:
+        op.drop_column("concepts", "source_pages")
+    if "source_pages" in {column["name"] for column in inspector.get_columns("topics")}:
+        op.drop_column("topics", "source_pages")
