@@ -56,6 +56,8 @@ def detect_revision(engine: sa.Engine) -> str:
         raise RuntimeError("Academic-planning schema is only partially present. Do not stamp automatically; compare the schema manually.")
 
     if all(planning_flags):
+        if not topic_pages:
+            raise RuntimeError("Academic-planning tables exist but source_pages is missing. The migration chain is incomplete; inspect manually.")
         return "0003_academic_planning"
     if topic_pages:
         return "0002_source_pages"
