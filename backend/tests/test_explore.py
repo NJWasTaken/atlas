@@ -1,0 +1,55 @@
+from io import BytesIO
+from pypdf import PdfWriter
+
+from tests.conftest import register, auth_headers
+
+
+def sample_pdf():
+    writer = PdfWriter()
+    writer.add_blank_page(width=612, height=792)
+    output = BytesIO()
+    writer.write(output)
+    return output.getvalue()
+
+
+def test_upload_list_progress_and_delete_document(client):
+    token = register(client, "reader@example.com")
+    headers = auth_headers(token)
+    response = client.post("/api/v1/explore/documents", headers=headers, files={"file": ("notes.pdf", sample_pdf(), "application/pdf")})
+    assert response.status_code == 201
+    document = response.json()
+    assert document["page_count"] == 1
+    assert document["title"] == "notes"
+    assert client.get(f"/api/v1/explore/documents/{document['id']}/file", headers=headers).content.startswith(b"%PDF-")
+    assert client.patch(f"/api/v1/explore/documents/{document['id']}", headers=headers, json={"last_page": 2}).status_code == 422
+    updated = client.patch(f"/api/v1/explore/documents/{document['id']}", headers=headers, json={"last_page": 1})
+    assert updated.status_code == 200
+    assert updated.json()["last_page"] == 1
+    assert len(client.get("/api/v1/explore/documents", headers=headers).json()) == 1
+    assert client.delete(f"/api/v1/explore/documents/{document['id']}", headers=headers).status_code == 204
+    assert client.get("/api/v1/explore/documents", headers=headers).json() == []
+
+
+def test_bookmarks_and_annotations_are_document_scoped(client):
+    token = register(client, "reader-notes@example.com")
+    headers = auth_headers(token)
+    created = client.post("/api/v1/explore/documents", headers=headers, files={"file": ("paper.pdf", sample_pdf(), "application/pdf")}).json()
+    document_id = created["id"]
+    bookmark = client.post(f"/api/v1/explore/documents/{document_id}/bookmarks", headers=headers, json={"page_number": 1, "label": "Important"})
+    assert bookmark.status_code == 201
+    assert client.post(f"/api/v1/explore/documents/{document_id}/bookmarks", headers=headers, json={"page_number": 1, "label": "Updated"}).json()["label"] == "Updated"
+    annotation = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "selected_text": "A useful passage", "note": "Revisit this"})
+    assert annotation.status_code == 201
+    assert client.get(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers).json()[0]["selected_text"] == "A useful passage"
+    other = register(client, "other-reader@example.com")
+    assert client.get(f"/api/v1/explore/documents/{document_id}/file", headers=auth_headers(other)).status_code == 404
+    assert client.delete(f"/api/v1/explore/documents/{document_id}/bookmarks/{bookmark.json()['id']}", headers=auth_headers(other)).status_code == 404
+
+
+def test_reject_invalid_pdf_and_non_pdf_upload(client):
+    token = register(client, "invalid-reader@example.com")
+    headers = auth_headers(token)
+    invalid = client.post("/api/v1/explore/documents", headers=headers, files={"file": ("fake.pdf", b"not a pdf", "application/pdf")})
+    assert invalid.status_code == 422
+    wrong_extension = client.post("/api/v1/explore/documents", headers=headers, files={"file": ("notes.txt", b"hello", "text/plain")})
+    assert wrong_extension.status_code == 400
