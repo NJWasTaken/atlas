@@ -27,6 +27,7 @@ class Concept(Base):
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     topic = relationship("Topic", back_populates="concepts")
     progress = relationship("ConceptProgress", cascade="all, delete-orphan", back_populates="concept")
+    reviews = relationship("ConceptReview", cascade="all, delete-orphan", back_populates="concept")
 
 class ConceptProgress(Base):
     __tablename__ = "concept_progress"
@@ -80,3 +81,4 @@ class ConceptReview(Base):
     recall: Mapped[str] = mapped_column(String(20), nullable=False)
     confidence: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    concept = relationship("Concept", back_populates="reviews")
