@@ -727,22 +727,33 @@ def test_syllabus_versions_capture_changes_and_can_be_restored(client: TestClien
         headers=headers,
         json={"title": "Processes"},
     ).json()
-    concept = client.post(
-        f"/api/v1/topics/{topic['id']}/concepts",
+    child = client.post(
+        f"/api/v1/subjects/{subject['id']}/topics",
         headers=headers,
-        json={"title": "Process states"},
+        json={"title": "Process states", "parent_topic_id": topic["id"]},
+    ).json()
+    concept = client.post(
+        f"/api/v1/topics/{child['id']}/concepts",
+        headers=headers,
+        json={"title": "Ready and running"},
     ).json()
 
     versions = client.get(f"/api/v1/subjects/{subject['id']}/syllabus/versions", headers=headers)
     assert versions.status_code == 200
-    assert [item["version_number"] for item in versions.json()] == [2, 1]
-    baseline = versions.json()[-1]
+    assert [item["version_number"] for item in versions.json()] == [3, 2, 1]
     detail = client.get(
         f"/api/v1/subjects/{subject['id']}/syllabus/versions/{versions.json()[0]['id']}",
         headers=headers,
     )
     assert detail.status_code == 200
-    assert detail.json()["snapshot"]["topics"][0]["concepts"][0]["title"] == "Process states"
+    snapshot_topics = detail.json()["snapshot"]["topics"]
+    assert any(item["title"] == "Process states" and item["concepts"][0]["title"] == "Ready and running" for item in snapshot_topics)
+
+    other = auth_headers(register(client, "syllabus-versions-other@example.com"))
+    assert client.get(
+        f"/api/v1/subjects/{subject['id']}/syllabus/versions/{versions.json()[0]['id']}",
+        headers=other,
+    ).status_code == 404
 
     client.patch(
         f"/api/v1/concepts/{concept['id']}",
@@ -755,5 +766,9 @@ def test_syllabus_versions_capture_changes_and_can_be_restored(client: TestClien
     )
     assert restored.status_code == 200
     current = client.get(f"/api/v1/subjects/{subject['id']}/concepts", headers=headers)
-    assert current.json()[0]["title"] == "Process states"
-    assert len(client.get(f"/api/v1/subjects/{subject['id']}/syllabus/versions", headers=headers).json()) == 5
+    assert current.json()[0]["title"] == "Ready and running"
+    restored_topics = client.get(f"/api/v1/subjects/{subject['id']}/topics", headers=headers).json()
+    restored_child = next(item for item in restored_topics if item["title"] == "Process states")
+    restored_parent = next(item for item in restored_topics if item["title"] == "Processes")
+    assert restored_child["parent_topic_id"] == restored_parent["id"]
+    assert len(client.get(f"/api/v1/subjects/{subject['id']}/syllabus/versions", headers=headers).json()) == 6
