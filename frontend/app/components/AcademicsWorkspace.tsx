@@ -26,7 +26,7 @@ type SyllabusDraft = { file_name:string; page_count:number; extracted_characters
 
 const blankProgress: Progress = { concept_id: 0, exposure:"not_started", understanding:"not_assessed", recall:"not_assessed", confidence:null, notes:"" };
 
-export default function AcademicsWorkspace({ subjects, focusSubjectId = null }: { subjects: Subject[]; focusSubjectId?: number | null }) {
+export default function AcademicsWorkspace({ subjects, focusSubjectId = null, onOverviewRefresh }: { subjects: Subject[]; focusSubjectId?: number | null; onOverviewRefresh?: () => void }) {
   const [subjectId, setSubjectId] = useState<number | null>(subjects[0]?.id ?? null);
   const [termFilter, setTermFilter] = useState("all");
   const [versions, setVersions] = useState<SyllabusVersion[]>([]);
@@ -82,6 +82,7 @@ export default function AcademicsWorkspace({ subjects, focusSubjectId = null }: 
       setTopics(nextTopics); setConcepts(nextConcepts); setReadiness(nextReadiness);
       setExams(nextExams.filter(e => e.subject_id === id)); setVersions(nextVersions);
       setExpanded(nextTopics.filter(t => !t.parent_topic_id).map(t => t.id));
+      onOverviewRefresh?.();
     } catch (e) { setError(e instanceof Error ? e.message : "Could not load this subject."); }
   }
 
