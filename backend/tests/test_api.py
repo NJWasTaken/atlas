@@ -668,14 +668,17 @@ def test_production_settings_reject_unsafe_defaults():
     from pydantic import ValidationError
     from app.core.config import Settings
 
+    with pytest.raises(ValidationError, match="DATABASE_URL"):
+        Settings(environment="production", jwt_secret="s" * 48, create_tables_on_startup=False)
     with pytest.raises(ValidationError, match="JWT_SECRET"):
-        Settings(environment="production", create_tables_on_startup=False)
+        Settings(environment="production", database_url="postgresql+psycopg://atlas:secure@db.example.com/atlas", create_tables_on_startup=False)
     with pytest.raises(ValidationError, match="CREATE_TABLES_ON_STARTUP"):
-        Settings(environment="production", jwt_secret="s" * 48)
+        Settings(environment="production", database_url="postgresql+psycopg://atlas:secure@db.example.com/atlas", jwt_secret="s" * 48)
     with pytest.raises(ValidationError, match="FRONTEND_ORIGIN"):
-        Settings(environment="production", jwt_secret="s" * 48, create_tables_on_startup=False, frontend_origin="*")
+        Settings(environment="production", database_url="postgresql+psycopg://atlas:secure@db.example.com/atlas", jwt_secret="s" * 48, create_tables_on_startup=False, frontend_origin="*")
     secure = Settings(
         environment="production",
+        database_url="postgresql+psycopg://atlas:secure@db.example.com/atlas",
         jwt_secret="s" * 48,
         create_tables_on_startup=False,
         frontend_origin="https://atlas.example.com,https://www.atlas.example.com",
