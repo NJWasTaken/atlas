@@ -24,12 +24,26 @@ function installApiMock(page) {
       state.subjects.push(subject);
       return created(subject);
     }
-    if (path === "/overview" && method === "GET") return json({
-      subjects: state.subjects.map(s => ({ subject_id:s.id, subject_name:s.name, term:s.term, total_concepts:state.concepts.length, assessed_concepts:Object.keys(state.progress).length })),
-      upcoming_exams: state.exams,
-      continue_learning: state.concepts.map(c => ({ concept_id:c.id, title:c.title, topic_title:"Chapter", subject_id:1, subject_name:state.subjects[0]?.name ?? "Subject", reason:"not_assessed", next_review_at:null })),
-      recent_activity: state.reviews.map(r => ({ concept_title:state.concepts.find(c=>c.id===r.concept_id)?.title ?? "Concept", subject_name:state.subjects[0]?.name ?? "Subject", reviewed_at:r.reviewed_at, understanding:r.understanding, recall:r.recall })),
-    });
+    if (path === "/overview" && method === "GET") {
+      const activity = state.reviews.map(r => ({
+        concept_id:r.concept_id,
+        concept_title:state.concepts.find(c=>c.id===r.concept_id)?.title ?? "Concept",
+        topic_title:"Chapter",
+        subject_id:state.topics.find(t=>t.id===state.concepts.find(c=>c.id===r.concept_id)?.topic_id)?.subject_id ?? 1,
+        subject_name:state.subjects[0]?.name ?? "Subject",
+        understanding:r.understanding,
+        recall:r.recall,
+        last_reviewed:r.reviewed_at,
+      }));
+      const upcoming = state.exams.map(e => ({...e,subject_name:state.subjects.find(s=>s.id===e.subject_id)?.name ?? "Subject",days_until:0}));
+      return json({
+        learning_summary:{total_concepts:state.concepts.length,strong:0,developing:0,weak:0,not_assessed:state.concepts.length,due_for_review:0},
+        recent_activity:activity,
+        continue_learning:activity,
+        revision_suggestions:state.concepts.map(c=>({concept_id:c.id,concept_title:c.title,topic_title:"Chapter",subject_id:1,subject_name:state.subjects[0]?.name ?? "Subject",reason:["not_assessed"],priority:1,days_until_exam:null,exam_title:null})),
+        upcoming_exams:upcoming,
+      });
+    }
     if (path === "/quotes/daily" || path === "/quotes/random") return json({ quote:"Curiosity is a compass.", author:"Atlas" });
     if (path === "/exams" && method === "GET") return json(state.exams);
     if (path === "/exams" && method === "POST") { const exam={id:nextId++,...body}; state.exams.push(exam); return created(exam); }
@@ -57,7 +71,7 @@ function installApiMock(page) {
     const versions = path.match(/^\/subjects\/(\d+)\/syllabus\/versions$/);
     if (versions && method === "GET") return json(state.versions.filter(v=>v.subject_id===Number(versions[1])));
     if (versions && method === "POST") {
-      const version={id:nextId++,subject_id:Number(versions[1]),version_name:body.version_name,created_at:new Date().toISOString(),snapshot:{topics:state.topics}};
+      const version={id:nextId++,subject_id:Number(versions[1]),version_number:state.versions.length+1,label:body.label ?? body.version_name ?? "Automatic snapshot",created_at:new Date().toISOString(),snapshot:{topics:state.topics}};
       state.versions.push(version); return created(version);
     }
     const topicConcepts = path.match(/^\/topics\/(\d+)\/concepts$/);
@@ -74,6 +88,8 @@ function installApiMock(page) {
     }
     const conceptReviews = path.match(/^\/concepts\/(\d+)\/reviews$/);
     if (conceptReviews) return json(state.reviews.filter(r=>r.concept_id===Number(conceptReviews[1])));
+    const conceptPrerequisites = path.match(/^\\/concepts\\/(\\d+)\\/prerequisites$/);
+    if (conceptPrerequisites && method === "GET") return json([]);
     if (path.startsWith("/subjects/") && path.includes("/syllabus/versions/")) {
       const id=Number(path.split("/").pop()); const version=state.versions.find(v=>v.id===id);
       return json(version ?? {});
