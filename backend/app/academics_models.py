@@ -12,7 +12,8 @@ class Topic(Base):
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    children = relationship("Topic", cascade="all, delete-orphan", single_parent=True)
+    parent = relationship("Topic", remote_side="Topic.id", back_populates="children")
+    children = relationship("Topic", back_populates="parent", cascade="all, delete-orphan")
     concepts = relationship("Concept", cascade="all, delete-orphan", back_populates="topic")
 
 class Concept(Base):

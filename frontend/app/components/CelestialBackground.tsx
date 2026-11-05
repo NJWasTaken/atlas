@@ -172,12 +172,16 @@ function ShootingStar({ reducedMotion }: { reducedMotion: boolean }) {
   return (
     <group ref={streak} visible={false}>
       <mesh>
-        <sphereGeometry args={[0.035, 8, 8]} />
+        <sphereGeometry args={[0.045, 12, 12]} />
         <meshBasicMaterial color="#f5e6c8" />
       </mesh>
-      <mesh position={[-0.28, 0.08, 0]}>
-        <boxGeometry args={[0.72, 0.012, 0.008]} />
-        <meshBasicMaterial color="#c8aa72" transparent opacity={0.58} />
+      <mesh position={[-0.46, 0, 0]}>
+        <boxGeometry args={[0.92, 0.024, 0.008]} />
+        <meshBasicMaterial color="#c8aa72" transparent opacity={0.24} depthWrite={false} />
+      </mesh>
+      <mesh position={[-0.36, 0, 0.004]}>
+        <boxGeometry args={[0.72, 0.009, 0.008]} />
+        <meshBasicMaterial color="#f5e6c8" transparent opacity={0.72} depthWrite={false} />
       </mesh>
     </group>
   );

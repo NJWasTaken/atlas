@@ -1,0 +1,228 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  BookOpen, ChevronDown, ChevronRight, Plus, Trash2, Brain, Target,
+  CalendarDays, RefreshCw, Check, AlertCircle, Layers3, Sparkles
+} from "lucide-react";
+import { api } from "../../lib/api";
+
+type Subject = { id: number; name: string; code?: string | null; description?: string | null };
+type Topic = { id: number; subject_id: number; parent_topic_id: number | null; title: string; description?: string | null; position: number };
+type Concept = { id: number; topic_id: number; title: string; description?: string | null; position: number };
+type Progress = {
+  id?: number; concept_id: number; exposure: "not_started" | "studied";
+  understanding: "not_assessed" | "weak" | "developing" | "strong";
+  recall: "not_assessed" | "needs_practice" | "comfortable";
+  confidence: number | null; notes: string | null; last_reviewed?: string | null;
+};
+type Readiness = { subject_id: number; total_concepts: number; strong: number; developing: number; weak: number; not_assessed: number; recommendations: {reason:string;count:number;message:string}[] };
+type Exam = { id:number; subject_id:number; title:string; exam_date:string };
+
+const blankProgress: Progress = { concept_id: 0, exposure:"not_started", understanding:"not_assessed", recall:"not_assessed", confidence:null, notes:"" };
+
+export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }) {
+  const [subjectId, setSubjectId] = useState<number | null>(subjects[0]?.id ?? null);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [concepts, setConcepts] = useState<Concept[]>([]);
+  const [readiness, setReadiness] = useState<Readiness | null>(null);
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [selectedConcept, setSelectedConcept] = useState<Concept | null>(null);
+  const [progress, setProgress] = useState<Progress>(blankProgress);
+  const [expanded, setExpanded] = useState<number[]>([]);
+  const [topicTitle, setTopicTitle] = useState("");
+  const [conceptTitle, setConceptTitle] = useState("");
+  const [examTitle, setExamTitle] = useState("End-semester examination");
+  const [examDate, setExamDate] = useState("");
+  const [parentId, setParentId] = useState<number | null>(null);
+  const [addingTopic, setAddingTopic] = useState(false);
+  const [addingConcept, setAddingConcept] = useState<number | null>(null);
+  const [addingExam, setAddingExam] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const subject = subjects.find(s => s.id === subjectId) ?? null;
+  const topicMap = useMemo(() => new Map(topics.map(t => [t.id, t])), [topics]);
+  const conceptsByTopic = useMemo(() => {
+    const map = new Map<number, Concept[]>();
+    concepts.forEach(c => map.set(c.topic_id, [...(map.get(c.topic_id) ?? []), c]));
+    return map;
+  }, [concepts]);
+  const roots = topics.filter(t => !t.parent_topic_id);
+
+  async function loadWorkspace(id: number) {
+    setError("");
+    try {
+      const [nextTopics, nextConcepts, nextReadiness, nextExams] = await Promise.all([
+        api<Topic[]>(`/subjects/${id}/topics`),
+        api<Concept[]>(`/subjects/${id}/concepts`),
+        api<Readiness>(`/subjects/${id}/readiness`),
+        api<Exam[]>(`/exams`),
+      ]);
+      setTopics(nextTopics); setConcepts(nextConcepts); setReadiness(nextReadiness);
+      setExams(nextExams.filter(e => e.subject_id === id));
+      setExpanded(nextTopics.filter(t => !t.parent_topic_id).map(t => t.id));
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not load this subject."); }
+  }
+
+  useEffect(() => {
+    if (!subjects.length) { setSubjectId(null); return; }
+    if (!subjects.some(s => s.id === subjectId)) setSubjectId(subjects[0].id);
+  }, [subjects, subjectId]);
+  useEffect(() => { if (subjectId !== null) void loadWorkspace(subjectId); }, [subjectId]);
+
+  async function addTopic(e: React.FormEvent) {
+    e.preventDefault(); if (subjectId === null || !topicTitle.trim()) return;
+    setBusy(true); setError("");
+    try {
+      await api<Topic>(`/subjects/${subjectId}/topics`, { method:"POST", body:JSON.stringify({title:topicTitle.trim(), parent_topic_id:parentId, position:topics.length}) });
+      setTopicTitle(""); setParentId(null); setAddingTopic(false); await loadWorkspace(subjectId);
+      setNotice("Topic added to your syllabus.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not add topic."); }
+    finally { setBusy(false); }
+  }
+
+  async function addConcept(e: React.FormEvent) {
+    e.preventDefault(); if (addingConcept === null || !conceptTitle.trim()) return;
+    setBusy(true); setError("");
+    try {
+      await api<Concept>(`/topics/${addingConcept}/concepts`, {method:"POST",body:JSON.stringify({title:conceptTitle.trim(),position:(conceptsByTopic.get(addingConcept)?.length ?? 0)})});
+      setConceptTitle(""); setAddingConcept(null); if(subjectId!==null) await loadWorkspace(subjectId);
+      setNotice("Concept added.");
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not add concept."); }
+    finally { setBusy(false); }
+  }
+
+  async function chooseConcept(concept: Concept) {
+    setSelectedConcept(concept); setError("");
+    try {
+      const result = await api<Progress | null>(`/concepts/${concept.id}/progress`);
+      setProgress(result ?? {...blankProgress, concept_id:concept.id});
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not load progress."); }
+  }
+
+  async function saveProgress(e: React.FormEvent) {
+    e.preventDefault(); if(!selectedConcept) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const saved = await api<Progress>(`/concepts/${selectedConcept.id}/progress`, {method:"PATCH",body:JSON.stringify({
+        exposure:progress.exposure, understanding:progress.understanding, recall:progress.recall,
+        confidence:progress.confidence, notes:progress.notes
+      })});
+      setProgress(saved); if(subjectId!==null) await loadWorkspace(subjectId);
+      setNotice("Progress saved. Nice work showing up.");
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not save progress."); }
+    finally { setBusy(false); }
+  }
+
+  async function addExam(e: React.FormEvent) {
+    e.preventDefault(); if(subjectId===null || !examDate) return;
+    setBusy(true); setError("");
+    try {
+      await api<Exam>("/exams",{method:"POST",body:JSON.stringify({subject_id:subjectId,title:examTitle,exam_date:new Date(examDate).toISOString()})});
+      setExamTitle("End-semester examination"); setExamDate(""); setAddingExam(false); await loadWorkspace(subjectId);
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not add exam."); }
+    finally { setBusy(false); }
+  }
+
+  async function removeTopic(id:number) {
+    if(!confirm("Delete this topic, its nested topics, concepts and progress?")) return;
+    try { await api<void>(`/topics/${id}`,{method:"DELETE"}); if(subjectId!==null) await loadWorkspace(subjectId); if(selectedConcept && topics.some(t=>t.id===id)) setSelectedConcept(null); }
+    catch(e) { setError(e instanceof Error ? e.message : "Could not delete topic."); }
+  }
+  async function removeConcept(id:number) {
+    if(!confirm("Delete this concept and its progress?")) return;
+    try { await api<void>(`/concepts/${id}`,{method:"DELETE"}); if(subjectId!==null) await loadWorkspace(subjectId); if(selectedConcept?.id===id) setSelectedConcept(null); }
+    catch(e) { setError(e instanceof Error ? e.message : "Could not delete concept."); }
+  }
+
+  function renderTopic(topic: Topic, depth = 0): React.ReactNode {
+    const children = topics.filter(t => t.parent_topic_id === topic.id);
+    const items = conceptsByTopic.get(topic.id) ?? [];
+    const isOpen = expanded.includes(topic.id);
+    return <div className="atlas-topic-node" key={topic.id}>
+      <div className="atlas-topic-row" style={{"--topic-depth":depth} as React.CSSProperties}>
+        <button className="atlas-topic-toggle" onClick={()=>setExpanded(old=>isOpen?old.filter(x=>x!==topic.id):[...old,topic.id])} aria-label={isOpen?"Collapse topic":"Expand topic"}>
+          {isOpen?<ChevronDown size={15}/>:<ChevronRight size={15}/>}
+        </button>
+        <Layers3 size={15} className="atlas-topic-icon"/>
+        <span className="atlas-topic-title">{topic.title}</span>
+        <span className="atlas-topic-count">{items.length} concepts</span>
+        <button className="atlas-mini-action" onClick={()=>setAddingConcept(topic.id)} title="Add concept"><Plus size={14}/></button>
+        <button className="atlas-mini-action danger" onClick={()=>removeTopic(topic.id)} title="Delete topic"><Trash2 size={13}/></button>
+      </div>
+      {isOpen && <div className="atlas-topic-children">
+        {items.map(c=><div className={`atlas-concept-row ${selectedConcept?.id===c.id?"selected":""}`} key={c.id}>
+          <button onClick={()=>void chooseConcept(c)}><Brain size={14}/><span>{c.title}</span></button>
+          <button className="atlas-mini-action danger" onClick={()=>removeConcept(c.id)} title="Delete concept"><Trash2 size={12}/></button>
+        </div>)}
+        {children.map(child=>renderTopic(child,depth+1))}
+        {!items.length&&!children.length&&<p className="atlas-topic-empty">No concepts here yet. Add the first one.</p>}
+      </div>}
+    </div>;
+  }
+
+  if (!subjects.length) return <div className="atlas-academics-empty"><div className="atlas-academics-empty-icon"><BookOpen size={24}/></div><h3>Start with a subject</h3><p>Add a subject first, then build its syllabus chapter by chapter. You can keep it manual for now; PDF import comes next.</p></div>;
+
+  return <div className="atlas-academics-workspace">
+    {error && <div className="atlas-academics-alert"><AlertCircle size={15}/>{error}<button onClick={()=>setError("")}>Dismiss</button></div>}
+    {notice && <div className="atlas-academics-notice"><Check size={15}/>{notice}<button onClick={()=>setNotice("")}>×</button></div>}
+    <div className="atlas-academics-toolbar">
+      <label><span>WORKING IN</span><select value={subjectId ?? ""} onChange={e=>{setSubjectId(Number(e.target.value));setSelectedConcept(null);}}>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}{s.code?` · ${s.code}`:""}</option>)}</select></label>
+      <div className="atlas-academics-actions"><button className="atlas-button atlas-secondary" onClick={()=>void loadWorkspace(subjectId!)}><RefreshCw size={14}/> Refresh</button><button className="atlas-button atlas-primary" onClick={()=>{setParentId(null);setAddingTopic(true);}}><Plus size={14}/> Add chapter</button></div>
+    </div>
+
+    <div className="atlas-academics-summary">
+      <div><p className="eyebrow">YOUR SYLLABUS</p><h2>{subject?.name ?? "Subject workspace"}</h2><p>{subject?.description || "Build a map of what you need to learn. Small, clear pieces beat one intimidating syllabus."}</p></div>
+      <div className="atlas-summary-stats"><div><strong>{topics.length}</strong><span>TOPICS</span></div><div><strong>{concepts.length}</strong><span>CONCEPTS</span></div><div><strong>{readiness?.weak ?? 0}</strong><span>NEEDS ATTENTION</span></div></div>
+    </div>
+
+    <div className="atlas-academics-columns">
+      <section className="atlas-academics-panel atlas-syllabus-panel">
+        <div className="atlas-panel-heading"><div><p className="eyebrow">THE KNOWLEDGE MAP</p><h3>Chapters & concepts</h3></div><span className="atlas-panel-tag">MANUAL SYLLABUS</span></div>
+        {roots.length ? roots.map(t=>renderTopic(t)) : <div className="atlas-syllabus-empty"><BookOpen size={22}/><strong>Your syllabus is a blank page.</strong><span>Add your first chapter to start shaping it.</span></div>}
+        {addingTopic && <form className="atlas-inline-form" onSubmit={addTopic}><label>Chapter or topic title<input autoFocus value={topicTitle} onChange={e=>setTopicTitle(e.target.value)} placeholder="e.g. Neural Networks" required/></label><label>Nested under<select value={parentId??""} onChange={e=>setParentId(e.target.value?Number(e.target.value):null)}><option value="">Top-level chapter</option>{topics.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></label><div><button className="atlas-button atlas-primary" disabled={busy}>Save topic</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setAddingTopic(false)}>Cancel</button></div></form>}
+        {addingConcept!==null && <form className="atlas-inline-form" onSubmit={addConcept}><label>Concept title<input autoFocus value={conceptTitle} onChange={e=>setConceptTitle(e.target.value)} placeholder="e.g. Backpropagation" required/></label><div><button className="atlas-button atlas-primary" disabled={busy}>Save concept</button><button type="button" className="atlas-button atlas-secondary" onClick={()=>setAddingConcept(null)}>Cancel</button></div></form>}
+      </section>
+
+      <section className="atlas-academics-panel atlas-progress-panel">
+        <div className="atlas-panel-heading"><div><p className="eyebrow">LEARNING, NOT JUST CHECKLISTS</p><h3>Concept progress</h3></div><span className="atlas-panel-icon"><Target size={17}/></span></div>
+        {selectedConcept ? <form className="atlas-progress-form" onSubmit={saveProgress}>
+          <div className="atlas-selected-concept"><span>SELECTED CONCEPT</span><h4>{selectedConcept.title}</h4><p>{topicMap.get(selectedConcept.topic_id)?.title}</p></div>
+          <label>Exposure<select value={progress.exposure} onChange={e=>setProgress({...progress,exposure:e.target.value as Progress["exposure"]})}><option value="not_started">Not started</option><option value="studied">I've studied this</option></select></label>
+          <label>Understanding<select value={progress.understanding} onChange={e=>setProgress({...progress,understanding:e.target.value as Progress["understanding"]})}><option value="not_assessed">Not assessed</option><option value="weak">Weak — needs a rethink</option><option value="developing">Developing — getting there</option><option value="strong">Strong — I can explain it</option></select></label>
+          <label>Recall<select value={progress.recall} onChange={e=>setProgress({...progress,recall:e.target.value as Progress["recall"]})}><option value="not_assessed">Not assessed</option><option value="needs_practice">Needs practice</option><option value="comfortable">Comfortable</option></select></label>
+          <label>Confidence <strong className="atlas-confidence-value">{progress.confidence===null?"—":`${progress.confidence}/5`}</strong><input type="range" min="1" max="5" value={progress.confidence??3} onChange={e=>setProgress({...progress,confidence:Number(e.target.value)})}/></label>
+          <label>Personal notes<textarea rows={3} value={progress.notes??""} onChange={e=>setProgress({...progress,notes:e.target.value})} placeholder="What clicked? What still feels fuzzy?"/></label>
+          <button className="atlas-button atlas-primary atlas-full" disabled={busy}><Check size={14}/> Save progress</button>
+        </form> : <div className="atlas-progress-empty"><Brain size={25}/><strong>Pick a concept to check in with yourself.</strong><span>Track understanding and recall separately. Being exposed to a topic isn't the same as knowing it.</span></div>}
+      </section>
+    </div>
+
+    <div className="atlas-academics-bottom">
+      <section className="atlas-academics-panel atlas-readiness-panel">
+        <div className="atlas-panel-heading"><div><p className="eyebrow">NO MADE-UP SCORES</p><h3>Where things stand</h3></div><span className="atlas-panel-icon"><Sparkles size={17}/></span></div>
+        {readiness && <><div className="atlas-readiness-total"><strong>{readiness.total_concepts}</strong><span>concepts in this syllabus</span></div>
+          <div className="atlas-readiness-bars">
+            <ReadinessBar label="Strong" value={readiness.strong} total={readiness.total_concepts} tone="teal"/>
+            <ReadinessBar label="Developing" value={readiness.developing} total={readiness.total_concepts} tone="blue"/>
+            <ReadinessBar label="Weak" value={readiness.weak} total={readiness.total_concepts} tone="coral"/>
+            <ReadinessBar label="Not assessed" value={readiness.not_assessed} total={readiness.total_concepts} tone="lilac"/>
+          </div><p className="atlas-readiness-foot">This is a count of your self-assessments, not a predicted grade or exam score.</p>
+          {readiness.recommendations.filter(r=>r.count>0).map(r=><p className="atlas-recommendation" key={r.reason}><span>{r.count}</span>{r.message}</p>)}
+        </>}
+      </section>
+      <section className="atlas-academics-panel atlas-exams-panel">
+        <div className="atlas-panel-heading"><div><p className="eyebrow">DATES THAT MATTER</p><h3>Upcoming exams</h3></div><button className="atlas-mini-action" onClick={()=>setAddingExam(!addingExam)} title="Add exam"><Plus size={16}/></button></div>
+        {addingExam && <form className="atlas-exam-form" onSubmit={addExam}><input value={examTitle} onChange={e=>setExamTitle(e.target.value)} aria-label="Exam title" placeholder="Exam title"/><input type="datetime-local" value={examDate} onChange={e=>setExamDate(e.target.value)} required aria-label="Exam date"/><button className="atlas-button atlas-primary" disabled={busy}>Add exam</button></form>}
+        {exams.length ? exams.map(ex=><div className="atlas-exam-row" key={ex.id}><CalendarDays size={16}/><div><strong>{ex.title}</strong><span>{new Date(ex.exam_date).toLocaleString(undefined,{dateStyle:"medium",timeStyle:"short"})}</span></div></div>) : <p className="atlas-exams-empty">No exam dates yet. Add one when you know it.</p>}
+      </section>
+    </div>
+  </div>;
+}
+
+function ReadinessBar({label,value,total,tone}:{label:string;value:number;total:number;tone:string}) {
+  const width = total ? `${Math.round(value/total*100)}%` : "0%";
+  return <div className="atlas-readiness-row"><div><span>{label}</span><strong>{value}</strong></div><div className="atlas-readiness-track"><i className={tone} style={{width}}/></div></div>;
+}

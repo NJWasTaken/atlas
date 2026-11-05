@@ -8,9 +8,11 @@ import remarkGfm from "remark-gfm";
 import { api } from "../../lib/api";
 
 type DayNote = { day: string; note: string };
+type Exam = { id: number; subject_id: number; title: string; exam_date: string };
 type MarkdownAction = "bold" | "italic" | "underline" | "strike" | "h1" | "h2" | "h3" | "bullet" | "numbered" | "task" | "quote" | "code" | "link" | "table" | "rule";
 const keyOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 const shift = (d: Date, n: number) => { const x = new Date(d.getFullYear(),d.getMonth(),d.getDate()); x.setDate(x.getDate()+n); return x; };
+const examDateOf = (value: string) => new Date(/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}Z`);
 const noteSchema = { ...defaultSchema, tagNames: [...(defaultSchema.tagNames ?? []), "u"] };
 const markdownTools: { action: MarkdownAction; label: string; icon: typeof Bold }[] = [
   { action: "bold", label: "Bold", icon: Bold },
@@ -35,6 +37,7 @@ export default function DashboardCalendar() {
   const [month,setMonth] = useState(() => new Date(today.getFullYear(),today.getMonth(),1));
   const [selected,setSelected] = useState(keyOf(today));
   const [notes,setNotes] = useState<Record<string,string>>({});
+  const [exams,setExams] = useState<Exam[]>([]);
   const [draft,setDraft] = useState("");
   const [loading,setLoading] = useState(true);
   const [saving,setSaving] = useState(false);
@@ -46,6 +49,14 @@ export default function DashboardCalendar() {
   const start = shift(first,-((first.getDay()+6)%7));
   const days = Array.from({length:42},(_,i)=>shift(start,i));
   const from = keyOf(days[0]), to = keyOf(days[41]);
+  const examsByDay = useMemo(() => {
+    const grouped: Record<string, Exam[]> = {};
+    for (const exam of exams) {
+      const day = keyOf(examDateOf(exam.exam_date));
+      grouped[day] = [...(grouped[day] ?? []), exam];
+    }
+    return grouped;
+  },[exams]);
 
   useEffect(() => {
     let live = true;
@@ -56,6 +67,14 @@ export default function DashboardCalendar() {
       .finally(() => { if(live) setLoading(false); });
     return () => { live = false; };
   },[from,to]);
+
+  useEffect(() => {
+    let live = true;
+    api<Exam[]>("/exams")
+      .then(rows => { if(live) setExams(rows); })
+      .catch(e => { if(live) setError(e instanceof Error ? e.message : "Could not load exams"); });
+    return () => { live = false; };
+  },[]);
 
   useEffect(() => { setDraft(notes[selected] ?? ""); setSaved(false); setEditing(false); },[selected,notes]);
   const selectedDate = new Date(`${selected}T12:00:00`);
@@ -163,14 +182,15 @@ export default function DashboardCalendar() {
       <div className="atlas-calendar-monthline"><h3>{month.toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</h3><span>{loading?"SYNCING":"SYNCED"} <i className={loading?"is-syncing":""}/></span></div>
       <div className="atlas-calendar-grid" role="grid" aria-label="Calendar">
         {weekdays.map(d=><div key={d} className="atlas-calendar-weekday" role="columnheader">{d}</div>)}
-        {days.map(d=>{const k=keyOf(d),has=Boolean(notes[k]?.trim());return <button key={k} type="button" role="gridcell" aria-pressed={selected===k} onClick={()=>setSelected(k)} className={`atlas-calendar-day${d.getMonth()!==month.getMonth()?" outside":""}${selected===k?" selected":""}${k===todayKey?" today":""}${has?" has-note":""}`}><span>{d.getDate()}</span>{has&&<i/>}</button>;})}
+        {days.map(d=>{const k=keyOf(d),hasNote=Boolean(notes[k]?.trim()),hasExam=Boolean(examsByDay[k]?.length);return <button key={k} type="button" role="gridcell" aria-pressed={selected===k} aria-label={`${d.toLocaleDateString()}${hasExam?`, ${examsByDay[k].length} exam${examsByDay[k].length===1?"":"s"}`:""}${hasNote?", has a note":""}`} onClick={()=>setSelected(k)} className={`atlas-calendar-day${d.getMonth()!==month.getMonth()?" outside":""}${selected===k?" selected":""}${k===todayKey?" today":""}${hasNote?" has-note":""}${hasExam?" has-event":""}`}><span>{d.getDate()}</span>{hasNote&&<i/>}{hasExam&&<i className="exam-dot"/>}</button>;})}
       </div>
-      <div className="atlas-calendar-legend"><span><i className="today-dot"/> Today</span><span><i className="note-dot"/> Has a note</span></div>
+      <div className="atlas-calendar-legend"><span><i className="today-dot"/> Today</span><span><i className="note-dot"/> Has a note</span><span><i className="exam-dot"/> Exam</span></div>
     </div>
     <aside className="atlas-day-note">
       <div className="atlas-day-note-top"><div className="atlas-day-note-icon"><CalendarDays size={17}/></div><p className="eyebrow">DAY NOTES</p></div>
       <h3>{selectedDate.toLocaleDateString("en-IN",{weekday:"long",day:"numeric"})}</h3>
       <p className="atlas-day-note-date">{selectedDate.toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</p>
+      {examsByDay[selected]?.length ? <div className="atlas-calendar-exams" aria-label="Exams on this day"><p className="eyebrow">EXAMS THIS DAY</p>{examsByDay[selected].map(exam=><div className="atlas-calendar-exam" key={exam.id}><CalendarDays size={13}/><span><strong>{exam.title}</strong><small>{examDateOf(exam.exam_date).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})}</small></span></div>)}</div> : null}
       <label htmlFor="atlas-day-note-input">Leave something for this day</label>
       {editing ? (
         <>

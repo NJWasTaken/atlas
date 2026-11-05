@@ -20,13 +20,13 @@ def owned_subject(db: Session, subject_id: int, user_id: int):
     return subject
 
 def owned_topic(db: Session, topic_id: int, user_id: int):
-    topic = db.scalar(select(Topic).join(Subject).where(Topic.id == topic_id, Subject.user_id == user_id))
+    topic = db.scalar(select(Topic).join(Subject, Topic.subject_id == Subject.id).where(Topic.id == topic_id, Subject.user_id == user_id))
     if not topic:
         raise HTTPException(404, "Topic not found")
     return topic
 
 def owned_concept(db: Session, concept_id: int, user_id: int):
-    concept = db.scalar(select(Concept).join(Topic).join(Subject).where(
+    concept = db.scalar(select(Concept).join(Topic, Concept.topic_id == Topic.id).join(Subject, Topic.subject_id == Subject.id).where(
         Concept.id == concept_id, Subject.user_id == user_id
     ))
     if not concept:
@@ -57,6 +57,13 @@ def update_topic(topic_id: int, data: TopicUpdate, db: Session = Depends(get_db)
         parent = owned_topic(db, changes["parent_topic_id"], user.id)
         if parent.subject_id != topic.subject_id or parent.id == topic.id:
             raise HTTPException(400, "Invalid parent topic")
+        # Walk upwards from the proposed parent; if we encounter this topic,
+        # the move would create a cycle in the hierarchy.
+        ancestor = parent
+        while ancestor is not None:
+            if ancestor.id == topic.id:
+                raise HTTPException(400, "A topic cannot be nested under one of its descendants")
+            ancestor = db.get(Topic, ancestor.parent_topic_id) if ancestor.parent_topic_id else None
     for key, value in changes.items(): setattr(topic, key, value)
     db.commit(); db.refresh(topic)
     return topic
@@ -70,7 +77,7 @@ def delete_topic(topic_id: int, db: Session = Depends(get_db), user: User = Depe
 @router.get("/subjects/{subject_id}/concepts", response_model=list[ConceptOut])
 def list_concepts(subject_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     owned_subject(db, subject_id, user.id)
-    return list(db.scalars(select(Concept).join(Topic).where(Topic.subject_id == subject_id).order_by(Topic.position, Concept.position, Concept.id)))
+    return list(db.scalars(select(Concept).join(Topic, Concept.topic_id == Topic.id).where(Topic.subject_id == subject_id).order_by(Topic.position, Concept.position, Concept.id)))
 
 @router.post("/topics/{topic_id}/concepts", response_model=ConceptOut, status_code=201)
 def create_concept(topic_id: int, data: ConceptCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -112,7 +119,7 @@ def subject_readiness(subject_id: int, db: Session = Depends(get_db), user: User
         .where(Topic.subject_id == subject_id, ConceptProgress.user_id == user.id)
         .group_by(ConceptProgress.understanding)
     ).all()
-    total = db.scalar(select(func.count(Concept.id)).join(Topic).where(Topic.subject_id == subject_id)) or 0
+    total = db.scalar(select(func.count(Concept.id)).join(Topic, Topic.id == Concept.topic_id).where(Topic.subject_id == subject_id)) or 0
     counts = {key: count for key, count in rows}
     assessed = sum(counts.values())
     return {

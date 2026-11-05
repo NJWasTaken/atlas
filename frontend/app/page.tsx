@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowUpRight, BookOpen, Compass, GraduationCap, Library, LogOut, Orbit, Plus, Sparkles, X, ChevronRight, MoonStar } from "lucide-react";
 import { api, clearToken, getToken, setToken } from "../lib/api";
 import DashboardCalendar from "./components/DashboardCalendar";
+import AcademicsWorkspace from "./components/AcademicsWorkspace";
 
 type Subject = { id: number; name: string; code?: string | null; description?: string | null };
 type Quote = { quote: string; author: string; work?: string | null };
@@ -191,7 +192,7 @@ export default function Home() {
 
           {active==="Academics"&&<section className="atlas-overview-section">
             <div className="atlas-section-heading"><div><p className="eyebrow">THE BUILDING BLOCKS</p><h2>Your subjects</h2><p className="atlas-section-subtitle">A home for syllabi, concepts and revision.</p></div><button className="atlas-button atlas-primary" onClick={()=>setShowAdd(true)}><Plus size={15}/> Add subject</button></div>
-            <SubjectGrid subjects={subjects} onDelete={deleteSubject}/>
+            <AcademicsWorkspace subjects={subjects}/>
           </section>}
 
           {active==="Explore"&&<FeatureEmpty icon={<Sparkles size={23}/>} eyebrow="THE CURIOSITY PLAYGROUND" title={<>What have you been<br/><em>wondering about?</em></>} text="Exploration is on its way. For now, remember: your interests don't need to fit inside a syllabus." foot="A LITTLE SPACE FOR THE UNEXPECTED"/>}
