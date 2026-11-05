@@ -1,6 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
-from typing import Literal
+from typing import Annotated, Literal
 
 Exposure = Literal["not_started", "studied"]
 Understanding = Literal["not_assessed", "weak", "developing", "strong"]
@@ -105,7 +105,7 @@ class ExamOut(BaseModel):
 
 class SyllabusConceptDraft(BaseModel):
     title: str = Field(min_length=1, max_length=180)
-    source_pages: list[int] = Field(default_factory=list, max_length=100)
+    source_pages: list[Annotated[int, Field(ge=1, le=100)]] = Field(default_factory=list, max_length=100)
 
     @field_validator("title")
     @classmethod
