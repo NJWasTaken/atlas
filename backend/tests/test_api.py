@@ -406,3 +406,41 @@ def test_calendar_note_can_be_updated_and_deleted(client: TestClient):
     assert listed.status_code == 200
     assert listed.json() == []
 
+
+
+def test_concept_update_is_partial_validated_and_user_scoped(client: TestClient):
+    owner = auth_headers(register(client, "concept-edit-owner@example.com"))
+    other = auth_headers(register(client, "concept-edit-other@example.com"))
+    subject = client.post(
+        "/api/v1/subjects", headers=owner, json={"name": "Machine Learning"}
+    ).json()
+    topic = client.post(
+        f"/api/v1/subjects/{subject['id']}/topics",
+        headers=owner,
+        json={"title": "Neural networks"},
+    ).json()
+    concept = client.post(
+        f"/api/v1/topics/{topic['id']}/concepts",
+        headers=owner,
+        json={"title": "Backpropagation", "description": "Initial note", "position": 1},
+    ).json()
+
+    updated = client.patch(
+        f"/api/v1/concepts/{concept['id']}",
+        headers=owner,
+        json={"title": "Backpropagation algorithm", "description": "Chain rule applied"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["title"] == "Backpropagation algorithm"
+    assert updated.json()["description"] == "Chain rule applied"
+    assert updated.json()["position"] == 1
+
+    assert client.patch(
+        f"/api/v1/concepts/{concept['id']}", headers=owner, json={"title": None}
+    ).status_code == 422
+    assert client.patch(
+        f"/api/v1/concepts/{concept['id']}", headers=owner, json={"position": None}
+    ).status_code == 422
+    assert client.patch(
+        f"/api/v1/concepts/{concept['id']}", headers=other, json={"title": "Hijack"}
+    ).status_code == 404
