@@ -27,7 +27,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 ## Academics completion
 
 - [x] Add subject editing for name, course code, and description in the UI and API.
-- [ ] Add semester/term metadata and filtering to subject management.
+- [x] Add optional semester/term and academic-year metadata, plus term filtering to subject management.
 - [x] Add inline rename controls for topics and concepts, backed by ownership-checked partial PATCH endpoints. Reordering and richer descriptions remain future work.
 - [x] Make manual syllabus construction a first-class path: add chapters/subchapters from scratch and add concepts directly within their chapter, independently of PDF import.
 - [x] Replace the native confidence slider with a themed five-step accessible choice control; polish interaction states, transitions, and reduced-motion behavior in the Academics workspace.
@@ -41,8 +41,9 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 ## Home / Overview
 
 - [ ] Expand the Overview beyond the current subject summary, calendar, and quotation into recent activity, continue-learning shortcuts, concept summaries, and revision suggestions.
-- [ ] Add weekly calendar navigation/view and clarify how academic dates, day notes, and any future general calendar events relate.
-- [ ] Improve calendar error/loading states and handle quote-provider unavailability without blocking the rest of the Overview.
+- [x] Add weekly calendar navigation/view and clarify that exams are academic events while day notes are personal date notes.
+- [x] Return curated quote fallbacks when the quote provider is unavailable or unconfigured, and cache successful daily quote responses for one hour.
+- [ ] Improve calendar error/loading states and add retry affordances for failed calendar requests.
 - [ ] Consider caching or a provider abstraction for quotations; the current quote endpoints call API Ninjas and require `X_API_KEY`.
 
 ## Explore
