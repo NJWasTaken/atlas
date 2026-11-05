@@ -38,6 +38,43 @@ def overview_summary(db: Session = Depends(get_db), user: User = Depends(get_cur
     for exam, subject_name in exam_rows:
         next_exam_by_subject.setdefault(exam.subject_id, (exam, subject_name))
 
+    summary_rows = db.execute(
+        select(ConceptProgress.understanding, func.count(Concept.id))
+        .join(Concept, Concept.id == ConceptProgress.concept_id)
+        .join(Topic, Topic.id == Concept.topic_id)
+        .join(Subject, Subject.id == Topic.subject_id)
+        .where(ConceptProgress.user_id == user.id, Subject.user_id == user.id)
+        .group_by(ConceptProgress.understanding)
+    ).all()
+    total_concepts = db.scalar(
+        select(func.count(Concept.id))
+        .join(Topic, Topic.id == Concept.topic_id)
+        .join(Subject, Subject.id == Topic.subject_id)
+        .where(Subject.user_id == user.id)
+    ) or 0
+    summary_counts = {key: count for key, count in summary_rows}
+    assessed_count = sum(summary_counts.values())
+    due_for_review = db.scalar(
+        select(func.count(ConceptProgress.id))
+        .join(Concept, Concept.id == ConceptProgress.concept_id)
+        .join(Topic, Topic.id == Concept.topic_id)
+        .join(Subject, Subject.id == Topic.subject_id)
+        .where(
+            ConceptProgress.user_id == user.id,
+            Subject.user_id == user.id,
+            ConceptProgress.next_review_at.is_not(None),
+            ConceptProgress.next_review_at <= now,
+        )
+    ) or 0
+    learning_summary = {
+        "total_concepts": total_concepts,
+        "strong": summary_counts.get("strong", 0),
+        "developing": summary_counts.get("developing", 0),
+        "weak": summary_counts.get("weak", 0),
+        "not_assessed": total_concepts - assessed_count + summary_counts.get("not_assessed", 0),
+        "due_for_review": due_for_review,
+    }
+
     recent_rows = db.execute(
         select(ConceptProgress, Concept.title, Topic.title, Subject.id, Subject.name)
         .join(Concept, Concept.id == ConceptProgress.concept_id)
@@ -121,6 +158,7 @@ def overview_summary(db: Session = Depends(get_db), user: User = Depends(get_cur
 
     suggestions.sort(key=lambda item: (-item["priority"], item["days_until_exam"] if item["days_until_exam"] is not None else 9999, item["concept_title"].casefold()))
     return {
+        "learning_summary": learning_summary,
         "recent_activity": recent_activity,
         "continue_learning": recent_activity[:4],
         "revision_suggestions": suggestions[:8],
