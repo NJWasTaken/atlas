@@ -15,7 +15,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Verify the concept-edit endpoint and 16-test API suite in GitHub Actions.
 - [ ] Add PostgreSQL-backed integration coverage for database-specific behavior before treating backend validation as complete.
 - [ ] Add frontend tests for key user flows: login/register, subject creation, topic/concept progress, calendar note persistence, and exam create/edit/delete from both views.
-- [x] Verify the frontend TypeScript check and production build pass in GitHub Actions.
+- [x] Verify the frontend TypeScript check and production build pass in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983099966).
 - [x] Add CI execution for the backend pytest suite on development pushes and relevant pull requests.
 - [x] Add CI checks for frontend TypeScript and production build.
 - [x] Add Alembic configuration and an initial migration baseline matching the current seven-table schema; CI validates upgrade, metadata consistency, and downgrade on SQLite.
