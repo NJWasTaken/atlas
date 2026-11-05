@@ -28,9 +28,8 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Add subject editing for name, course code, and description in the UI and API.
 - [ ] Add semester/term metadata and filtering to subject management.
 - [x] Add inline rename controls for topics and concepts, backed by ownership-checked partial PATCH endpoints. Reordering and richer descriptions remain future work.
-- [ ] Add syllabus editing/import workflows. Manual topic and concept entry exists, but there is no syllabus document upload or extraction.
-- [ ] Implement PDF upload and text extraction, identify headings/hierarchy, and retain page references.
-- [ ] Add a draft review/confirmation step before imported syllabus data is saved.
+- [x] Add PDF upload and selectable-text extraction with conservative chapter/concept heading detection and page references. Scanned PDF OCR remains unsupported.
+- [x] Add an editable draft review/confirmation step; imported items are only persisted after explicit confirmation and append to existing syllabus content.
 - [ ] Add syllabus versioning and migration-backed schema support.
 - [ ] Expand readiness/revision from current self-assessment counts into explainable, exam-aware recommendations.
 - [ ] Add review history and consider spaced-repetition scheduling.
