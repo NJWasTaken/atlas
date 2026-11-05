@@ -9,7 +9,7 @@ Atlas is intended to connect university coursework with independent learning and
 The current working slice includes:
 
 - Account registration, login, and sign-out.
-- A subject list and subject creation/deletion.
+- A subject list with create, edit, and delete actions for subject name, course code, and description.
 - An Academics workspace for a subject: nested topics and concepts with inline renaming, concept self-assessments, readiness counts, and exam management.
 - An Overview calendar with monthly navigation, editable date notes, and exams shown on their dates. Exams can be edited or deleted from either the Academics workspace or the Overview calendar.
 - Daily and random quotations from an external API Ninjas quote service. The service requires a backend API key.
@@ -76,20 +76,20 @@ Concept-progress updates use partial PATCH semantics: only fields explicitly sup
 | Router | Current routes |
 |---|---|
 | Authentication | `POST /auth/register`, `POST /auth/login`, `GET /auth/me` |
-| Subjects | `GET /subjects`, `POST /subjects`, `DELETE /subjects/{subject_id}` |
+| Subjects | `GET /subjects`, `POST /subjects`, `PATCH /subjects/{subject_id}`, `DELETE /subjects/{subject_id}` |
 | Calendar notes | `GET /calendar?start=…&end=…`, `PUT /calendar/{day}`, `DELETE /calendar/{day}` |
 | Quotes | `GET /quotes/daily`, `GET /quotes/random` |
 | Academics | Subject topic listing/creation; topic update/deletion; subject concept listing; concept creation/update/deletion; progress get/update; subject readiness; exam list/create/update/delete |
 
 All API routes are mounted under `/api/v1` except `/health`. The calendar range is limited to 63 days. Quote endpoints require authentication and return a service error if the API Ninjas key is not configured or the provider cannot be reached.
 
-The subject endpoints do not currently include subject update, despite the broader README language describing subject CRUD. The Academics workspace exposes inline renaming for topics and concepts. Topic and concept edits use partial PATCH requests, preserving fields not included in the request.
+Subject updates use a partial PATCH contract with user ownership checks. The subject modal supports editing name, course code, and description. The Academics workspace exposes inline renaming for topics and concepts. Topic and concept edits use partial PATCH requests, preserving fields not included in the request.
 
 ## Main user flows
 
 ### Sign-in and subjects
 
-The root page restores a token from local storage, shows registration/login when unauthenticated, and loads the user's subjects after authentication. Creating and deleting subjects updates the overview and Academics workspace.
+The root page restores a token from local storage, shows registration/login when unauthenticated, and loads the user's subjects after authentication. Creating, editing, and deleting subjects updates the overview and Academics workspace.
 
 ### Academics
 
