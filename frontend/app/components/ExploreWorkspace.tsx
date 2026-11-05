@@ -24,7 +24,6 @@ export default function ExploreWorkspace() {
   const [documents,setDocuments] = useState<DocumentItem[]>([]);
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState("");
-  const [query,setQuery] = useState("");
   const [selected,setSelected] = useState<DocumentItem|null>(null);
   const [pdfUrl,setPdfUrl] = useState("");
   const [page,setPage] = useState(1);
