@@ -51,7 +51,9 @@ Each protected route obtains the current user through `backend/app/security.py`.
 
 The database URL is supplied by settings and targets PostgreSQL by default. `docker-compose.yml` runs a local PostgreSQL 16 container with a persistent named volume.
 
-Existing models use integer primary keys. `Base.metadata.create_all()` is currently used at application startup; this creates missing tables but does not manage schema changes. Alembic migrations are not present and should be introduced before evolving existing production data.
+Existing models use integer primary keys. `Base.metadata.create_all()` remains enabled at application startup for backward-compatible local development; it creates missing tables but does not manage schema changes. Alembic is now configured with an initial baseline migration covering the current seven tables. The backend CI workflow upgrades an empty SQLite database, checks the migration against SQLAlchemy metadata, and downgrades it again. The application has not yet switched startup to Alembic, so do not remove `create_all()` until existing databases have been safely adopted.
+
+For a fresh database, run `cd backend && python -m alembic upgrade head` before starting the API. For a database already created by the old `create_all()` flow, take a verified backup and compare its schema to the baseline first; only then mark it as already at the baseline with `python -m alembic stamp 0001_initial`. **Do not run `upgrade head` against an existing un-stamped database**: the initial migration creates the tables and is not an in-place schema repair.
 
 The current entities are:
 
@@ -123,7 +125,7 @@ pip install -r requirements.txt
 python -m pytest
 ```
 
-The 15-test API suite covers authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation and updates, required-field validation, partial concept-progress PATCH behavior, readiness counts, concept deletion, calendar-note CRUD/ownership/range validation, and exam CRUD/ownership/validation. These tests provide a fast regression layer; PostgreSQL-specific integration behavior and broader remaining CRUD edge cases still need coverage. A GitHub Actions workflow runs this suite on pushes to `main` and `work/**`, and on pull requests targeting `main` when backend files change. A separate frontend workflow installs the locked npm dependencies, runs TypeScript checking, and builds the production Next.js app on matching frontend changes. Both checks passed in [GitHub Actions run #41979561434](https://github.com/NJWasTaken/atlas/actions/runs/41979561434); automated frontend interaction tests have not yet been added. The initial 10-test suite passed in [GitHub Actions run #41979038349](https://github.com/NJWasTaken/atlas/actions/runs/41979038349). The expanded 15-test suite passed in [GitHub Actions run #41979455642](https://github.com/NJWasTaken/atlas/actions/runs/41979455642). PostgreSQL-backed integration coverage remains outstanding.
+The 15-test API suite covers authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation and updates, required-field validation, partial concept-progress PATCH behavior, readiness counts, concept deletion, calendar-note CRUD/ownership/range validation, and exam CRUD/ownership/validation. These tests provide a fast regression layer; PostgreSQL-specific integration behavior and broader remaining CRUD edge cases still need coverage. A GitHub Actions workflow runs this suite on pushes to `main` and `work/**`, and on pull requests targeting `main` when backend files change. It also validates the Alembic baseline by upgrading an empty SQLite database, checking for metadata drift, and downgrading to base. A separate frontend workflow installs the locked npm dependencies, runs TypeScript checking, and builds the production Next.js app on matching frontend changes. Both checks passed in [GitHub Actions run #41979561434](https://github.com/NJWasTaken/atlas/actions/runs/41979561434); automated frontend interaction tests have not yet been added. The initial 10-test suite passed in [GitHub Actions run #41979038349](https://github.com/NJWasTaken/atlas/actions/runs/41979038349). The expanded 15-test suite passed in [GitHub Actions run #41979455642](https://github.com/NJWasTaken/atlas/actions/runs/41979455642). PostgreSQL-backed integration coverage remains outstanding.
 
 ## File guide
 
@@ -136,7 +138,8 @@ This list covers the tracked project source, documentation, and configuration fi
 | `.env.example` | Names and development examples for database, JWT, frontend API URL, and quote-provider settings. Copy to ignored `.env` and replace unsafe development values for real use. |
 | `.gitignore` | Excludes local environment files, dependencies, build output, caches, and other generated/local files. |
 | `docker-compose.yml` | Starts the local PostgreSQL service and named data volume. |
-| `.github/workflows/backend-tests.yml` | Runs the backend pytest suite on development pushes and relevant pull requests. |
+| `backend/alembic.ini` | Alembic configuration; the database URL is read from backend settings/environment. |
+| `.github/workflows/backend-tests.yml` | Runs backend pytest tests and validates Alembic upgrade/check/downgrade on development pushes and relevant pull requests. |
 | `.github/workflows/frontend-checks.yml` | Runs frontend TypeScript checking and a production Next.js build. |
 | `README.md` | Product vision, requirements, data/API design, roadmap, setup instructions, and representative project structure. |
 
@@ -159,6 +162,9 @@ This list covers the tracked project source, documentation, and configuration fi
 | `app/__init__.py` | Marks `app` as a Python package. |
 | `app/main.py` | Builds the FastAPI application, configures CORS, defers optional table creation to startup, mounts routers, and exposes the health endpoint. |
 | `app/db.py` | SQLAlchemy base, engine, session factory, and request-scoped database dependency. |
+| `migrations/env.py` | Connects Alembic to application settings and SQLAlchemy model metadata. |
+| `migrations/versions/0001_initial_schema.py` | Initial schema baseline for users, subjects, day notes, topics, concepts, progress, and exams. |
+| `migrations/script.py.mako` | Template for future versioned schema revisions. |
 | `app/models.py` | Core `User`, `Subject`, and `DayNote` ORM models. |
 | `app/academics_models.py` | `Topic`, `Concept`, `ConceptProgress`, and `Exam` ORM models and relationships. |
 | `app/schemas.py` | Pydantic request/response types for authentication, quotes, subjects, and calendar notes. |
@@ -199,7 +205,7 @@ This list covers the tracked project source, documentation, and configuration fi
 
 - The application is a prototype, not yet a production deployment architecture.
 - Authentication tokens are stored in browser local storage; refresh/revocation flows are not implemented.
-- Startup `create_all()` is not a substitute for versioned database migrations.
+- Startup `create_all()` is not a substitute for versioned database migrations. Alembic baseline scaffolding is present and CI-validated, but startup still uses `create_all()` pending a safe existing-database adoption plan.
 - A pytest-based backend API suite and GitHub Actions workflow now exist, and the expanded 15-test suite has passed in CI. Frontend TypeScript/build CI is configured; automated frontend interaction tests and PostgreSQL-backed integration tests are still outstanding.
 - The Overview calendar currently provides a monthly grid and date notes; it is not a full event-planning system or weekly calendar.
 - Explore, My Universe, syllabus document ingestion, AI integrations, and data export remain future work.
