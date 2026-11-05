@@ -140,6 +140,7 @@ function installApiMock(page, options = {}) {
       const id=Number(path.split("/").pop()); const version=state.versions.find(v=>v.id===id);
       return json(version ?? {});
     }
+    if (path.startsWith("/explore/")) return route.continue();
     return route.fulfill({ status:404, contentType:"application/json", body:JSON.stringify({detail:`Unmocked E2E API: ${method} ${path}`}) });
   });
 }
@@ -308,4 +309,64 @@ test("calendar note deletion is confirmed and mutation errors do not offer a mis
   page.once("dialog", dialog => dialog.accept());
   await page.locator(".atlas-note-save").click();
   await expect(page.getByRole("status").filter({ hasText: "Day note deleted." })).toBeVisible();
+});
+
+
+test("Explore keeps a PDF in the library with reading progress, bookmarks and page notes", async ({ page }) => {
+  installApiMock(page);
+  const docs = [];
+  const bookmarks = [];
+  const annotations = [];
+  let nextId = 40;
+  await page.route("**/api/v1/explore/**", async route => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname.replace("/api/v1", "");
+    const method = request.method();
+    const body = method === "GET" || method === "DELETE" ? {} : request.postDataJSON?.() ?? {};
+    const json = data => route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(data)});
+    const created = data => route.fulfill({status:201,contentType:"application/json",body:JSON.stringify(data)});
+    const empty = () => route.fulfill({status:204,body:""});
+    if(path==="/explore/documents"&&method==="POST"){
+      const doc={id:nextId++,title:"Research paper",filename:"paper.pdf",source_url:null,page_count:8,size_bytes:1024,last_page:1,last_opened_at:null,created_at:new Date().toISOString()};
+      docs.unshift(doc);return created(doc);
+    }
+    if(path==="/explore/documents"&&method==="GET")return json(docs);
+    if(path==="/explore/documents/import-url"&&method==="POST"){
+      const doc={id:nextId++,title:body.title||"Imported paper",filename:"paper.pdf",source_url:body.url,page_count:8,size_bytes:1024,last_page:1,last_opened_at:null,created_at:new Date().toISOString()};
+      docs.unshift(doc);return created(doc);
+    }
+    const docPath=path.match(/^\/explore\/documents\/(\d+)(?:\/(file))?$/);
+    if(docPath&&docPath[2]==="file")return route.fulfill({status:200,contentType:"application/pdf",body:"%PDF-1.4"});
+    if(docPath&&method==="GET")return json({...docs.find(d=>d.id===Number(docPath[1])),last_opened_at:new Date().toISOString()});
+    if(docPath&&method==="PATCH"){const doc=docs.find(d=>d.id===Number(docPath[1]));Object.assign(doc,body);return json(doc);}
+    if(docPath&&method==="DELETE"){const id=Number(docPath[1]);docs.splice(docs.findIndex(d=>d.id===id),1);return empty();}
+    const marksPath=path.match(/^\/explore\/documents\/(\d+)\/bookmarks$/);
+    if(marksPath&&method==="GET")return json(bookmarks);
+    if(marksPath&&method==="POST"){const mark={id:nextId++,...body};bookmarks.push(mark);return created(mark);}
+    const notesPath=path.match(/^\/explore\/documents\/(\d+)\/annotations$/);
+    if(notesPath&&method==="GET")return json(annotations);
+    if(notesPath&&method==="POST"){const note={id:nextId++,...body,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};annotations.unshift(note);return created(note);}
+    const removeBookmark=path.match(/\/bookmarks\/(\d+)$/);
+    if(removeBookmark&&method==="DELETE"){const index=bookmarks.findIndex(x=>x.id===Number(removeBookmark[1]));if(index>=0)bookmarks.splice(index,1);return empty();}
+    const removeNote=path.match(/\/annotations\/(\d+)$/);
+    if(removeNote&&method==="DELETE"){const index=annotations.findIndex(x=>x.id===Number(removeNote[1]));if(index>=0)annotations.splice(index,1);return empty();}
+    return route.fulfill({status:404,contentType:"application/json",body:JSON.stringify({detail:"Unmocked Explore request: "+method+" "+path})});
+  });
+  await signIn(page);
+  await page.getByRole("button",{name:"Explore"}).click();
+  await expect(page.getByRole("heading",{name:/Make room for/})).toBeVisible();
+  await page.locator(".atlas-upload-button input").setInputFiles({name:"paper.pdf",mimeType:"application/pdf",buffer:Buffer.from("%PDF-1.4")});
+  await expect(page.getByText("Research paper",{exact:true})).toBeVisible();
+  await expect(page.locator(".atlas-pdf-frame")).toBeVisible();
+  await page.getByLabel("Current page").fill("3");
+  await page.getByLabel("Current page").press("Enter");
+  await page.getByLabel("Your note").fill("Compare this result with the lecture discussion.");
+  await page.getByRole("button",{name:"Save note"}).click();
+  await expect(page.getByText("Compare this result with the lecture discussion.")).toBeVisible();
+  await page.getByRole("button",{name:/Bookmark/}).click();
+  await page.getByRole("button",{name:/Bookmarks/}).click();
+  await expect(page.getByText("Page 3",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Library"}).click();
+  await expect(page.getByText("Page 3 of 8")).toBeVisible();
 });
