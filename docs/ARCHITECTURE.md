@@ -39,7 +39,7 @@ The App Router entry is `frontend/app/page.tsx`. It handles authentication state
 
 `frontend/lib/api.ts` is the shared JSON request helper. It reads the bearer token from browser local storage, adds it to requests, disables fetch caching, and turns non-success responses into errors. The API base URL comes from `NEXT_PUBLIC_API_URL`, defaulting to `http://localhost:8000/api/v1`.
 
-The API is called directly from client components. The browser does not connect to PostgreSQL. The Overview calls `/api/v1/overview` for aggregate concept readiness, recent check-ins, continue-learning shortcuts, explainable revision candidates, due-review counts, and upcoming exams. Subject term filtering is client-side over the authenticated subject list.
+The API is called directly from client components. The browser does not connect to PostgreSQL. The Overview calls `/api/v1/overview` for aggregate concept readiness, recent check-ins, continue-learning shortcuts, explainable revision candidates, due-review counts, and upcoming exams. Subject term filtering is client-side in both the Overview subject grid and Academics subject picker.
 
 ### Backend
 
@@ -51,7 +51,7 @@ Each protected route obtains the current user through `backend/app/security.py`.
 
 The database URL is supplied by settings and targets PostgreSQL by default. `docker-compose.yml` runs a local PostgreSQL 16 container with a persistent named volume. Alembic revisions `0002_source_pages` through `0005_concept_prerequisites` add source-page metadata, subject term/year metadata, syllabus-version/review-history tables, and concept prerequisite relationships. CI validates the migration chain on SQLite and PostgreSQL.
 
-Existing models use integer primary keys. Alembic revision `0001_initial` is the seven-table baseline, followed by the source-page, subject-term, and syllabus-version/review-history revisions. Production startup does not call `Base.metadata.create_all()`; migrations must be applied before the API starts. Development retains `create_all()` for local convenience. Existing databases still require a verified backup, schema comparison, and explicit Alembic stamping/upgrades before production deployment. The earlier SQLite baseline and 21-test suite passed in [run #41983287215](https://github.com/NJWasTaken/atlas/actions/runs/41983287215); the expanded PostgreSQL workflow is now configured and its result is pending.
+Existing models use integer primary keys. Alembic revision `0001_initial` is the seven-table baseline, followed by `0002_source_pages`, `0003_subject_term`, `0004_syllabus_versions_reviews`, and `0005_concept_prerequisites`. Production startup does not call `Base.metadata.create_all()`; migrations must be applied before the API starts. Development retains `create_all()` for local convenience. Existing databases still require a verified backup, schema comparison, and explicit Alembic stamping/upgrades before production deployment. The consolidated CI workflow validates all five migrations on SQLite and PostgreSQL 16, then runs the API, configuration, migration-adoption, quote, and PostgreSQL integration tests.
 
 For a fresh database, run `cd backend && python -m alembic upgrade head` before starting the API. For a database already created by the old `create_all()` flow, take a verified backup and compare its schema carefully. If it matches the original seven-table baseline without the later migration columns, stamp `0001_initial` and then upgrade to head. For existing databases, `python -m scripts.adopt_existing_database` performs a read-only schema check and reports the matching revision (`0001_initial` through `0005_concept_prerequisites`). It refuses partial schemas and existing Alembic version tables. Only after taking and verifying a restorable backup should an operator rerun it with `--backup-verified --apply`, then run `python -m alembic upgrade head`. The helper only stamps; it does not alter application tables. **Do not run `upgrade head` against an existing un-stamped database** without first verifying and stamping its exact schema. This adoption has not been executed against any existing user database.
 
@@ -107,7 +107,7 @@ The syllabus importer accepts PDF uploads up to 12 MB and 100 pages, extracts se
 
 ### Quotations and visual layer
 
-Daily/random quote requests are proxied by the backend to API Ninjas when configured, keeping the provider key out of the browser. Curated fallbacks keep the Overview usable without the provider; successful daily quotes are cached for one hour in the API process. The global celestial background is rendered by `CelestialBackground.tsx`; the separate `QuoteRipple.tsx` component exists but is not part of the current page composition.
+Daily/random quote requests are proxied by the backend to API Ninjas when configured, keeping the provider key out of the browser. Curated fallbacks keep the Overview usable without the provider; daily quotes are cached for six hours and random quotes for one minute, with stale-cache fallback after provider failures. The global celestial background is rendered by `CelestialBackground.tsx`; the separate `QuoteRipple.tsx` component exists but is not part of the current page composition.
 
 ## Configuration and local development
 
