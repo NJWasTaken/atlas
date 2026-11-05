@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
 from typing import Literal
 
 Exposure = Literal["not_started", "studied"]
@@ -105,13 +105,29 @@ class ExamOut(BaseModel):
 
 class SyllabusConceptDraft(BaseModel):
     title: str = Field(min_length=1, max_length=180)
-    source_pages: list[int] = Field(default_factory=list)
+    source_pages: list[int] = Field(default_factory=list, max_length=100)
+
+    @field_validator("title")
+    @classmethod
+    def clean_title(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("title cannot be blank")
+        return value
 
 
 class SyllabusTopicDraft(BaseModel):
     title: str = Field(min_length=1, max_length=180)
-    source_pages: list[int] = Field(default_factory=list)
+    source_pages: list[int] = Field(default_factory=list, max_length=100)
     concepts: list[SyllabusConceptDraft] = Field(default_factory=list, max_length=100)
+
+    @field_validator("title")
+    @classmethod
+    def clean_title(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("title cannot be blank")
+        return value
 
 
 class SyllabusConfirm(BaseModel):
