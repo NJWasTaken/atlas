@@ -187,3 +187,14 @@
 .atlas-review-history>div strong{color:#c8d5df;font-size:10px;text-transform:capitalize}
 .atlas-review-history>div span,.atlas-review-history>div small{color:#8293a7;font-size:9px}
 .atlas-subject-term{margin-top:5px;color:var(--atlas-lilac);font-size:10px;letter-spacing:.04em}
+
+.atlas-readiness-exam-context{margin-top:10px;padding:8px 10px;color:#a8c8dd;border-left:2px solid var(--atlas-blue);background:rgba(133,181,229,.05);font-size:10px}
+.atlas-readiness-exam-context strong{color:#d8e7f3;font-weight:600}
+.atlas-revision-suggestions{display:grid;gap:6px;margin-top:14px}
+.atlas-revision-suggestions>.eyebrow{margin-bottom:2px;color:#b9a4e2}
+.atlas-revision-suggestions>button{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 9px;color:#cbd5dd;border:1px solid rgba(166,187,211,.12);background:rgba(4,13,24,.22);text-align:left}
+.atlas-revision-suggestions>button:hover{border-color:rgba(185,164,226,.32);background:rgba(185,164,226,.05)}
+.atlas-revision-suggestions>button>span{display:grid;gap:3px;min-width:0}
+.atlas-revision-suggestions strong{color:#dfe6e9;font-size:10px}
+.atlas-revision-suggestions small{color:#8293a7;font-size:9px;text-transform:capitalize}
+.atlas-revision-suggestions em{padding:4px 6px;color:#e6c28e;border:1px solid rgba(230,194,142,.2);font-size:8px;font-style:normal;white-space:nowrap}
