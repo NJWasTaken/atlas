@@ -318,7 +318,7 @@ export default function AcademicsWorkspace({ subjects }: { subjects: Subject[] }
 
     <div className="atlas-academics-columns">
       <section className="atlas-academics-panel atlas-syllabus-panel">
-        <div className="atlas-panel-heading"><div><p className="eyebrow">THE KNOWLEDGE MAP</p><h3>Chapters & concepts</h3></div><div className="atlas-syllabus-heading-actions"><span className="atlas-panel-tag">FILL IN YOUR SYLLABUS HERE</span><label className="atlas-button atlas-secondary atlas-upload-button"><FileUp size={14}/>{uploadingSyllabus?"Reading PDF…":"Import PDF"}<input type="file" accept="application/pdf,.pdf" disabled={uploadingSyllabus||busy} onChange={e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value="";if(file)void uploadSyllabus(file);}}/></label></div></div>
+        <div className="atlas-panel-heading"><div><p className="eyebrow">THE KNOWLEDGE MAP</p><h3>Chapters & concepts</h3></div><div className="atlas-syllabus-heading-actions"><label className="atlas-button atlas-secondary atlas-upload-button"><FileUp size={14}/>{uploadingSyllabus?"Reading PDF…":"Import from PDF"}<input type="file" accept="application/pdf,.pdf" disabled={uploadingSyllabus||busy} onChange={e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value="";if(file)void uploadSyllabus(file);}}/></label></div></div>
         {importDraft && <section className="atlas-import-review">
           <div className="atlas-import-review-heading">
             <div><p className="eyebrow">NOT SAVED YET</p><h4>Review your syllabus draft</h4><p>{importDraft.file_name} · {importDraft.page_count} pages · {importDraft.topics.length} detected chapters</p></div>
