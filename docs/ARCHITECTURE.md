@@ -123,7 +123,7 @@ pip install -r requirements.txt
 python -m pytest
 ```
 
-The 15-test API suite covers authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation and updates, required-field validation, partial concept-progress PATCH behavior, readiness counts, concept deletion, calendar-note CRUD/ownership/range validation, and exam CRUD/ownership/validation. These tests provide a fast regression layer; PostgreSQL-specific integration behavior and broader remaining CRUD edge cases still need coverage. A GitHub Actions workflow runs this suite on pushes to `main` and `work/**`, and on pull requests targeting `main` when backend files change. The initial 10-test suite passed in [GitHub Actions run #41979038349](https://github.com/NJWasTaken/atlas/actions/runs/41979038349). The expanded 15-test suite passed in [GitHub Actions run #41979455642](https://github.com/NJWasTaken/atlas/actions/runs/41979455642). PostgreSQL-backed integration coverage remains outstanding.
+The 15-test API suite covers authentication, duplicate registration, subject and academic-resource ownership, topic hierarchy validation and updates, required-field validation, partial concept-progress PATCH behavior, readiness counts, concept deletion, calendar-note CRUD/ownership/range validation, and exam CRUD/ownership/validation. These tests provide a fast regression layer; PostgreSQL-specific integration behavior and broader remaining CRUD edge cases still need coverage. A GitHub Actions workflow runs this suite on pushes to `main` and `work/**`, and on pull requests targeting `main` when backend files change. A separate frontend workflow installs the locked npm dependencies, runs TypeScript checking, and builds the production Next.js app on matching frontend changes; automated frontend interaction tests have not yet been added. The initial 10-test suite passed in [GitHub Actions run #41979038349](https://github.com/NJWasTaken/atlas/actions/runs/41979038349). The expanded 15-test suite passed in [GitHub Actions run #41979455642](https://github.com/NJWasTaken/atlas/actions/runs/41979455642). PostgreSQL-backed integration coverage remains outstanding.
 
 ## File guide
 
@@ -137,6 +137,7 @@ This list covers the tracked project source, documentation, and configuration fi
 | `.gitignore` | Excludes local environment files, dependencies, build output, caches, and other generated/local files. |
 | `docker-compose.yml` | Starts the local PostgreSQL service and named data volume. |
 | `.github/workflows/backend-tests.yml` | Runs the backend pytest suite on development pushes and relevant pull requests. |
+| `.github/workflows/frontend-checks.yml` | Runs frontend TypeScript checking and a production Next.js build. |
 | `README.md` | Product vision, requirements, data/API design, roadmap, setup instructions, and representative project structure. |
 
 ### `docs/`
@@ -199,6 +200,6 @@ This list covers the tracked project source, documentation, and configuration fi
 - The application is a prototype, not yet a production deployment architecture.
 - Authentication tokens are stored in browser local storage; refresh/revocation flows are not implemented.
 - Startup `create_all()` is not a substitute for versioned database migrations.
-- A pytest-based backend API suite and GitHub Actions workflow now exist, and the initial 10-test suite has passed in CI. Broader backend coverage, frontend tests, and frontend CI checks are still outstanding.
+- A pytest-based backend API suite and GitHub Actions workflow now exist, and the expanded 15-test suite has passed in CI. Frontend TypeScript/build CI is configured; automated frontend interaction tests and PostgreSQL-backed integration tests are still outstanding.
 - The Overview calendar currently provides a monthly grid and date notes; it is not a full event-planning system or weekly calendar.
 - Explore, My Universe, syllabus document ingestion, AI integrations, and data export remain future work.
