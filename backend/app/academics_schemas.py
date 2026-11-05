@@ -75,6 +75,7 @@ class ProgressOut(ProgressUpdate):
     id: int
     concept_id: int
     last_reviewed: datetime | None
+    next_review_at: datetime | None = None
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
@@ -132,3 +133,36 @@ class SyllabusTopicDraft(BaseModel):
 
 class SyllabusConfirm(BaseModel):
     topics: list[SyllabusTopicDraft] = Field(min_length=1, max_length=80)
+
+
+class SyllabusVersionCreate(BaseModel):
+    version_name: str = Field(min_length=1, max_length=100)
+
+    @field_validator("version_name")
+    @classmethod
+    def clean_version_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Version name cannot be blank")
+        return value
+
+
+class SyllabusVersionOut(BaseModel):
+    id: int
+    subject_id: int
+    version_name: str
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ConceptReviewOut(BaseModel):
+    id: int
+    concept_id: int
+    exposure: Exposure
+    understanding: Understanding
+    recall: Recall
+    confidence: int | None
+    notes: str | None
+    reviewed_at: datetime
+    next_review_at: datetime
+    model_config = ConfigDict(from_attributes=True)
