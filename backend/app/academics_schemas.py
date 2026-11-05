@@ -158,3 +158,15 @@ class SyllabusVersionOut(BaseModel):
 
 class SyllabusVersionDetail(SyllabusVersionOut):
     snapshot: dict
+
+
+class SyllabusVersionCreate(BaseModel):
+    label: str = Field(default="Manual snapshot", min_length=1, max_length=160)
+
+    @field_validator("label")
+    @classmethod
+    def clean_label(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("label cannot be blank")
+        return value
