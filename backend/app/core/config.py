@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_production_settings(self):
         if self.environment == "production":
+            if "atlas_dev_password" in self.database_url or "localhost:5432/atlas" in self.database_url:
+                raise ValueError("Production DATABASE_URL must not point to the local development database.")
             if self.jwt_secret == "development-only-change-me" or len(self.jwt_secret) < 32:
                 raise ValueError("Production requires a unique JWT_SECRET with at least 32 characters.")
             if not self.allowed_origins or "*" in self.allowed_origins:
