@@ -15,7 +15,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [ ] Add PostgreSQL-backed integration coverage for database-specific behavior before treating backend validation as complete.
 - [ ] Add frontend tests for key user flows: login/register, subject creation, topic/concept progress, calendar note persistence, and exam create/edit/delete from both views.
 - [x] Add CI execution for the backend pytest suite on development pushes and relevant pull requests.
-- [ ] Add CI checks for frontend TypeScript/build.
+- [x] Add CI checks for frontend TypeScript and production build.
 - [ ] Introduce Alembic migrations before changing deployed database schemas; replace startup-only `Base.metadata.create_all()` as the schema-evolution mechanism.
 - [ ] Review production configuration: require a strong JWT secret, define safe CORS origins, document required environment variables, and avoid development fallback credentials outside local development.
 - [ ] Improve API error/loading/empty states and accessibility across the current screens.
