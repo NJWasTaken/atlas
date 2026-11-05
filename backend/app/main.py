@@ -5,7 +5,8 @@ from app.core.config import settings
 from app.db import Base, engine
 from app import models  # noqa: F401
 from app import academics_models  # noqa: F401
-from app.routers import auth, quotes, subjects, calendar, academics, overview
+from app import explore_models  # noqa: F401
+from app.routers import auth, quotes, subjects, calendar, academics, overview, explore
 
 
 def create_app(*, create_tables: bool | None = None) -> FastAPI:
@@ -30,6 +31,7 @@ def create_app(*, create_tables: bool | None = None) -> FastAPI:
     application.include_router(calendar.router, prefix="/api/v1")
     application.include_router(academics.router, prefix="/api/v1")
     application.include_router(overview.router, prefix="/api/v1")
+    application.include_router(explore.router, prefix="/api/v1")
 
     should_create_tables = settings.environment != "production" if create_tables is None else create_tables
     if should_create_tables:
