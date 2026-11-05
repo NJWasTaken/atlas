@@ -1,6 +1,6 @@
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func, and_, case
 from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Subject, User
@@ -36,6 +36,13 @@ def owned_concept(db: Session, concept_id: int, user_id: int):
     return concept
 
 
+def is_due(value: datetime | None, now: datetime) -> bool:
+    if value is None:
+        return False
+    normalized = value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+    return normalized <= now
+
+
 def review_interval_days(progress: ConceptProgress) -> int:
     if progress.understanding == "weak" or progress.recall == "needs_practice":
         return 1
@@ -61,6 +68,68 @@ def syllabus_snapshot(db: Session, subject_id: int) -> dict:
         "description": topic.description, "position": topic.position,
         "source_pages": topic.source_pages, "concepts": concepts_by_topic.get(topic.id, []),
     } for topic in topics]}
+
+@router.get("/overview")
+def overview_data(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    subjects = list(db.scalars(select(Subject).where(Subject.user_id == user.id).order_by(Subject.name)))
+    subject_ids = [subject.id for subject in subjects]
+    summaries = []
+    if subject_ids:
+        concept_rows = db.execute(
+            select(Subject.id, Subject.name, Subject.term, func.count(Concept.id),
+                   func.sum(case((ConceptProgress.id.is_not(None), 1), else_=0)))
+            .outerjoin(Topic, Topic.subject_id == Subject.id)
+            .outerjoin(Concept, Concept.topic_id == Topic.id)
+            .outerjoin(ConceptProgress, and_(ConceptProgress.concept_id == Concept.id, ConceptProgress.user_id == user.id))
+            .where(Subject.id.in_(subject_ids))
+            .group_by(Subject.id, Subject.name, Subject.term)
+        ).all()
+        for subject_id, name, term, total, assessed in concept_rows:
+            summaries.append({"subject_id": subject_id, "subject_name": name, "term": term,
+                              "total_concepts": total or 0, "assessed_concepts": assessed or 0})
+    upcoming_exams = list(db.scalars(
+        select(Exam).where(Exam.user_id == user.id, Exam.exam_date >= now)
+        .order_by(Exam.exam_date).limit(8)
+    ))
+    continue_rows = db.execute(
+        select(Concept, Topic, Subject, ConceptProgress)
+        .join(Topic, Topic.id == Concept.topic_id)
+        .join(Subject, Subject.id == Topic.subject_id)
+        .outerjoin(ConceptProgress, and_(ConceptProgress.concept_id == Concept.id, ConceptProgress.user_id == user.id))
+        .where(Subject.user_id == user.id)
+    ).all()
+    continue_learning = []
+    for concept, topic, subject, progress in continue_rows:
+        reason = None
+        if progress is None or progress.understanding == "not_assessed":
+            reason = "not_assessed"
+        elif progress.understanding == "weak" or progress.recall == "needs_practice":
+            reason = "needs_practice"
+        elif is_due(progress.next_review_at, now):
+            reason = "review_due"
+        if reason:
+            continue_learning.append({"concept_id": concept.id, "title": concept.title,
+                "topic_title": topic.title, "subject_id": subject.id, "subject_name": subject.name,
+                "reason": reason, "next_review_at": progress.next_review_at if progress else None})
+    continue_learning.sort(key=lambda item: (0 if item["reason"] == "needs_practice" else 1 if item["reason"] == "review_due" else 2,
+        ((item["next_review_at"].replace(tzinfo=timezone.utc) if item["next_review_at"] and item["next_review_at"].tzinfo is None else item["next_review_at"]) or now)))
+    recent_rows = db.execute(
+        select(ConceptReview, Concept.title, Subject.name)
+        .join(Concept, Concept.id == ConceptReview.concept_id)
+        .join(Topic, Topic.id == Concept.topic_id)
+        .join(Subject, Subject.id == Topic.subject_id)
+        .where(ConceptReview.user_id == user.id)
+        .order_by(ConceptReview.reviewed_at.desc()).limit(8)
+    ).all()
+    recent_activity = [{"concept_title": title, "subject_name": subject_name,
+                        "reviewed_at": review.reviewed_at, "understanding": review.understanding,
+                        "recall": review.recall} for review, title, subject_name in recent_rows]
+    return {"subjects": summaries,
+            "upcoming_exams": [{"id": exam.id, "subject_id": exam.subject_id, "title": exam.title,
+                                "exam_date": exam.exam_date} for exam in upcoming_exams],
+            "continue_learning": continue_learning[:8], "recent_activity": recent_activity}
+
 
 @router.post("/subjects/{subject_id}/syllabus/draft")
 async def create_syllabus_draft(
@@ -287,7 +356,7 @@ def subject_readiness(subject_id: int, db: Session = Depends(get_db), user: User
             reason = "not_assessed"
         elif progress.understanding == "weak" or progress.recall == "needs_practice":
             reason = "needs_practice"
-        elif due_at is not None and due_at <= now:
+        elif is_due(due_at, now):
             reason = "review_due"
         if reason:
             items.append({
@@ -296,7 +365,7 @@ def subject_readiness(subject_id: int, db: Session = Depends(get_db), user: User
                 "exam_date": upcoming_exam.exam_date if upcoming_exam else None,
                 "exam_title": upcoming_exam.title if upcoming_exam else None,
             })
-    items.sort(key=lambda item: (0 if item["reason"] == "needs_practice" else 1 if item["reason"] == "review_due" else 2, item["next_review_at"] or now))
+    items.sort(key=lambda item: (0 if item["reason"] == "needs_practice" else 1 if item["reason"] == "review_due" else 2, (item["next_review_at"].replace(tzinfo=timezone.utc) if item["next_review_at"] and item["next_review_at"].tzinfo is None else item["next_review_at"]) or now))
     return {
         "subject_id": subject_id,
         "total_concepts": total,
