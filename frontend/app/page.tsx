@@ -6,7 +6,7 @@ import { api, clearToken, getToken, setToken } from "../lib/api";
 import DashboardCalendar from "./components/DashboardCalendar";
 import AcademicsWorkspace from "./components/AcademicsWorkspace";
 
-type Subject = { id: number; name: string; code?: string | null; description?: string | null };
+type Subject = { id: number; name: string; code?: string | null; description?: string | null; term?: string | null; academic_year?: string | null };
 type Quote = { quote: string; author: string; work?: string | null };
 type AuthMode = "login" | "register";
 const nav = [
@@ -34,6 +34,9 @@ export default function Home() {
   const [subjectName, setSubjectName] = useState("");
   const [subjectCode, setSubjectCode] = useState("");
   const [subjectDescription, setSubjectDescription] = useState("");
+  const [subjectTerm, setSubjectTerm] = useState("");
+  const [subjectYear, setSubjectYear] = useState("");
+  const [subjectFilter, setSubjectFilter] = useState("all");
   const [editingSubjectId, setEditingSubjectId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -84,7 +87,7 @@ export default function Home() {
   }
   function openAddSubject() {
     setEditingSubjectId(null);
-    setSubjectName(""); setSubjectCode(""); setSubjectDescription("");
+    setSubjectName(""); setSubjectCode(""); setSubjectDescription(""); setSubjectTerm(""); setSubjectYear("");
     setShowAdd(true);
   }
   function openEditSubject(subject: Subject) {
@@ -92,18 +95,20 @@ export default function Home() {
     setSubjectName(subject.name);
     setSubjectCode(subject.code ?? "");
     setSubjectDescription(subject.description ?? "");
+    setSubjectTerm(subject.term ?? "");
+    setSubjectYear(subject.academic_year ?? "");
     setShowAdd(true);
   }
   async function addSubject(e: React.FormEvent) {
     e.preventDefault(); setError(""); setBusy(true);
     try {
-      const payload = { name: subjectName.trim(), code: subjectCode.trim() || null, description: subjectDescription.trim() || null };
+      const payload = { name: subjectName.trim(), code: subjectCode.trim() || null, description: subjectDescription.trim() || null, term: subjectTerm.trim() || null, academic_year: subjectYear.trim() || null };
       if (editingSubjectId !== null) {
         await api<Subject>(`/subjects/${editingSubjectId}`, { method: "PATCH", body: JSON.stringify(payload) });
       } else {
         await api<Subject>("/subjects", { method: "POST", body: JSON.stringify(payload) });
       }
-      setSubjectName(""); setSubjectCode(""); setSubjectDescription(""); setEditingSubjectId(null); setShowAdd(false); await loadSubjects();
+      setSubjectName(""); setSubjectCode(""); setSubjectDescription(""); setSubjectTerm(""); setSubjectYear(""); setEditingSubjectId(null); setShowAdd(false); await loadSubjects();
     } catch (e) { setError(e instanceof Error ? e.message : "Could not save subject"); }
     finally { setBusy(false); }
   }
@@ -204,7 +209,8 @@ export default function Home() {
                 <p>{subjects.length?"Your semester, gathered in one place. Pick a subject and keep building your understanding.":"Your academic universe starts with the subjects you're studying this semester."}</p>
                 <button className="atlas-round-arrow" onClick={()=>setActive("Academics")} aria-label="View academics"><ArrowUpRight size={17}/></button>
               </div>
-              <SubjectGrid subjects={subjects} onDelete={deleteSubject} onEdit={openEditSubject}/>
+              <div className="atlas-subject-filter"><label htmlFor="atlas-subject-filter">SHOW</label><select id="atlas-subject-filter" value={subjectFilter} onChange={e=>setSubjectFilter(e.target.value)}><option value="all">All subjects</option>{Array.from(new Set(subjects.map(s=>s.term).filter((term): term is string => Boolean(term)))).sort().map(term=><option key={term} value={term}>{term}</option>)}</select></div>
+              <SubjectGrid subjects={subjects.filter(s=>subjectFilter==="all"||s.term===subjectFilter)} onDelete={deleteSubject} onEdit={openEditSubject}/>
             </section>
             <section className="atlas-overview-section atlas-calendar-section"><DashboardCalendar /></section>
           </>}
@@ -225,6 +231,7 @@ export default function Home() {
           <label className="atlas-modal-label">Subject name<input autoFocus required value={subjectName} onChange={e=>setSubjectName(e.target.value)} placeholder="e.g. Machine Learning"/></label>
           <label className="atlas-modal-label">Course code <small>OPTIONAL</small><input value={subjectCode} onChange={e=>setSubjectCode(e.target.value)} placeholder="e.g. CS402"/></label>
           <label className="atlas-modal-label">Description <small>OPTIONAL</small><textarea rows={3} value={subjectDescription} onChange={e=>setSubjectDescription(e.target.value)} placeholder="What does this subject cover?"/></label>
+          <div className="atlas-subject-term-fields"><label className="atlas-modal-label">Semester / term <small>OPTIONAL</small><input value={subjectTerm} onChange={e=>setSubjectTerm(e.target.value)} placeholder="e.g. Semester 5"/></label><label className="atlas-modal-label">Academic year <small>OPTIONAL</small><input value={subjectYear} onChange={e=>setSubjectYear(e.target.value)} placeholder="e.g. 2026–27"/></label></div>
           <button disabled={busy} className="atlas-button atlas-primary atlas-full">{busy?"Saving…":editingSubjectId === null ? "Save subject" : "Save changes"}<ArrowUpRight size={16}/></button>
         </form>
       </div>}
@@ -240,7 +247,7 @@ function SubjectGrid({subjects,onDelete,onEdit}:{subjects:Subject[];onDelete:(id
   if(!subjects.length)return <div className="atlas-empty-subjects"><div className="atlas-empty-icon"><BookOpen size={19}/></div><p>Your map is waiting for its first pin.</p><span>Add a subject to begin building your academic space.</span></div>;
   return <div className="atlas-subject-grid">{subjects.map((s,i)=><article key={s.id} className="atlas-subject-card" style={{animationDelay:`${i*65}ms`}}>
     <div className="atlas-subject-card-top"><div className="atlas-subject-glyph"><BookOpen size={17}/></div><div className="atlas-subject-card-actions"><button onClick={()=>onEdit(s)} className="atlas-remove atlas-edit-subject">Edit</button><button onClick={()=>onDelete(s.id)} className="atlas-remove">Remove</button></div></div>
-    <p className="atlas-subject-code">{s.code||`SUBJECT ${String(i+1).padStart(2,"0")}`}</p><h3>{s.name}</h3><p className="atlas-subject-description">{s.description||"Syllabus and concepts will live here."}</p>
+    <p className="atlas-subject-code">{s.code||`SUBJECT ${String(i+1).padStart(2,"0")}`}</p><h3>{s.name}</h3>{(s.term||s.academic_year)&&<p className="atlas-subject-term">{[s.term,s.academic_year].filter(Boolean).join(" · ")}</p>}<p className="atlas-subject-description">{s.description||"Syllabus and concepts will live here."}</p>
     <div className="atlas-card-bottom"><span>YOUR ACADEMIC SPACE</span><ArrowUpRight size={14}/></div>
   </article>)}</div>;
 }
