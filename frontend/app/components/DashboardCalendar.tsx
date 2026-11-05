@@ -32,7 +32,7 @@ const markdownTools: { action: MarkdownAction; label: string; icon: typeof Bold 
   { action: "rule", label: "Divider", icon: Minus },
 ];
 
-export default function DashboardCalendar() {
+export default function DashboardCalendar({ onDataChange }: { onDataChange?: () => void }) {
   const today = useMemo(() => new Date(), []);
   const [month,setMonth] = useState(() => new Date(today.getFullYear(),today.getMonth(),1));
   const [selected,setSelected] = useState(keyOf(today));
@@ -119,6 +119,7 @@ export default function DashboardCalendar() {
       });
       setExams(old => old.map(exam => exam.id === updated.id ? updated : exam));
       cancelExamEdit();
+      onDataChange?.();
     } catch(e) {
       setError(e instanceof Error ? e.message : "Could not update exam");
     } finally {
@@ -134,6 +135,7 @@ export default function DashboardCalendar() {
       await api<void>(`/exams/${exam.id}`,{method:"DELETE"});
       setExams(old => old.filter(item => item.id !== exam.id));
       if (editingExamId === exam.id) cancelExamEdit();
+      onDataChange?.();
     } catch(e) {
       setError(e instanceof Error ? e.message : "Could not delete exam");
     } finally {
