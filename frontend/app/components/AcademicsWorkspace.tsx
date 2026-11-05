@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { api } from "../../lib/api";
 
-type Subject = { id: number; name: string; code?: string | null; description?: string | null };
+type Subject = { id: number; name: string; code?: string | null; description?: string | null; term?: string | null; academic_year?: string | null };
 type Topic = { id: number; subject_id: number; parent_topic_id: number | null; title: string; description?: string | null; source_pages?: number[] | null; position: number };
 type Concept = { id: number; topic_id: number; title: string; description?: string | null; source_pages?: number[] | null; position: number };
 type Progress = {
@@ -30,6 +30,7 @@ const blankProgress: Progress = { concept_id: 0, exposure:"not_started", underst
 
 export default function AcademicsWorkspace({ subjects, initialSubjectId, focusConceptId, onFocusHandled }: { subjects: Subject[]; initialSubjectId?:number; focusConceptId?:number; onFocusHandled?:()=>void }) {
   const [subjectId, setSubjectId] = useState<number | null>(initialSubjectId ?? subjects[0]?.id ?? null);
+  const [termFilter, setTermFilter] = useState("all");
   const [topics, setTopics] = useState<Topic[]>([]);
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [readiness, setReadiness] = useState<Readiness | null>(null);
@@ -61,7 +62,9 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
   const [importDraft, setImportDraft] = useState<SyllabusDraft | null>(null);
   const [uploadingSyllabus, setUploadingSyllabus] = useState(false);
 
-  const subject = subjects.find(s => s.id === subjectId) ?? null;
+  const terms = useMemo(() => [...new Set(subjects.map(s => s.term).filter((term): term is string => Boolean(term)))].sort(), [subjects]);
+  const visibleSubjects = useMemo(() => termFilter === "all" ? subjects : subjects.filter(s => s.term === termFilter), [subjects, termFilter]);
+  const subject = visibleSubjects.find(s => s.id === subjectId) ?? null;
   const topicMap = useMemo(() => new Map(topics.map(t => [t.id, t])), [topics]);
   const conceptsByTopic = useMemo(() => {
     const map = new Map<number, Concept[]>();
@@ -86,9 +89,9 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
   }
 
   useEffect(() => {
-    if (!subjects.length) { setSubjectId(null); return; }
-    if (!subjects.some(s => s.id === subjectId)) setSubjectId(subjects[0].id);
-  }, [subjects, subjectId]);
+    if (!visibleSubjects.length) { setSubjectId(null); return; }
+    if (!visibleSubjects.some(s => s.id === subjectId)) setSubjectId(visibleSubjects[0].id);
+  }, [visibleSubjects, subjectId]);
   useEffect(() => {
     if (initialSubjectId && subjects.some(s => s.id === initialSubjectId)) setSubjectId(initialSubjectId);
   }, [initialSubjectId, subjects]);
@@ -399,9 +402,12 @@ export default function AcademicsWorkspace({ subjects, initialSubjectId, focusCo
     {error && <div className="atlas-academics-alert" role="alert"><AlertCircle size={15}/>{error}<button onClick={()=>setError("")}>Dismiss</button></div>}
     {notice && <div className="atlas-academics-notice" role="status"><Check size={15}/>{notice}<button onClick={()=>setNotice("")}>×</button></div>}
     <div className="atlas-academics-toolbar">
-      <label><span>WORKING IN</span><select value={subjectId ?? ""} onChange={e=>{setSubjectId(Number(e.target.value));setSelectedConcept(null);setReviews([]);setPrerequisites([]);setPrerequisiteIds([]);setPrerequisiteSearch("");setSelectedVersion(null);setShowVersionHistory(false);setImportDraft(null);}}>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}{s.code?` · ${s.code}`:""}</option>)}</select></label>
+      <label><span>FILTER BY TERM</span><select value={termFilter} onChange={e=>{setTermFilter(e.target.value);setSelectedConcept(null);setReviews([]);setPrerequisites([]);setPrerequisiteIds([]);setSelectedVersion(null);setImportDraft(null);}}><option value="all">All terms</option>{terms.map(term=><option key={term} value={term}>{term}</option>)}</select></label>
+      <label><span>WORKING IN</span><select value={subjectId ?? ""} onChange={e=>{setSubjectId(Number(e.target.value));setSelectedConcept(null);setReviews([]);setPrerequisites([]);setPrerequisiteIds([]);setPrerequisiteSearch("");setSelectedVersion(null);setShowVersionHistory(false);setImportDraft(null);}}>{visibleSubjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
       <div className="atlas-academics-actions"><button className="atlas-button atlas-secondary" onClick={()=>void loadWorkspace(subjectId!)}><RefreshCw size={14}/> Refresh</button><button className="atlas-button atlas-secondary" onClick={()=>setShowVersionHistory(value=>!value)}>History ({versions.length})</button><button className="atlas-button atlas-primary" onClick={()=>{setParentId(null);setAddingTopic(true);}}><Plus size={14}/> Add chapter</button></div>
     </div>
+
+    {!visibleSubjects.length && <div className="atlas-academics-empty">No subjects in this term yet.</div>}
 
     {showVersionHistory && <section className="atlas-syllabus-history"><div className="atlas-panel-heading"><div><p className="eyebrow">SYLLABUS TIMELINE</p><h3>Saved versions</h3></div><button type="button" className="atlas-mini-action" onClick={()=>setShowVersionHistory(false)} aria-label="Close version history"><X size={15}/></button></div>{versions.length ? versions.map(version=><div className="atlas-version-row" key={version.id}><span>v{version.version_number}</span><div><strong>{version.label}</strong><small>{new Date(version.created_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"})}</small></div><button type="button" className="atlas-button atlas-secondary" onClick={()=>void inspectSyllabusVersion(version.id)}>Inspect</button></div>) : <p className="atlas-topic-empty">Your syllabus changes will create a version history as you edit.</p>}{selectedVersion&&<div className="atlas-version-preview"><div><strong>Version {selectedVersion.version_number}</strong><button type="button" className="atlas-mini-action" onClick={()=>setSelectedVersion(null)} aria-label="Close preview"><X size={14}/></button></div>{selectedVersion.snapshot.topics.map(topic=><p key={topic.id}><span>{topic.title}</span><small>{topic.concepts.length} concepts</small></p>)}<button type="button" className="atlas-button atlas-secondary" disabled={busy} onClick={()=>void restoreSyllabusVersion(selectedVersion)}>Restore this version</button></div>}</section>}
 
