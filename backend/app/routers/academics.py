@@ -88,6 +88,16 @@ def owned_topic(db: Session, topic_id: int, user_id: int):
         raise HTTPException(404, "Topic not found")
     return topic
 
+def descendant_topic_ids(db: Session, root_topic_id: int) -> list[int]:
+    found = [root_topic_id]
+    frontier = [root_topic_id]
+    while frontier:
+        children = list(db.scalars(select(Topic.id).where(Topic.parent_topic_id.in_(frontier))))
+        found.extend(children)
+        frontier = children
+    return found
+
+
 def owned_concept(db: Session, concept_id: int, user_id: int):
     concept = db.scalar(select(Concept).join(Topic, Concept.topic_id == Topic.id).join(Subject, Topic.subject_id == Subject.id).where(
         Concept.id == concept_id, Subject.user_id == user_id
@@ -340,6 +350,13 @@ def update_topic(topic_id: int, data: TopicUpdate, db: Session = Depends(get_db)
 def delete_topic(topic_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     topic = owned_topic(db, topic_id, user.id)
     subject_id = topic.subject_id
+    topic_ids = descendant_topic_ids(db, topic.id)
+    concept_ids = list(db.scalars(select(Concept.id).where(Concept.topic_id.in_(topic_ids))))
+    if concept_ids:
+        db.execute(delete(ConceptPrerequisite).where(or_(
+            ConceptPrerequisite.concept_id.in_(concept_ids),
+            ConceptPrerequisite.prerequisite_concept_id.in_(concept_ids),
+        )))
     db.delete(topic); db.flush()
     save_syllabus_version(db, subject_id, user.id, "Chapter removed")
     db.commit()
@@ -377,6 +394,10 @@ def delete_concept(concept_id: int, db: Session = Depends(get_db), user: User = 
     concept = owned_concept(db, concept_id, user.id)
     topic = db.get(Topic, concept.topic_id)
     subject_id = topic.subject_id
+    db.execute(delete(ConceptPrerequisite).where(or_(
+        ConceptPrerequisite.concept_id == concept_id,
+        ConceptPrerequisite.prerequisite_concept_id == concept_id,
+    )))
     db.delete(concept); db.flush()
     save_syllabus_version(db, subject_id, user.id, "Concept removed")
     db.commit()
@@ -450,6 +471,7 @@ def replace_prerequisites(concept_id: int, data: PrerequisiteUpdate, db: Session
     db.execute(delete(ConceptPrerequisite).where(ConceptPrerequisite.concept_id == concept_id))
     for prerequisite_id in sorted(requested):
         db.add(ConceptPrerequisite(concept_id=concept_id, prerequisite_concept_id=prerequisite_id))
+    save_syllabus_version(db, topic.subject_id, user.id, "Prerequisites updated")
     db.commit()
     return list_prerequisites(concept_id, db, user)
 
