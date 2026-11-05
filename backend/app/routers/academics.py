@@ -1,6 +1,6 @@
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
-from sqlalchemy import select, func, and_, delete
+from sqlalchemy import select, func, and_, delete, or_
 from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Subject, User
@@ -34,6 +34,15 @@ def save_syllabus_version(db: Session, subject_id: int, user_id: int, label: str
         .where(Topic.subject_id == subject_id)
         .order_by(Concept.position, Concept.id)
     ))
+    prerequisite_rows = db.execute(
+        select(ConceptPrerequisite.concept_id, ConceptPrerequisite.prerequisite_concept_id)
+        .join(Concept, Concept.id == ConceptPrerequisite.concept_id)
+        .join(Topic, Topic.id == Concept.topic_id)
+        .where(Topic.subject_id == subject_id)
+    ).all()
+    prerequisites_by_concept = {}
+    for dependent_id, prerequisite_id in prerequisite_rows:
+        prerequisites_by_concept.setdefault(dependent_id, []).append(prerequisite_id)
     concepts_by_topic = {}
     for concept in concept_rows:
         concepts_by_topic.setdefault(concept.topic_id, []).append({
@@ -42,6 +51,7 @@ def save_syllabus_version(db: Session, subject_id: int, user_id: int, label: str
             "description": concept.description,
             "position": concept.position,
             "source_pages": concept.source_pages,
+            "prerequisite_ids": prerequisites_by_concept.get(concept.id, []),
         })
     snapshot = {
         "topics": [
