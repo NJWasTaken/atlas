@@ -15,6 +15,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Verify subject/concept partial-update endpoints and ownership validation in the expanded backend suite.
 - [x] Configure a PostgreSQL 16 CI service, Alembic upgrade/check/downgrade validation, and integration coverage for JSON persistence and database constraints.
 - [x] Add Playwright browser tests for sign-in, subject/term creation and filtering, manual chapter/concept creation, progress saves, weekly calendar notes, and exam create/edit/delete across Academics and Overview.
+- [x] Preserve the selected concept and next-review feedback when a progress save refreshes subject readiness.
 - [x] Verify the syllabus-import UI TypeScript check and production build pass in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983099966).
 - [x] Verify the 21-test syllabus/backend suite and full SQLite migration chain in [GitHub Actions](https://github.com/NJWasTaken/atlas/actions/runs/41983287215).
 - [x] Add CI execution for the backend pytest suite on development pushes and relevant pull requests.
