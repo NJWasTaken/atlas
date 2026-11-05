@@ -273,6 +273,7 @@ test("subject deletion explains its impact and confirms before removing it", asy
   await page.getByRole("button", { name: /Add subject/ }).first().click();
   await page.getByLabel("Subject name").fill("Operating Systems");
   await page.getByRole("button", { name: "Save subject" }).click();
+  await page.getByRole("button", { name: "Overview" }).click();
   await expect(page.getByRole("heading", { name: "Operating Systems" })).toBeVisible();
   let confirmation = "";
   page.once("dialog", async dialog => { confirmation = dialog.message(); await dialog.accept(); });
