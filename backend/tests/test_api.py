@@ -662,3 +662,77 @@ def test_overview_summary_is_user_scoped_and_prioritizes_revision(client: TestCl
     assert hidden.json()["recent_activity"] == []
     assert hidden.json()["revision_suggestions"] == []
     assert hidden.json()["upcoming_exams"] == []
+
+
+def test_concept_reviews_record_history_and_schedule_next_review(client: TestClient):
+    owner = auth_headers(register(client, "review-history-owner@example.com"))
+    other = auth_headers(register(client, "review-history-other@example.com"))
+    subject = client.post("/api/v1/subjects", headers=owner, json={"name": "Databases"}).json()
+    topic = client.post(f"/api/v1/subjects/{subject['id']}/topics", headers=owner, json={"title": "Indexing"}).json()
+    concept = client.post(f"/api/v1/topics/{topic['id']}/concepts", headers=owner, json={"title": "B-trees"}).json()
+
+    first = client.patch(
+        f"/api/v1/concepts/{concept['id']}/progress",
+        headers=owner,
+        json={"understanding": "weak", "recall": "needs_practice", "confidence": 2},
+    )
+    assert first.status_code == 200
+    assert first.json()["next_review_at"]
+    first_due = datetime.fromisoformat(first.json()["next_review_at"].replace("Z", "+00:00"))
+    assert timedelta(days=1) <= first_due - datetime.now(timezone.utc) <= timedelta(days=3)
+
+    second = client.patch(
+        f"/api/v1/concepts/{concept['id']}/progress",
+        headers=owner,
+        json={"understanding": "strong", "recall": "comfortable", "confidence": 5},
+    )
+    assert second.status_code == 200
+    second_due = datetime.fromisoformat(second.json()["next_review_at"].replace("Z", "+00:00"))
+    assert timedelta(days=13) <= second_due - datetime.now(timezone.utc) <= timedelta(days=15)
+
+    history = client.get(f"/api/v1/concepts/{concept['id']}/reviews", headers=owner)
+    assert history.status_code == 200
+    assert len(history.json()) == 2
+    assert history.json()[0]["understanding"] == "strong"
+    assert history.json()[1]["understanding"] == "weak"
+    assert client.get(f"/api/v1/concepts/{concept['id']}/reviews", headers=other).status_code == 404
+
+
+def test_syllabus_versions_capture_changes_and_can_be_restored(client: TestClient):
+    headers = auth_headers(register(client, "syllabus-versions@example.com"))
+    subject = client.post("/api/v1/subjects", headers=headers, json={"name": "Operating Systems"}).json()
+    topic = client.post(
+        f"/api/v1/subjects/{subject['id']}/topics",
+        headers=headers,
+        json={"title": "Processes"},
+    ).json()
+    concept = client.post(
+        f"/api/v1/topics/{topic['id']}/concepts",
+        headers=headers,
+        json={"title": "Process states"},
+    ).json()
+
+    versions = client.get(f"/api/v1/subjects/{subject['id']}/syllabus/versions", headers=headers)
+    assert versions.status_code == 200
+    assert [item["version_number"] for item in versions.json()] == [2, 1]
+    baseline = versions.json()[-1]
+    detail = client.get(
+        f"/api/v1/subjects/{subject['id']}/syllabus/versions/{versions.json()[0]['id']}",
+        headers=headers,
+    )
+    assert detail.status_code == 200
+    assert detail.json()["snapshot"]["topics"][0]["concepts"][0]["title"] == "Process states"
+
+    client.patch(
+        f"/api/v1/concepts/{concept['id']}",
+        headers=headers,
+        json={"title": "Process lifecycle"},
+    )
+    restored = client.post(
+        f"/api/v1/subjects/{subject['id']}/syllabus/versions/{versions.json()[0]['id']}/restore",
+        headers=headers,
+    )
+    assert restored.status_code == 200
+    current = client.get(f"/api/v1/subjects/{subject['id']}/concepts", headers=headers)
+    assert current.json()[0]["title"] == "Process states"
+    assert len(client.get(f"/api/v1/subjects/{subject['id']}/syllabus/versions", headers=headers).json()) == 4
