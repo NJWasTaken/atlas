@@ -36,3 +36,11 @@ jobs:
         run: npx tsc --noEmit
       - name: Build frontend
         run: npm run build
+      - name: Install temporary browser-test tooling
+        run: npm install --no-save --package-lock=false @playwright/test@1.56.1
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run browser flow tests
+        env:
+          CI: true
+        run: npx playwright test
