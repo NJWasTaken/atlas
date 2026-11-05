@@ -240,7 +240,7 @@ export default function Home() {
                 </section>
               </div>
             </section>
-            <section className="atlas-overview-section atlas-calendar-section"><DashboardCalendar /></section>
+            <section className="atlas-overview-section atlas-calendar-section"><DashboardCalendar onDataChange={loadOverview} /></section>
           </>}
 
           {active==="Academics"&&<section className="atlas-overview-section">
