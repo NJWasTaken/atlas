@@ -8,17 +8,16 @@ from app import academics_models  # noqa: F401
 from app.routers import auth, quotes, subjects, calendar, academics
 
 
-def create_app(*, create_tables: bool = True) -> FastAPI:
+def create_app(*, create_tables: bool | None = None) -> FastAPI:
     """Build the API application.
 
-    Table creation remains enabled for the current local-development workflow,
-    but is deferred until startup so tests can import the app without connecting
-    to the configured development database.
+    Local development may create missing tables for convenience. Production
+    must use Alembic migrations and rejects this fallback in its settings.
     """
     application = FastAPI(title="Atlas API", version="0.1.0")
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.frontend_origin],
+        allow_origins=settings.allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -30,9 +29,12 @@ def create_app(*, create_tables: bool = True) -> FastAPI:
     application.include_router(calendar.router, prefix="/api/v1")
     application.include_router(academics.router, prefix="/api/v1")
 
-    if create_tables:
+    should_create_tables = settings.create_tables_on_startup if create_tables is None else create_tables
+    if should_create_tables:
         @application.on_event("startup")
         def create_database_tables() -> None:
+            if settings.environment.lower() in {"production", "prod"}:
+                raise RuntimeError("Automatic table creation is disabled in production. Run Alembic migrations.")
             Base.metadata.create_all(bind=engine)
 
     @application.get("/health")
