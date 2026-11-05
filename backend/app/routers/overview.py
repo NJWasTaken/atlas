@@ -88,6 +88,13 @@ def overview_summary(db: Session = Depends(get_db), user: User = Depends(get_cur
         if progress is not None and progress.recall == "needs_practice":
             reasons.append("recall_practice")
             priority = max(priority, 3)
+        if progress is not None and progress.next_review_at is not None:
+            due_at = progress.next_review_at
+            if due_at.tzinfo is None:
+                due_at = due_at.replace(tzinfo=timezone.utc)
+            if due_at <= now:
+                reasons.append("due_for_review")
+                priority = max(priority, 5)
         if not reasons:
             continue
 
