@@ -3,16 +3,19 @@ from pydantic import ValidationError
 
 from app.core.config import Settings
 
+PRODUCTION_DATABASE_URL = "postgresql+psycopg://atlas:production-secret@db.example.com/atlas"
+
 
 def test_production_requires_a_strong_non_default_jwt_secret():
     with pytest.raises(ValidationError, match="Production requires"):
-        Settings(environment="production", frontend_origin="https://atlas.example.com")
+        Settings(environment="production", frontend_origin="https://atlas.example.com", database_url=PRODUCTION_DATABASE_URL)
 
 
 def test_production_rejects_wildcard_and_localhost_cors_origins():
     with pytest.raises(ValidationError, match="wildcards"):
         Settings(
             environment="production",
+            database_url=PRODUCTION_DATABASE_URL,
             jwt_secret="a-unique-production-secret-that-is-long-enough",
             cors_origins="*",
         )
@@ -27,6 +30,7 @@ def test_production_rejects_wildcard_and_localhost_cors_origins():
 def test_production_accepts_explicit_trusted_origins():
     settings = Settings(
         environment="production",
+        database_url=PRODUCTION_DATABASE_URL,
         jwt_secret="a-unique-production-secret-that-is-long-enough",
         cors_origins="https://atlas.example.com,https://www.atlas.example.com",
     )
