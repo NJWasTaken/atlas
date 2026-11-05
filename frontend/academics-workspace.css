@@ -80,3 +80,8 @@
 .atlas-academics-empty-icon{display:grid;width:48px;height:48px;place-items:center;border:1px solid rgba(133,181,229,.25);border-radius:50%;background:rgba(133,181,229,.07)}
 @media(max-width:950px){.atlas-academics-columns{grid-template-columns:1fr}.atlas-summary-stats{gap:13px}}
 @media(max-width:650px){.atlas-academics-toolbar,.atlas-academics-summary{align-items:stretch;flex-direction:column}.atlas-academics-toolbar label{min-width:0}.atlas-summary-stats{justify-content:flex-start}.atlas-academics-bottom{grid-template-columns:1fr}.atlas-academics-panel{padding:16px}.atlas-topic-count{display:none}.atlas-topic-title{font-size:13px}}
+
+.atlas-edit-inline-form{margin:4px 4px 10px 35px;padding:12px}
+.atlas-concept-entry{border-left:1px solid rgba(133,181,229,.18)}
+.atlas-concept-entry .atlas-edit-inline-form{margin:4px 4px 8px 12px}
+.atlas-edit-inline-form input{width:100%}
