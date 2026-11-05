@@ -549,8 +549,8 @@ def test_syllabus_pdf_parser_rejects_non_pdf_and_detects_page_references(monkeyp
     fake_reader = SimpleNamespace(
         is_encrypted=False,
         pages=[
-            FakePage("UNIT I: INTRODUCTION\\n1.1 Overview\\n1.2 Data structures\\n- Arrays and lists"),
-            FakePage("UNIT II: TREES\\n2.1 Binary trees\\n- Traversals"),
+            FakePage("UNIT I: INTRODUCTION\n1.1 Overview\n1.2 Data structures\n- Arrays and lists"),
+            FakePage("UNIT II: TREES\n2.1 Binary trees\n- Traversals"),
         ],
     )
     monkeypatch.setattr(syllabus_import, "PdfReader", lambda *_args, **_kwargs: fake_reader)
