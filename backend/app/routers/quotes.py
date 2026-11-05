@@ -1,6 +1,7 @@
 import json
 import logging
 import random
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -15,6 +16,9 @@ from app.security import get_current_user
 
 router = APIRouter(prefix="/quotes", tags=["quotes"])
 logger = logging.getLogger(__name__)
+QUOTE_CACHE_TTLS = {"quoteoftheday": 6 * 60 * 60, "randomquotes": 60}
+_quote_cache: dict[str, tuple[float, QuoteOutput]] = {}
+
 RANDOM_QUOTE_CATEGORIES = (
     "success",
     "wisdom",
@@ -26,7 +30,7 @@ RANDOM_QUOTE_CATEGORIES = (
 )
 
 
-def fetch_quote(endpoint: str) -> QuoteOutput:
+def fetch_from_provider(endpoint: str) -> QuoteOutput:
     if not settings.x_api_key:
         raise HTTPException(status_code=503, detail="Quote service is not configured")
     url = f"https://api.api-ninjas.com/v2/{endpoint}"
@@ -60,6 +64,24 @@ def fetch_quote(endpoint: str) -> QuoteOutput:
         return QuoteOutput.model_validate(data)
     except ValidationError as exc:
         raise HTTPException(status_code=502, detail="Quote provider returned an invalid response") from exc
+
+
+def fetch_quote(endpoint: str) -> QuoteOutput:
+    now = time.monotonic()
+    cached = _quote_cache.get(endpoint)
+    if cached and cached[0] > now:
+        return cached[1]
+    try:
+        quote = fetch_from_provider(endpoint)
+        _quote_cache[endpoint] = (now + QUOTE_CACHE_TTLS.get(endpoint, 60), quote)
+        return quote
+    except HTTPException:
+        # A previously successful quote is better than a broken dashboard when
+        # the provider is temporarily unavailable or its key is not configured.
+        if cached:
+            logger.info("Serving a stale cached quote for %s after provider failure", endpoint)
+            return cached[1]
+        raise
 
 
 @router.get("/daily", response_model=QuoteOutput)
