@@ -25,7 +25,8 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 ## Academics completion
 
-- [ ] Complete subject management with edit/update support and semester/term metadata; the API currently supports listing, creating, and deleting subjects.
+- [x] Add subject editing for name, course code, and description in the UI and API.
+- [ ] Add semester/term metadata and filtering to subject management.
 - [x] Add inline rename controls for topics and concepts, backed by ownership-checked partial PATCH endpoints. Reordering and richer descriptions remain future work.
 - [ ] Add syllabus editing/import workflows. Manual topic and concept entry exists, but there is no syllabus document upload or extraction.
 - [ ] Implement PDF upload and text extraction, identify headings/hierarchy, and retain page references.
