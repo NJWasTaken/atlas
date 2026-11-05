@@ -784,3 +784,80 @@ def test_syllabus_versions_capture_changes_and_can_be_restored(client: TestClien
     restored_parent = next(item for item in restored_topics if item["title"] == "Processes")
     assert restored_child["parent_topic_id"] == restored_parent["id"]
     assert len(client.get(f"/api/v1/subjects/{subject['id']}/syllabus/versions", headers=headers).json()) == 6
+
+
+def test_concept_prerequisites_are_owned_acyclic_and_restorable(client: TestClient):
+    owner = auth_headers(register(client, "prerequisites-owner@example.com"))
+    other = auth_headers(register(client, "prerequisites-other@example.com"))
+    subject = client.post("/api/v1/subjects", headers=owner, json={"name": "Computer Networks"}).json()
+    topic = client.post(f"/api/v1/subjects/{subject['id']}/topics", headers=owner, json={"title": "Routing"}).json()
+    concepts = [
+        client.post(f"/api/v1/topics/{topic['id']}/concepts", headers=owner, json={"title": title}).json()
+        for title in ["Network layers", "Routing tables", "Path selection"]
+    ]
+    a, b, c = concepts
+
+    linked = client.put(
+        f"/api/v1/concepts/{a['id']}/prerequisites",
+        headers=owner,
+        json={"prerequisite_ids": [b["id"]]},
+    )
+    assert linked.status_code == 200
+    assert linked.json()[0]["title"] == "Routing tables"
+    saved_version = client.get(
+        f"/api/v1/subjects/{subject['id']}/syllabus/versions", headers=owner
+    ).json()[0]
+
+    client.put(
+        f"/api/v1/concepts/{a['id']}/prerequisites",
+        headers=owner,
+        json={"prerequisite_ids": []},
+    )
+    restored = client.post(
+        f"/api/v1/subjects/{subject['id']}/syllabus/versions/{saved_version['id']}/restore",
+        headers=owner,
+    )
+    assert restored.status_code == 200
+    assert client.get(f"/api/v1/concepts/{a['id']}/prerequisites", headers=owner).json()[0]["id"] == b["id"]
+
+    assert client.put(
+        f"/api/v1/concepts/{b['id']}/prerequisites",
+        headers=owner,
+        json={"prerequisite_ids": [c["id"]]},
+    ).status_code == 200
+    cycle = client.put(
+        f"/api/v1/concepts/{c['id']}/prerequisites",
+        headers=owner,
+        json={"prerequisite_ids": [a["id"]]},
+    )
+    assert cycle.status_code == 400
+    assert client.put(
+        f"/api/v1/concepts/{a['id']}/prerequisites",
+        headers=owner,
+        json={"prerequisite_ids": [a["id"]]},
+    ).status_code == 400
+
+    other_subject = client.post(
+        "/api/v1/subjects", headers=owner, json={"name": "Other subject"}
+    ).json()
+    other_topic = client.post(
+        f"/api/v1/subjects/{other_subject['id']}/topics",
+        headers=owner,
+        json={"title": "Other"},
+    ).json()
+    foreign_concept = client.post(
+        f"/api/v1/topics/{other_topic['id']}/concepts",
+        headers=owner,
+        json={"title": "Foreign concept"},
+    ).json()
+    assert client.put(
+        f"/api/v1/concepts/{a['id']}/prerequisites",
+        headers=owner,
+        json={"prerequisite_ids": [foreign_concept["id"]]},
+    ).status_code == 400
+    assert client.get(
+        f"/api/v1/concepts/{a['id']}/prerequisites", headers=other
+    ).status_code == 404
+
+    assert client.delete(f"/api/v1/concepts/{b['id']}", headers=owner).status_code == 204
+    assert client.get(f"/api/v1/concepts/{a['id']}/prerequisites", headers=owner).json() == []
