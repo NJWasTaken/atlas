@@ -668,6 +668,9 @@ def test_overview_summary_is_user_scoped_and_prioritizes_revision(client: TestCl
     summary = client.get("/api/v1/overview", headers=owner)
     assert summary.status_code == 200
     payload = summary.json()
+    assert payload["learning_summary"]["total_concepts"] == 2
+    assert payload["learning_summary"]["weak"] == 1
+    assert payload["learning_summary"]["not_assessed"] == 1
     assert payload["recent_activity"][0]["concept_id"] == weak["id"]
     assert payload["revision_suggestions"][0]["concept_id"] == weak["id"]
     assert payload["revision_suggestions"][0]["reason"] == ["weak_understanding", "recall_practice"]
