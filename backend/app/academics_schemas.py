@@ -32,6 +32,7 @@ class TopicOut(BaseModel):
     parent_topic_id: int | None
     title: str
     description: str | None
+    source_pages: list[int] | None = None
     position: int
     model_config = ConfigDict(from_attributes=True)
 
@@ -59,6 +60,7 @@ class ConceptOut(BaseModel):
     topic_id: int
     title: str
     description: str | None
+    source_pages: list[int] | None = None
     position: int
     model_config = ConfigDict(from_attributes=True)
 
@@ -99,3 +101,18 @@ class ExamOut(BaseModel):
     title: str
     exam_date: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+class SyllabusConceptDraft(BaseModel):
+    title: str = Field(min_length=1, max_length=180)
+    source_pages: list[int] = Field(default_factory=list)
+
+
+class SyllabusTopicDraft(BaseModel):
+    title: str = Field(min_length=1, max_length=180)
+    source_pages: list[int] = Field(default_factory=list)
+    concepts: list[SyllabusConceptDraft] = Field(default_factory=list, max_length=100)
+
+
+class SyllabusConfirm(BaseModel):
+    topics: list[SyllabusTopicDraft] = Field(min_length=1, max_length=80)
