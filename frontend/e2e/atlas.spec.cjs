@@ -35,7 +35,7 @@ function installApiMock(page, options = {}) {
       state.subjects.push(subject);
       return created(subject);
     }
-    const subjectPath = path.match(/^\\/subjects\\/(\\d+)\\/?$/);
+    const subjectPath = path.match(/^\/subjects\/(\d+)\/?$/);
     if (subjectPath && method === "PATCH") {
       const index = state.subjects.findIndex(s => s.id === Number(subjectPath[1]));
       if (index < 0) return route.fulfill({ status: 404 });
@@ -104,7 +104,7 @@ function installApiMock(page, options = {}) {
       const version={id:nextId++,subject_id:Number(versions[1]),version_number:state.versions.length+1,label:body.label ?? body.version_name ?? "Automatic snapshot",created_at:new Date().toISOString(),snapshot:{topics:state.topics}};
       state.versions.push(version); return created(version);
     }
-    const topicDelete = path.match(/^\\/topics\\/(\\d+)\\/?$/);
+    const topicDelete = path.match(/^\/topics\/(\d+)\/?$/);
     if (topicDelete && method === "DELETE") {
       const id = Number(topicDelete[1]);
       const topicIds = state.topics.filter(t => t.id === id || t.parent_topic_id === id).map(t => t.id);
@@ -112,7 +112,7 @@ function installApiMock(page, options = {}) {
       state.concepts = state.concepts.filter(concept => !topicIds.includes(concept.topic_id));
       return empty();
     }
-    const conceptDelete = path.match(/^\\/concepts\\/(\\d+)\\/?$/);
+    const conceptDelete = path.match(/^\/concepts\/(\d+)\/?$/);
     if (conceptDelete && method === "DELETE") {
       const id = Number(conceptDelete[1]);
       state.concepts = state.concepts.filter(concept => concept.id !== id);
@@ -284,16 +284,16 @@ test("calendar note deletion is confirmed and mutation errors do not offer a mis
   await signIn(page);
   await page.getByLabel("Edit day note").click();
   await page.getByLabel("Leave something for this day").fill("Keep this note");
-  await page.getByRole("button", { name: "Save note" }).click();
+  await page.locator(".atlas-note-save").click();
   await expect(page.getByRole("alert").filter({ hasText: "Calendar note save temporarily unavailable." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Retry sync" })).toHaveCount(0);
   await page.getByRole("button", { name: "Dismiss" }).click();
-  await page.getByRole("button", { name: "Save note" }).click();
+  await page.locator(".atlas-note-save").click();
   await expect(page.getByRole("status").filter({ hasText: "Day note saved." })).toBeVisible();
   const originalDay = await page.locator(".atlas-calendar-day[aria-pressed=true]").getAttribute("aria-label");
   await page.getByLabel("Leave something for this day").fill("");
   page.once("dialog", dialog => dialog.dismiss());
-  await page.getByRole("button", { name: "Save note" }).click();
+  await page.locator(".atlas-note-save").click();
   await expect(page.getByLabel("Leave something for this day")).toHaveValue("");
   await page.locator(".atlas-calendar-day[aria-pressed=false]").first().click();
   await page.locator(".atlas-calendar-day[aria-label]").evaluateAll((cells, label) => { const target = cells.find(cell => cell.getAttribute("aria-label") === label); target?.click(); }, originalDay);
@@ -301,6 +301,6 @@ test("calendar note deletion is confirmed and mutation errors do not offer a mis
   await page.getByLabel("Edit day note").click();
   await page.getByLabel("Leave something for this day").fill("");
   page.once("dialog", dialog => dialog.accept());
-  await page.getByRole("button", { name: "Save note" }).click();
+  await page.locator(".atlas-note-save").click();
   await expect(page.getByRole("status").filter({ hasText: "Day note deleted." })).toBeVisible();
 });
