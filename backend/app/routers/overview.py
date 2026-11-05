@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends
 
@@ -44,7 +44,7 @@ def overview_summary(db: Session = Depends(get_db), user: User = Depends(get_cur
         .join(Topic, Topic.id == Concept.topic_id)
         .join(Subject, Subject.id == Topic.subject_id)
         .where(ConceptProgress.user_id == user.id, Subject.user_id == user.id)
-        .order_by(ConceptProgress.last_reviewed.desc(), ConceptProgress.updated_at.desc())
+        .order_by(func.coalesce(ConceptProgress.last_reviewed, ConceptProgress.updated_at).desc())
         .limit(6)
     ).all()
     recent_activity = [
