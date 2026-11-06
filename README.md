@@ -170,9 +170,9 @@ Home is the first destination when opening Atlas. It should answer three questio
 - Quick links to unfinished learning activities.
 
 **Recent exploration**
-- Recently visited exploration sessions.
-- Saved concepts and discoveries.
-- Questions or topics the student wants to revisit.
+- Recently edited knowledge nodes and notes.
+- Recently saved research sources.
+- Questions and topics the student wants to revisit.
 
 **Daily inspiration**
 - A rotating collection of quotations related to learning, science, creativity, and curiosity.
@@ -464,7 +464,7 @@ Students should be able to create notes independently or attach them to:
 - Subjects.
 - Topics.
 - Concepts.
-- Exploration sessions.
+- Knowledge graph nodes and source references.
 - Saved resources.
 
 Notes should support editing, timestamps, and contextual references.
@@ -675,10 +675,10 @@ The modules are designed around a few core workflows.
 
 1. Open Explore.
 2. Search for an interesting topic or ask a question.
-3. Investigate related concepts.
-4. Create an exploration session.
-5. Save useful discoveries.
-6. Connect them to existing knowledge in My Universe.
+3. Open useful sources in the integrated research reader.
+4. Capture important passages as personal notes.
+5. Create concepts, questions, and claims in the graph.
+6. Connect the ideas with relationships that you define.
 
 ## Journey 5: Building a personal knowledge network
 
@@ -1033,10 +1033,11 @@ The following describes the intended API surface.
 - Private PDF library with local upload and public-URL import.
 - PDF.js reading room with continuous scrolling, page thumbnails, document outline, in-document text search, zoom and fit controls.
 - Persistent reading position, bookmarks, text highlights, page-linked annotations and notes, and distraction-free focus mode.
-- Create exploration sessions.
-- Retrieve exploration sessions.
-- Update sessions.
-- Add and remove exploration items.
+- User-owned knowledge graph node and labelled-edge CRUD with persisted 3D positions.
+- Three.js graph canvas with node dragging, orbit/zoom, connection creation, and connection inspection/removal.
+- Brave Search API proxy and a built-in public-HTML article reader with an address bar.
+- Save sources and capture selected passages as personal notes linked to their source.
+- Search results remain transient; saved graph content is explicitly user-selected.
 
 **My Universe**
 - Create and manage notes.
@@ -1156,16 +1157,17 @@ The product vision is broader than the current implementation. The following tab
 | Syllabus versioning | Planned |
 | Revision recommendation engine | Planned |
 | Prerequisite awareness | Future |
-| Explore discovery interface | Planned |
-| Exploration sessions | Planned |
+| User-built 3D knowledge graph | Implemented |
+| Integrated web search and article reader | Partial |
+| Exploration sessions | Superseded by the user-built graph |
 | AI Gateway | Planned |
 | External AI provider handoff | Planned |
 | Direct AI API integrations | Planned |
 | My Universe | Planned |
 | Personal notes system | Planned |
 | Saved concepts and resources | Planned |
-| Knowledge connections | Planned |
-| Visual knowledge graph | Future |
+| Knowledge connections in Explore | Implemented |
+| My Universe graph views and cross-module filters | Future |
 | AI-assisted knowledge connections | Future |
 | Data export and backup | Future |
 
@@ -1219,19 +1221,19 @@ The development roadmap prioritises a useful academic foundation before introduc
 
 ## Phase 5 — Explore
 
-- Build the discovery interface.
-- Implement exploration sessions.
-- Add contextual learning prompts.
-- Support saved discoveries.
-- Introduce connections between academic subjects and independent exploration.
+- Build out the user-owned 3D knowledge graph and manual relationship workflows.
+- Integrate web search and an in-app research reader.
+- Connect PDF documents and page annotations to graph sources.
+- Add graph filtering, saved-knowledge search, and larger-graph navigation.
+- Link knowledge nodes to academic subjects, topics, and concepts.
+- Keep AI-assisted suggestions optional and defer direct integrations.
 
 ## Phase 6 — My Universe
 
-- Build the personal knowledge repository.
-- Implement notes and saved items.
-- Introduce personal questions.
-- Implement knowledge connections.
-- Build the knowledge graph interface.
+- Build a broader personal knowledge repository over the shared graph.
+- Add cross-module collections, filters, and retrieval.
+- Expand independent notes and personal questions.
+- Connect personal knowledge to academic concepts without duplicating canonical records.
 
 ## Phase 7 — AI Gateway
 
