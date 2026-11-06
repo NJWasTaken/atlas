@@ -88,8 +88,17 @@ export default function KnowledgeGraphWorkspace(){
   const [editTitle,setEditTitle]=useState(""),[editBody,setEditBody]=useState(""),[editKind,setEditKind]=useState<Kind>("concept"),[editUrl,setEditUrl]=useState("");
   const [query,setQuery]=useState(""),[searching,setSearching]=useState(false),[results,setResults]=useState<SearchResult[]>([]),[addressUrl,setAddressUrl]=useState("");
   const [article,setArticle]=useState<Article|null>(null),[opening,setOpening]=useState(false),[selectedPassage,setSelectedPassage]=useState("");
+  const [graphSearch,setGraphSearch]=useState(""),[kindFilter,setKindFilter]=useState<"all"|Kind>("all"),[connectedOnly,setConnectedOnly]=useState(false);
   const selected=nodes.find(n=>n.id===selectedId)??null;
   const connections=selected?edges.filter(edge=>edge.source_node_id===selected.id||edge.target_node_id===selected.id):[];
+  const visibleNodes=useMemo(()=>{
+    const term=graphSearch.trim().toLowerCase();
+    let filtered=nodes.filter(node=>(kindFilter==="all"||node.kind===kindFilter)&&(!term||[node.title,node.body,node.source_url??""].some(value=>value.toLowerCase().includes(term))));
+    if(connectedOnly){const linked=new Set(edges.flatMap(edge=>[edge.source_node_id,edge.target_node_id]));filtered=filtered.filter(node=>linked.has(node.id));}
+    return filtered;
+  },[nodes,edges,graphSearch,kindFilter,connectedOnly]);
+  const visibleIds=useMemo(()=>new Set(visibleNodes.map(node=>node.id)),[visibleNodes]);
+  const visibleEdges=useMemo(()=>edges.filter(edge=>visibleIds.has(edge.source_node_id)&&visibleIds.has(edge.target_node_id)),[edges,visibleIds]);
 
   useEffect(()=>{let live=true;api<{nodes:Node[];edges:Edge[]}>("/explore/graph").then(g=>{if(live){setNodes(g.nodes);setEdges(g.edges);}}).catch(e=>{if(live)setError(e instanceof Error?e.message:"Could not load your graph.");}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[]);
   useEffect(()=>{if(selected){setEditTitle(selected.title);setEditBody(selected.body);setEditKind(selected.kind);setEditUrl(selected.source_url??"");}},[selectedId,selected?.updated_at]);
@@ -164,13 +173,19 @@ export default function KnowledgeGraphWorkspace(){
     {error&&<div className="atlas-knowledge-alert" role="alert">{error}<button onClick={()=>setError("")} aria-label="Dismiss"><X size={14}/></button></div>}
     {notice&&!error&&<p className="atlas-knowledge-notice" role="status">{notice}</p>}
     <div className="atlas-knowledge-layout">
-      <div className="atlas-graph-panel"><div className="atlas-graph-toolbar"><span><Network size={14}/> KNOWLEDGE GRAPH</span><span>{nodes.length} NODES · {edges.length} CONNECTIONS</span></div>
+      <div className="atlas-graph-panel"><div className="atlas-graph-toolbar"><span><Network size={14}/> KNOWLEDGE GRAPH</span><span>{visibleNodes.length} / {nodes.length} NODES · {visibleEdges.length} / {edges.length} CONNECTIONS</span></div>
+        {nodes.length>0&&<div className="atlas-graph-filters">
+          <label className="atlas-graph-filter-search"><Search size={14}/><input aria-label="Search saved knowledge" value={graphSearch} onChange={event=>setGraphSearch(event.target.value)} placeholder="Find a node, note, or source…"/>{graphSearch&&<button type="button" onClick={()=>setGraphSearch("")} aria-label="Clear graph search"><X size={13}/></button>}</label>
+          <select aria-label="Filter by node type" value={kindFilter} onChange={event=>setKindFilter(event.target.value as "all"|Kind)}><option value="all">All types</option>{kinds.map(value=><option key={value} value={value}>{pretty[value]}</option>)}</select>
+          <label className="atlas-graph-connected-filter"><input type="checkbox" checked={connectedOnly} onChange={event=>setConnectedOnly(event.target.checked)}/> Connected only</label>
+          {(graphSearch||kindFilter!=="all"||connectedOnly)&&<button type="button" className="atlas-graph-clear-filters" onClick={()=>{setGraphSearch("");setKindFilter("all");setConnectedOnly(false);}}>Clear</button>}
+        </div>
         {connect&&<div className="atlas-connect-hint"><span>{connectFrom===null?"Choose the starting node":"Choose the node to connect to"}</span><input aria-label="Connection label" value={relation} onChange={e=>setRelation(e.target.value)}/></div>}
         {loading?<div className="atlas-knowledge-loading"><LoaderCircle className="atlas-spin" size={20}/> Loading graph…</div>:nodes.length===0?<div className="atlas-graph-empty"><Network size={30}/><h3>Your map starts with one idea.</h3><p>Add a topic, question, concept, or note. Then build connections as your understanding grows.</p><button className="atlas-button atlas-primary" onClick={()=>{setCreating(true);setPanel("knowledge");}}><Plus size={14}/> Create your first node</button></div>:<div className="atlas-graph-canvas">
-          <GraphCanvas nodes={nodes} edges={edges} selectedId={selectedId} onSelect={selectNode} onMove={moveNode} onCommit={commitPosition}/>
+          {visibleNodes.length>0?<GraphCanvas nodes={visibleNodes} edges={visibleEdges} selectedId={selectedId} onSelect={selectNode} onMove={moveNode} onCommit={commitPosition}/>:<div className="atlas-graph-filter-empty"><Search size={22}/><strong>No nodes match these filters.</strong><span>Try another search or clear the filters.</span></div>}
           <div className="atlas-graph-legend">{kinds.map(k=><span key={k}><i style={{background:colors[k]}}/>{pretty[k]}</span>)}</div><span className="atlas-graph-help">DRAG NODES TO ARRANGE · DRAG BACKGROUND TO ORBIT · SCROLL TO ZOOM</span>
         </div>}
-        {nodes.length>0&&<div className="atlas-graph-node-shortcuts" aria-label="Graph nodes">{nodes.map(node=><button key={node.id} className={selectedId===node.id?"active":""} onClick={()=>selectNode(node.id)}><i style={{background:colors[node.kind]}}/>{node.title}</button>)}</div>}
+        {nodes.length>0&&<div className="atlas-graph-node-shortcuts" aria-label="Graph nodes">{visibleNodes.map(node=><button key={node.id} className={selectedId===node.id?"active":""} onClick={()=>selectNode(node.id)}><i style={{background:colors[node.kind]}}/>{node.title}</button>)}</div>}
       </div>
       <aside className="atlas-knowledge-side"><div className="atlas-knowledge-tabs"><button className={panel==="research"?"active":""} onClick={()=>setPanel("research")}><Search size={14}/> Research</button><button className={panel==="knowledge"?"active":""} onClick={()=>setPanel("knowledge")}><StickyNote size={14}/> Knowledge</button></div>
         {panel==="research"?<div className="atlas-research-pane">
@@ -179,7 +194,7 @@ export default function KnowledgeGraphWorkspace(){
             <div className="atlas-browser-actions"><button className="atlas-button atlas-primary" onClick={()=>void saveSource()} disabled={busy}><Plus size={13}/> Save source</button><button className="atlas-button atlas-secondary" onClick={()=>void captureSelection()} disabled={busy||!selectedPassage}><StickyNote size={13}/> Capture selection</button><a href={article.url} target="_blank" rel="noreferrer" aria-label="Open original website"><ExternalLink size={14}/></a></div>
             <div className="atlas-browser-content" onMouseUp={()=>setSelectedPassage(window.getSelection()?.toString().trim()??"")} onKeyUp={()=>setSelectedPassage(window.getSelection()?.toString().trim()??"")}><ReactMarkdown remarkPlugins={[remarkGfm]}>{article.content_markdown}</ReactMarkdown></div>
           </div>:opening?<div className="atlas-knowledge-loading"><LoaderCircle className="atlas-spin" size={18}/> Opening article…</div>:results.length?<div className="atlas-research-results"><div className="atlas-research-results-heading">SEARCH RESULTS <span>{results.length}</span></div>{results.map((r,i)=><article key={r.url+"-"+i} className="atlas-research-result"><span>{r.domain}{r.age?" · "+r.age:""}</span><button onClick={()=>void openPage(r.url)}>{r.title}<ArrowUpRight size={13}/></button><p>{r.description}</p></article>)}</div>:<div className="atlas-research-empty"><BookOpen size={22}/><h3>Research without leaving Atlas.</h3><p>Search for papers, concepts, explanations, and anything else you're curious about. Open a result to read it here, then save sources or capture passages into your graph.</p></div>}
-          <p className="atlas-research-attribution">Search powered by Brave. Search results are temporary; only sources you explicitly save become part of your graph.</p>
+          <p className="atlas-research-attribution">Search powered by DuckDuckGo. Results are temporary; only sources you explicitly save become part of your graph.</p>
         </div>:<div className="atlas-node-editor">
           {creating?<form onSubmit={createNode}><div className="atlas-node-editor-heading"><div><span>NEW KNOWLEDGE NODE</span><h3>Add an idea</h3></div><button type="button" onClick={()=>setCreating(false)} aria-label="Close"><X size={15}/></button></div>
             <label>Type<select value={kind} onChange={e=>setKind(e.target.value as Kind)}>{kinds.map(k=><option key={k} value={k}>{pretty[k]}</option>)}</select></label><label>Title<input autoFocus value={title} onChange={e=>setTitle(e.target.value)} placeholder="What did you discover?" maxLength={240} required/></label><label>Your notes<textarea value={body} onChange={e=>setBody(e.target.value)} rows={7} placeholder="Explain it in your own words. Add questions, examples, or connections…"/></label>
