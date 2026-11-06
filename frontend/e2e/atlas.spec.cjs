@@ -422,7 +422,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and pa
   await page.getByRole("button",{name:/Saved/}).click();
   await expect(page.locator(".atlas-reader-bookmark").filter({hasText:"Page 3"})).toBeVisible();
   await page.getByRole("button",{name:/Pages/}).click();
-  await page.getByRole("button",{name:"Search"}).click();
+  await page.locator(".atlas-reader").getByRole("button",{name:"Search"}).click();
   await page.getByPlaceholder("Search words or phrases in this PDF…").fill("searchable text");
   await page.getByRole("button",{name:"Find"}).click();
   await expect(page.locator(".atlas-pdf-search-results")).toContainText("Page 1");
