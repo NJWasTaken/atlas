@@ -239,3 +239,19 @@
   .atlas-pdf-outline-item,.atlas-pdf-search input,.atlas-pdf-search button { font-size:11px; }
 }
 
+
+
+/* Knowledge graph navigation: local filters stay compact and theme-aware. */
+.atlas-graph-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid rgba(166,187,211,.1);background:rgba(3,12,23,.35)}
+.atlas-graph-filter-search{display:flex;align-items:center;gap:7px;flex:1 1 190px;min-width:150px;height:32px;padding:0 9px;color:#8294a8;border:1px solid rgba(166,187,211,.15);background:rgba(2,10,20,.45)}
+.atlas-graph-filter-search input{width:100%;min-width:0;color:#d8e0e8;outline:0;background:transparent;font:10px 'DM Sans',sans-serif}
+.atlas-graph-filter-search input::placeholder{color:#66788d}
+.atlas-graph-filter-search button{display:grid;place-items:center;color:#9aabc0}
+.atlas-graph-filters select{height:32px;max-width:125px;padding:0 8px;color:#c4ced9;border:1px solid rgba(166,187,211,.15);background:#0b1a2a;font:10px 'DM Sans',sans-serif}
+.atlas-graph-connected-filter{display:flex;align-items:center;gap:5px;color:#9aa9b9;font-size:9px;white-space:nowrap}
+.atlas-graph-connected-filter input{accent-color:var(--gold-hi)}
+.atlas-graph-clear-filters{padding:5px 7px;color:var(--gold-hi);font-size:9px}
+.atlas-graph-filter-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:9px;color:#8495a8;text-align:center}
+.atlas-graph-filter-empty strong{color:#d6dce3;font:500 16px 'Cormorant Garamond',serif}
+.atlas-graph-filter-empty span{font-size:10px}
+@media(max-width:650px){.atlas-graph-filters{align-items:stretch}.atlas-graph-filter-search{flex-basis:100%}.atlas-graph-filters select{flex:1;max-width:none}}
