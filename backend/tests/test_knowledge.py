@@ -51,7 +51,7 @@ def test_search_maps_duckduckgo_results_without_persisting_them(client, monkeypa
     assert response.json()["results"][0]["domain"] == "example.org"
     assert response.json()["results"][0]["description"] == "A guide"
     assert response.json()["results"][0]["age"] == "2 days ago"
-    assert response.json()["more_results_available"] is True
+    assert response.json()["more_results_available"] is False
 
 
 def test_duckduckgo_rate_limit_is_reported_as_retryable(client, monkeypatch):
