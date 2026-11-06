@@ -73,8 +73,10 @@ The current entities are:
 | `SyllabusVersion` | Numbered JSON snapshots of a subject's topic/concept/prerequisite tree, with restore history |
 | `ConceptPrerequisite` | Directed same-subject prerequisite links between concepts; self-links and cycles are rejected |
 | `Exam` | User-owned exam associated with a subject and a date/time |
+| `ExploreSession` | User-owned independent exploration with a central question, running notes, and status |
+| `ExploreSessionItem` | A saved discovery, follow-up question, or external resource within an exploration session |
 
-`backend/app/academics_models.py` defines topic, concept, progress, review-history, syllabus-version, and exam tables. Topics and concepts include optional JSON source-page references for imported syllabus material; `backend/app/models.py` defines users, subjects (including optional term and academic year), and day notes. Foreign keys and ORM cascades connect the records. Progress is unique per user/concept, and confidence is constrained to 1–5 when supplied.
+`backend/app/academics_models.py` defines topic, concept, progress, review-history, syllabus-version, and exam tables; `backend/app/explore_models.py` defines the private PDF library, annotations, bookmarks, exploration sessions, and saved session items. Topics and concepts include optional JSON source-page references for imported syllabus material; `backend/app/models.py` defines users, subjects (including optional term and academic year), and day notes. Foreign keys and ORM cascades connect the records. Progress is unique per user/concept, and confidence is constrained to 1–5 when supplied.
 
 Concept-progress updates use partial PATCH semantics: only fields explicitly supplied by the client are changed. Omitted exposure, understanding, recall, confidence, and notes values are preserved rather than reset to schema defaults. Each successful check-in creates a `ConceptReview` snapshot and calculates `next_review_at`: weak/needs-practice gets 2 days, developing 4 days, strong 7 days, and strong plus comfortable recall 14 days (unassessed defaults to 1 day). This is a transparent heuristic, not an adaptive learning model.
 
@@ -88,6 +90,7 @@ Concept-progress updates use partial PATCH semantics: only fields explicitly sup
 | Quotes | `GET /quotes/daily`, `GET /quotes/random` |
 | Academics | Topic/concept CRUD; syllabus PDF draft/confirm; version list/detail/create/restore; progress get/update; concept review history; prerequisite get/replace; exam-aware readiness; exam CRUD |
 | Overview | Authenticated recent concept activity, continue-learning candidates, revision suggestions, and upcoming exams |
+| Explore | Private PDF library, progress, bookmarks, annotations, exploration-session CRUD, and saved discovery/question/resource CRUD |
 
 All API routes are mounted under `/api/v1` except `/health`. The calendar range is limited to 63 days. Quote endpoints require authentication; API Ninjas is used when configured, otherwise a curated fallback is returned. Successful provider responses are cached in-process for six hours (daily) or one minute (random); a stale cached quote is served if the provider later fails. Curated fallback quotes keep a first-time or unconfigured dashboard usable.
 
