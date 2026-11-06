@@ -160,7 +160,11 @@ def create_node(data: KnowledgeNodeCreate, db: Session = Depends(get_db), user: 
 @router.patch("/graph/nodes/{node_id}", response_model=KnowledgeNodeOut)
 def update_node(node_id: int, data: KnowledgeNodeUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     node = owned_node(db, node_id, user.id)
-    for key, value in data.model_dump(exclude_unset=True).items():
+    updates = data.model_dump(exclude_unset=True)
+    for field in ("kind", "title", "body", "position_x", "position_y", "position_z"):
+        if field in updates and updates[field] is None:
+            raise HTTPException(422, f"{field} cannot be null")
+    for key, value in updates.items():
         setattr(node, key, value)
     db.commit()
     db.refresh(node)
