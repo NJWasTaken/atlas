@@ -456,13 +456,13 @@ test("Explore supports independent sessions with saved discoveries and questions
   await expect(page.getByRole("heading", { name: "The science of memory" })).toBeVisible();
 
   await page.getByLabel("Saved item type").selectOption("discovery");
-  await page.getByLabel("Title").fill("Synaptic plasticity");
-  await page.getByLabel("Notes").fill("Connections between neurons can strengthen or weaken.");
+  await page.locator(".atlas-discovery-item-form").getByLabel("Title").fill("Synaptic plasticity");
+  await page.locator(".atlas-discovery-item-form").getByLabel("Notes").fill("Connections between neurons can strengthen or weaken.");
   await page.getByRole("button", { name: "Save to journal" }).click();
   await expect(page.getByText("Synaptic plasticity")).toBeVisible();
 
   await page.getByLabel("Saved item type").selectOption("question");
-  await page.getByLabel("Title").fill("What causes forgetting?");
+  await page.locator(".atlas-discovery-item-form").getByLabel("Title").fill("What causes forgetting?");
   await page.getByRole("button", { name: "Save to journal" }).click();
   await expect(page.getByText("What causes forgetting?")).toBeVisible();
 
@@ -470,5 +470,5 @@ test("Explore supports independent sessions with saved discoveries and questions
   await page.getByRole("button", { name: "Save notes" }).click();
   await expect(page.getByLabel("Save notes")).toBeDisabled();
   await page.getByLabel("Status").selectOption("completed");
-  await expect(page.locator(".atlas-discovery-status")).toContainText("Completed");
+  await expect(page.locator(".atlas-discovery-status select")).toHaveValue("completed");
 });
