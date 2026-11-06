@@ -89,7 +89,8 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
     const range=selection.getRangeAt(0);
     const anchor=range.commonAncestorContainer;
     if(!page.contains(anchor.nodeType===Node.TEXT_NODE?anchor.parentNode:anchor))return;
-    if(event?.target instanceof Node&&!page.contains(event.target))return;
+    // The document-level listener intentionally receives events whose target
+    // is the document; ownership is established by the selected range above.
 
     const pageRect=page.getBoundingClientRect();
     if(pageRect.width<=0||pageRect.height<=0)return;
