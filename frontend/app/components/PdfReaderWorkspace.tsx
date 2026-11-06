@@ -78,7 +78,7 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
     return ()=>{cancelled=true;observer.disconnect();try{renderTask?.cancel();}catch{};try{page?.cleanup();}catch{}};
   },[pdf,pageNumber,scale]);
 
-  const selectText=(event?:MouseEvent)=>{
+  const selectText=()=>{
     const selection=window.getSelection();
     const text=selection?.toString().trim();
     const page=host.current;
@@ -106,13 +106,13 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
   // Listen on the document too: PDF text selection can finish on an inner
   // text-layer span rather than bubbling through the page wrapper.
   useEffect(()=>{
-    const handleMouseUp=(event:MouseEvent)=>selectText(event);
+    const handleMouseUp=()=>selectText();
     document.addEventListener("mouseup",handleMouseUp);
     return()=>document.removeEventListener("mouseup",handleMouseUp);
   },[pageNumber,onSelect]);
   return <div className="atlas-pdf-page-shell" id={`atlas-pdf-page-${pageNumber}`} data-page={pageNumber}>
     <div className="atlas-pdf-page-label">PAGE {pageNumber}</div>
-    <div className="atlas-pdf-page" ref={host} onMouseUp={event=>selectText(event.nativeEvent)} style={{width:dimensions.width||"min(100%, 780px)",height:dimensions.height||Math.max(500,Math.round(990*scale))}}>
+    <div className="atlas-pdf-page" ref={host} onMouseUp={selectText} style={{width:dimensions.width||"min(100%, 780px)",height:dimensions.height||Math.max(500,Math.round(990*scale))}}>
       <canvas ref={canvasRef} className="atlas-pdf-canvas"/>
       <div className="atlas-pdf-text-layer"/>
       {annotations.filter(note=>note.page_number===pageNumber).flatMap(note=>(note.highlight_rects||[]).map((rect,index)=><span key={`${note.id}-${index}`} className="atlas-pdf-highlight" title={note.selected_text||note.note} style={{left:`${rect.x*100}%`,top:`${rect.y*100}%`,width:`${rect.width*100}%`,height:`${rect.height*100}%`}}/>))}
