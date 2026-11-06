@@ -86,7 +86,7 @@ export default function KnowledgeGraphWorkspace(){
   const [connect,setConnect]=useState(false),[connectFrom,setConnectFrom]=useState<number|null>(null),[relation,setRelation]=useState("related to");
   const [kind,setKind]=useState<Kind>("concept"),[title,setTitle]=useState(""),[body,setBody]=useState(""),[sourceUrl,setSourceUrl]=useState("");
   const [editTitle,setEditTitle]=useState(""),[editBody,setEditBody]=useState(""),[editKind,setEditKind]=useState<Kind>("concept"),[editUrl,setEditUrl]=useState("");
-  const [query,setQuery]=useState(""),[searching,setSearching]=useState(false),[results,setResults]=useState<SearchResult[]>([]);
+  const [query,setQuery]=useState(""),[searching,setSearching]=useState(false),[results,setResults]=useState<SearchResult[]>([]),[addressUrl,setAddressUrl]=useState("");
   const [article,setArticle]=useState<Article|null>(null),[opening,setOpening]=useState(false);
   const selected=nodes.find(n=>n.id===selectedId)??null;
   const connections=selected?edges.filter(edge=>edge.source_node_id===selected.id||edge.target_node_id===selected.id):[];
@@ -134,7 +134,7 @@ export default function KnowledgeGraphWorkspace(){
   }
   async function openPage(url:string){
     setOpening(true);setArticle(null);setError("");
-    try{setArticle(await api<Article>("/explore/browse",{method:"POST",body:JSON.stringify({url})}));}
+    try{setArticle(await api<Article>("/explore/browse",{method:"POST",body:JSON.stringify({url:target})}));}
     catch(e){setError(e instanceof Error?e.message:"Could not open this page. Try the original website.");}finally{setOpening(false);}
   }
   async function saveSource(){
@@ -173,7 +173,7 @@ export default function KnowledgeGraphWorkspace(){
       </div>
       <aside className="atlas-knowledge-side"><div className="atlas-knowledge-tabs"><button className={panel==="research"?"active":""} onClick={()=>setPanel("research")}><Search size={14}/> Research</button><button className={panel==="knowledge"?"active":""} onClick={()=>setPanel("knowledge")}><StickyNote size={14}/> Knowledge</button></div>
         {panel==="research"?<div className="atlas-research-pane">
-          <form className="atlas-research-search" onSubmit={search}><label htmlFor="atlas-research-query">SEARCH THE WEB</label><div><Search size={15}/><input id="atlas-research-query" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search a question, concept, paper…"/><button type="submit" disabled={searching||!query.trim()} aria-label="Search">{searching?<LoaderCircle className="atlas-spin" size={15}/>:<ArrowUpRight size={15}/>}</button></div></form>
+          <form className="atlas-research-search" onSubmit={search}><label htmlFor="atlas-research-query">SEARCH THE WEB</label><div><Search size={15}/><input id="atlas-research-query" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search a question, concept, paper…"/><button type="submit" disabled={searching||!query.trim()} aria-label="Search">{searching?<LoaderCircle className="atlas-spin" size={15}/>:<ArrowUpRight size={15}/>}</button></div></form>\n          <form className="atlas-browser-address" onSubmit={event=>{event.preventDefault();if(addressUrl.trim())void openPage(addressUrl);}}><label htmlFor="atlas-browser-url">OPEN A WEBSITE</label><div><input id="atlas-browser-url" type="url" value={addressUrl} onChange={event=>setAddressUrl(event.target.value)} placeholder="Paste a website URL…"/><button type="submit" disabled={opening||!addressUrl.trim()}>Go</button></div></form>
           {article?<div className="atlas-browser-article"><button className="atlas-browser-back" onClick={()=>setArticle(null)}><ChevronLeft size={14}/> Back to results</button><div className="atlas-browser-meta"><span>{article.site_name}</span>{article.published_date&&<span>{article.published_date}</span>}</div><h3>{article.title}</h3>{article.author&&<p className="atlas-browser-author">By {article.author}</p>}
             <div className="atlas-browser-actions"><button className="atlas-button atlas-primary" onClick={()=>void saveSource()} disabled={busy}><Plus size={13}/> Save source</button><button className="atlas-button atlas-secondary" onClick={()=>void captureSelection()} disabled={busy}><StickyNote size={13}/> Capture selection</button><a href={article.url} target="_blank" rel="noreferrer" aria-label="Open original website"><ExternalLink size={14}/></a></div>
             <div className="atlas-browser-content"><ReactMarkdown remarkPlugins={[remarkGfm]}>{article.content_markdown}</ReactMarkdown></div>

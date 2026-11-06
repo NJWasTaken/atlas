@@ -203,3 +203,10 @@
 .atlas-node-connections strong{color:var(--gold-hi);font-weight:500}
 .atlas-node-connections button{display:grid;width:25px;height:25px;flex:0 0 25px;place-items:center;color:#9c8580}
 .atlas-node-connections button:hover{color:#e6b2ad}
+
+.atlas-browser-address{display:grid;gap:6px;margin-top:9px}
+.atlas-browser-address>label{color:#718399;font-size:8px;letter-spacing:.12em}
+.atlas-browser-address>div{display:flex;align-items:center;gap:8px;padding:0 8px;border:1px solid rgba(166,187,211,.13);background:rgba(2,10,20,.4)}
+.atlas-browser-address input{width:100%;min-width:0;height:32px;color:#b6c2cf;outline:0;background:transparent;font:10px 'DM Sans',sans-serif}
+.atlas-browser-address button{padding:5px 9px;color:var(--gold-hi);border:1px solid rgba(197,168,117,.2);font-size:9px}
+.atlas-browser-address button:disabled{opacity:.4}
