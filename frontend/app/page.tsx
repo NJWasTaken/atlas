@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ArrowUpRight, BookOpen, Compass, GraduationCap, Library, LogOut, Orbit, Plus, Sparkles, X, ChevronRight, MoonStar } from "lucide-react";
+import { ArrowUpRight, BookOpen, Compass, GraduationCap, Library, LogOut, Orbit, Plus, X, ChevronRight, MoonStar } from "lucide-react";
 import { api, clearToken, getToken, setToken } from "../lib/api";
 import DashboardCalendar from "./components/DashboardCalendar";
 import AcademicsWorkspace from "./components/AcademicsWorkspace";
+import ExploreWorkspace from "./components/ExploreWorkspace";
 
 type Subject = { id: number; name: string; code?: string | null; description?: string | null; term?: string | null; academic_year?: string | null };
 type Quote = { quote: string; author: string; work?: string | null };
@@ -291,7 +292,7 @@ export default function Home() {
             <AcademicsWorkspace subjects={subjects} initialSubjectId={academicsFocus?.subjectId} focusConceptId={academicsFocus?.conceptId} onFocusHandled={handleAcademicsFocusHandled} onOverviewRefresh={loadOverview}/>
           </section>}
 
-          {active==="Explore"&&<FeatureEmpty icon={<Sparkles size={23}/>} eyebrow="THE CURIOSITY PLAYGROUND" title={<>What have you been<br/><em>wondering about?</em></>} text="Exploration is on its way. For now, remember: your interests don't need to fit inside a syllabus." foot="A LITTLE SPACE FOR THE UNEXPECTED"/>}
+          {active==="Explore"&&<ExploreWorkspace/>}
           {active==="My Universe"&&<FeatureEmpty icon={<Library size={23}/>} eyebrow="YOUR PERSONAL KNOWLEDGE LIBRARY" title={<>A universe<br/><em>of your own.</em></>} text="Saved concepts, notes and connections will live here. A place for the ideas you want to return to." foot="COLLECT THOUGHTS. CONNECT IDEAS."/>}
         </div>
       </section>
