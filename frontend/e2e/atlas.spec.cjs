@@ -441,7 +441,7 @@ test("Explore lets the student build and connect knowledge nodes", async ({ page
   await page.getByLabel("Title").last().fill("Backpropagation");
   await page.getByRole("button",{name:"Add to graph"}).click();
   await page.getByRole("button",{name:"Connect nodes"}).click();
-  await page.locator(".atlas-graph-canvas canvas").click({position:{x:260,y:240}});
-  await page.locator(".atlas-graph-canvas canvas").click({position:{x:420,y:280}});
+  await page.locator(".atlas-graph-node-shortcuts button").nth(0).click();
+  await page.locator(".atlas-graph-node-shortcuts button").nth(1).click();
   await expect(page.getByText(/1 CONNECTION/)).toBeVisible();
 });

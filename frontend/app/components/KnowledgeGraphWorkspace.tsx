@@ -156,6 +156,7 @@ export default function KnowledgeGraphWorkspace(){
           <GraphCanvas nodes={nodes} edges={edges} selectedId={selectedId} onSelect={selectNode} onMove={moveNode} onCommit={commitPosition}/>
           <div className="atlas-graph-legend">{kinds.map(k=><span key={k}><i style={{background:colors[k]}}/>{pretty[k]}</span>)}</div><span className="atlas-graph-help">DRAG NODES TO ARRANGE · DRAG BACKGROUND TO ORBIT · SCROLL TO ZOOM</span>
         </div>}
+        {nodes.length>0&&<div className="atlas-graph-node-shortcuts" aria-label="Graph nodes">{nodes.map(node=><button key={node.id} className={selectedId===node.id?"active":""} onClick={()=>selectNode(node.id)}><i style={{background:colors[node.kind]}}/>{node.title}</button>)}</div>}
       </div>
       <aside className="atlas-knowledge-side"><div className="atlas-knowledge-tabs"><button className={panel==="research"?"active":""} onClick={()=>setPanel("research")}><Search size={14}/> Research</button><button className={panel==="knowledge"?"active":""} onClick={()=>setPanel("knowledge")}><StickyNote size={14}/> Knowledge</button></div>
         {panel==="research"?<div className="atlas-research-pane">
