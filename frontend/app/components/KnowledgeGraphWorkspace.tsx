@@ -88,7 +88,8 @@ export default function KnowledgeGraphWorkspace(){
   const [editTitle,setEditTitle]=useState(""),[editBody,setEditBody]=useState(""),[editKind,setEditKind]=useState<Kind>("concept"),[editUrl,setEditUrl]=useState("");
   const [query,setQuery]=useState(""),[searching,setSearching]=useState(false),[results,setResults]=useState<SearchResult[]>([]);
   const [article,setArticle]=useState<Article|null>(null),[opening,setOpening]=useState(false);
-  const selected=nodes.find(n=>n.id===selectedId)??null;\n  const connections=selected?edges.filter(edge=>edge.source_node_id===selected.id||edge.target_node_id===selected.id):[];
+  const selected=nodes.find(n=>n.id===selectedId)??null;
+  const connections=selected?edges.filter(edge=>edge.source_node_id===selected.id||edge.target_node_id===selected.id):[];
 
   useEffect(()=>{let live=true;api<{nodes:Node[];edges:Edge[]}>("/explore/graph").then(g=>{if(live){setNodes(g.nodes);setEdges(g.edges);}}).catch(e=>{if(live)setError(e instanceof Error?e.message:"Could not load your graph.");}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[]);
   useEffect(()=>{if(selected){setEditTitle(selected.title);setEditBody(selected.body);setEditKind(selected.kind);setEditUrl(selected.source_url??"");}},[selectedId,selected?.updated_at]);

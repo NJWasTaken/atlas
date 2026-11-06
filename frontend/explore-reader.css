@@ -195,3 +195,11 @@
 .atlas-knowledge-notice{margin:0 0 10px;color:#a9b9c7;font-size:10px}
 @media(max-width:1050px){.atlas-knowledge-layout{grid-template-columns:1fr}.atlas-knowledge-side{min-height:430px}.atlas-research-pane,.atlas-node-editor{min-height:390px}.atlas-research-results{max-height:330px}}
 @media(max-width:650px){.atlas-knowledge{padding:18px 14px}.atlas-knowledge-heading{flex-direction:column}.atlas-knowledge-heading h2{font-size:25px}.atlas-knowledge-actions{width:100%}.atlas-knowledge-actions .atlas-button{flex:1;justify-content:center}.atlas-graph-panel{min-height:410px}.atlas-graph-canvas,.atlas-graph-canvas canvas{min-height:360px}.atlas-graph-help{font-size:7px}.atlas-graph-legend{gap:6px 8px}.atlas-graph-legend span{font-size:8px}.atlas-knowledge-side{min-height:430px}}
+
+.atlas-node-connections{display:grid;gap:7px;padding:11px;border:1px solid rgba(166,187,211,.13);background:rgba(4,14,25,.42)}
+.atlas-node-connections>span{color:#8292a5;font-size:9px;letter-spacing:.13em}
+.atlas-node-connections>div{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:6px;border-top:1px solid rgba(166,187,211,.08)}
+.atlas-node-connections p{color:#aab8c6;font-size:10px;line-height:1.5}
+.atlas-node-connections strong{color:var(--gold-hi);font-weight:500}
+.atlas-node-connections button{display:grid;width:25px;height:25px;flex:0 0 25px;place-items:center;color:#9c8580}
+.atlas-node-connections button:hover{color:#e6b2ad}
