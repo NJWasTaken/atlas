@@ -59,8 +59,8 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Persist per-document page bookmarks and page-linked notes, including an optional quoted passage.
 - [x] Add PDF validation, a 12 MB size limit, encrypted-PDF rejection, URL host checks, ownership checks, migration coverage, and API/browser regression tests.
 - [x] Add direct text selection and persist normalized page-relative highlight rectangles with page-linked annotations and notes.
-- [ ] Build the discovery interface and exploration-session model/API.
-- [ ] Support saving discoveries and questions for later.
+- [x] Build the non-AI discovery interface and persistent exploration-session model/API, including session notes and active/paused/completed states.
+- [x] Support saving discoveries, follow-up questions, and external resources inside an exploration session with per-user ownership and CRUD APIs.
 - [ ] Add contextual prompts and learning paths.
 - [ ] Connect independent exploration to subjects, topics, and concepts.
 - [ ] Keep direct AI integrations optional; allow external AI handoff as an initial alternative.

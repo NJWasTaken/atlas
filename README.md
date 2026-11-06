@@ -414,20 +414,16 @@ For example, a student studying machine learning might independently explore:
 
 ### 3.2 Exploration workspace
 
-An exploration session represents a focused learning journey.
+An exploration session represents a focused learning journey. The first non-AI version is available in Explore as an exploration journal. Students can start a session around a title and central question, keep running notes, and move it between in-progress, on-hold, and completed states.
 
-A session may contain:
+Each session can collect:
 
-- A central question or topic.
-- Notes and observations.
-- Subtopics discovered along the way.
-- Follow-up questions.
-- Related concepts.
-- External resources.
-- AI-assisted explanations.
-- Saved discoveries.
+- Discoveries and observations.
+- Follow-up questions to investigate.
+- External resources worth revisiting.
+- A central question and running session notes.
 
-Students should be able to return to previous exploration sessions and continue where they left off.
+Students can return to previous sessions, search their session titles and questions, and continue where they left off. Contextual prompts, generated learning paths, and AI-assisted explanations remain future enhancements.
 
 ### 3.3 AI-assisted exploration
 
