@@ -110,15 +110,20 @@ class ExploreSessionUpdate(BaseModel):
     notes: str | None = Field(default=None, max_length=20000)
     status: str | None = Field(default=None, pattern="^(active|paused|completed)$")
 
-    @field_validator("title", "central_question", "notes")
+    @field_validator("title", "central_question")
     @classmethod
-    def clean_optional_text(cls, value: str | None) -> str | None:
+    def clean_required_optional_text(cls, value: str | None) -> str | None:
         if value is None:
             return None
         value = value.strip()
-        if not value and value != "":
+        if not value:
             raise ValueError("This field cannot be blank")
         return value
+
+    @field_validator("notes")
+    @classmethod
+    def clean_session_notes(cls, value: str | None) -> str | None:
+        return value.strip() if value is not None else None
 
 
 class ExploreSessionItemCreate(BaseModel):
@@ -152,6 +157,28 @@ class ExploreSessionItemUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=240)
     body: str | None = Field(default=None, max_length=12000)
     url: str | None = Field(default=None, max_length=2048)
+
+    @field_validator("title")
+    @classmethod
+    def clean_updated_title(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("A title is required")
+        return value
+
+    @field_validator("url")
+    @classmethod
+    def validate_updated_url(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        value = value.strip()
+        from urllib.parse import urlparse
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("Use a public HTTP or HTTPS link")
+        return value
 
 
 class ExploreSessionItemOut(BaseModel):
