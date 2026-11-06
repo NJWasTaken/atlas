@@ -90,4 +90,52 @@ def test_browser_url_validation_blocks_nonstandard_ports_and_private_hosts(monke
     )
     with pytest.raises(HTTPException) as private_error:
         knowledge.validate_public_url("https://example.org/article")
+    assert private_error.value.status_code == 400def test_search_maps_duckduckgo_results_without_persisting_them(client, monkeypatch):
+    token = register(client, "search-mock@example.com")
+
+    async def fake_search(query, count):
+        assert query == "graph databases"
+        assert count == 10
+        return [{"title": "Graph databases", "url": "https://example.org/graphs", "description": "A guide", "age": "2 days ago"}]
+
+    monkeypatch.setattr(knowledge, "search_web", fake_search)
+    response = client.post("/api/v1/explore/search", headers=auth_headers(token), json={"q": "graph databases"})
+    assert response.status_code == 200
+    assert response.json()["results"][0]["domain"] == "example.org"
+    assert response.json()["results"][0]["description"] == "A guide"
+    assert response.json()["results"][0]["age"] == "2 days ago"
+    assert response.json()["more_results_available"] is False
+
+
+def test_duckduckgo_rate_limit_is_reported_as_retryable(client, monkeypatch):
+    token = register(client, "search-rate-limit@example.com")
+
+    async def rate_limited(query, count):
+        raise knowledge.HTTPException(429, "DuckDuckGo is rate-limiting searches. Wait a moment and try again.")
+
+    monkeypatch.setattr(knowledge, "search_web", rate_limited)
+    response = client.post("/api/v1/explore/search", headers=auth_headers(token), json={"q": "rate limits"})
+    assert response.status_code == 429
+    assert "rate-limiting" in response.json()["detail"]
+
+
+def test_browser_rejects_non_public_and_non_http_urls(client, monkeypatch):
+    token = register(client, "browser@example.com")
+    monkeypatch.setattr(knowledge, "validate_public_url", lambda value: (_ for _ in ()).throw(knowledge.HTTPException(400, "Use a public HTTP or HTTPS URL.")))
+    response = client.post("/api/v1/explore/browse", headers=auth_headers(token), json={"url": "file:///etc/passwd"})
+    assert response.status_code == 400
+
+
+def test_browser_url_validation_blocks_nonstandard_ports_and_private_hosts(monkeypatch):
+    with pytest.raises(HTTPException) as port_error:
+        knowledge.validate_public_url("https://example.org:8080/article")
+    assert port_error.value.status_code == 400
+
+    monkeypatch.setattr(
+        knowledge.socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [(None, None, None, None, ("127.0.0.1", 0))],
+    )
+    with pytest.raises(HTTPException) as private_error:
+        knowledge.validate_public_url("https://example.org/article")
     assert private_error.value.status_code == 400
