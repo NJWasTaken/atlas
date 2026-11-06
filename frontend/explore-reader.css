@@ -113,3 +113,86 @@
 .atlas-pdf-search-hit{background:rgba(255,190,70,.55);border-radius:2px;color:transparent}
 .atlas-pdf-thumb-preview{display:block;min-width:76px;min-height:96px;background:#fff;box-shadow:0 3px 12px #0005}
 .atlas-pdf-thumb-preview canvas{display:block;max-width:100%;height:auto}
+
+
+/* Reader controls: improve readability and comfortable hit targets. */
+.atlas-reader-back,.atlas-reader-mode,.atlas-reader-document-title span,
+.atlas-reader-tool,.atlas-reader-page-control,.atlas-reader-zoom,
+.atlas-reader-tabs button,.atlas-reader-tabs button span,
+.atlas-reader-note-form>span,.atlas-reader-note-form label,
+.atlas-reader-note-form textarea,.atlas-reader-note-form .atlas-button,
+.atlas-reader-note p,.atlas-reader-bookmark strong,.atlas-reader-bookmark small,
+.atlas-pdf-search input,.atlas-pdf-search button,.atlas-pdf-search-results button,
+.atlas-pdf-thumb,.atlas-pdf-outline-item,.atlas-pdf-selection-preview,.atlas-reader-empty {
+  font-size:12px;
+}
+.atlas-reader-back,.atlas-reader-mode,.atlas-reader-tool,.atlas-reader-tabs button,
+.atlas-pdf-search button,.atlas-pdf-thumb,.atlas-pdf-outline-item { min-height:36px; }
+.atlas-reader-page-control input,.atlas-reader-page-control button,.atlas-reader-zoom button {
+  min-width:32px;min-height:32px;font-size:12px;
+}
+.atlas-reader-page-control input { width:44px; }
+.atlas-reader-note-form { gap:13px; }
+.atlas-reader-note-form textarea { min-height:88px;line-height:1.65; }
+.atlas-reader-list-heading,.atlas-reader-note-page,.atlas-reader-sidebar-foot,.atlas-pdf-page-label { font-size:10px; }
+.atlas-reader-bookmark strong { font-size:12px; }
+.atlas-reader-bookmark small { font-size:11px; }
+.atlas-reader-note blockquote { font-size:13px; }
+@media(max-width:560px) {
+  .atlas-reader-tool,.atlas-reader-tabs button,.atlas-pdf-thumb,
+  .atlas-pdf-outline-item,.atlas-pdf-search input,.atlas-pdf-search button { font-size:11px; }
+}
+
+/* Independent exploration journal */
+.atlas-discovery{margin:28px 0 36px;padding:25px 27px;border:1px solid rgba(197,168,117,.18);background:radial-gradient(ellipse at 5% 0%,rgba(77,100,132,.13),transparent 40%),linear-gradient(135deg,rgba(14,30,48,.78),rgba(7,18,31,.68))}
+.atlas-discovery-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.atlas-discovery-heading h3{margin-top:5px;color:var(--ivory);font:500 25px 'Cormorant Garamond',serif}
+.atlas-discovery-heading p{max-width:560px;margin-top:6px;color:#8e9daf;font-size:12px;line-height:1.7}
+.atlas-discovery-create{display:grid;grid-template-columns:1fr 1.4fr auto;align-items:end;gap:12px;margin-top:20px;padding:17px;border:1px solid rgba(197,168,117,.18);background:rgba(4,14,25,.55)}
+.atlas-discovery-create label,.atlas-discovery-item-form label,.atlas-discovery-notes label{display:grid;gap:7px;color:#aeb9c7;font-size:12px}
+.atlas-discovery-create input,.atlas-discovery-create textarea,.atlas-discovery-item-form input,.atlas-discovery-item-form textarea,.atlas-discovery-item-form select,.atlas-discovery-notes textarea,.atlas-discovery-status select{width:100%;min-width:0;padding:10px 11px;color:var(--ivory);border:1px solid rgba(166,187,211,.18);outline:0;background:rgba(3,12,22,.65);font:12px/1.6 'DM Sans',sans-serif}
+.atlas-discovery-create input:focus,.atlas-discovery-create textarea:focus,.atlas-discovery-item-form input:focus,.atlas-discovery-item-form textarea:focus,.atlas-discovery-notes textarea:focus{border-color:rgba(197,168,117,.55)}
+.atlas-discovery-create textarea,.atlas-discovery-item-form textarea,.atlas-discovery-notes textarea{resize:vertical}
+.atlas-discovery-list-wrap{margin-top:18px}
+.atlas-discovery-list-top{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:12px}
+.atlas-discovery-list-top>div{display:flex;align-items:center;gap:10px}
+.atlas-discovery-kicker,.atlas-discovery-card-status{color:#8291a4;font-size:10px;letter-spacing:.14em}
+.atlas-discovery-list-top strong{color:var(--gold-hi);font:12px 'DM Sans',sans-serif}
+.atlas-discovery-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.atlas-discovery-card{position:relative;min-width:0;border:1px solid rgba(166,187,211,.13);background:rgba(12,27,44,.62)}
+.atlas-discovery-card-open{display:flex;width:100%;min-height:155px;flex-direction:column;align-items:flex-start;gap:9px;padding:16px 38px 15px 16px;text-align:left}
+.atlas-discovery-card-open:hover strong{color:var(--gold-hi)}
+.atlas-discovery-card-open strong{color:#e9e4db;font:500 19px 'Cormorant Garamond',serif}
+.atlas-discovery-card-open p{display:-webkit-box;overflow:hidden;color:#9ba9b8;font-size:12px;line-height:1.6;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.atlas-discovery-card-foot{display:flex;align-items:center;gap:6px;margin-top:auto;color:#9babc0;font-size:11px}
+.atlas-discovery-remove{position:absolute;top:10px;right:9px;display:grid;width:28px;height:28px;place-items:center;color:#8290a2}
+.atlas-discovery-remove:hover{color:#e6b2ad}
+.atlas-discovery-detail{margin-top:20px;padding-top:18px;border-top:1px solid rgba(166,187,211,.13)}
+.atlas-discovery-detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
+.atlas-discovery-detail-head h4{margin-top:6px;color:#f0e9de;font:500 25px 'Cormorant Garamond',serif}
+.atlas-discovery-detail-head p{margin-top:5px;color:#a6b3c1;font-size:13px;line-height:1.6}
+.atlas-discovery-status{display:grid;gap:6px;min-width:145px;color:#8d9bad;font-size:11px}
+.atlas-discovery-columns{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:18px;margin-top:20px}
+.atlas-discovery-main{min-width:0}
+.atlas-discovery-item-form{display:grid;gap:11px;padding:16px;border:1px solid rgba(166,187,211,.13);background:rgba(4,14,25,.45)}
+.atlas-discovery-form-title{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--gold-hi);font-size:12px}
+.atlas-discovery-form-title>span{display:flex;align-items:center;gap:7px}
+.atlas-discovery-form-title select{width:auto;min-width:125px}
+.atlas-discovery-item-form .atlas-button{justify-self:start}
+.atlas-discovery-items-heading{display:flex;justify-content:space-between;margin:19px 0 10px;color:#8291a4;font-size:10px;letter-spacing:.14em}
+.atlas-discovery-empty{display:flex;align-items:center;gap:12px;padding:22px;color:#8c9bac;border:1px dashed rgba(166,187,211,.17);font-size:12px;line-height:1.6}
+.atlas-discovery-empty svg{flex:0 0 auto;color:var(--gold-hi)}
+.atlas-discovery-items{display:grid;gap:8px}
+.atlas-discovery-item{position:relative;display:flex;align-items:flex-start;gap:12px;padding:14px 42px 14px 14px;border:1px solid rgba(166,187,211,.12);background:rgba(14,31,50,.5)}
+.atlas-discovery-item-icon{display:grid;flex:0 0 30px;height:30px;place-items:center;color:var(--gold-hi);border:1px solid rgba(197,168,117,.22);background:rgba(197,168,117,.06)}
+.atlas-discovery-item-copy{min-width:0}
+.atlas-discovery-item-copy>span{color:#8291a4;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+.atlas-discovery-item-copy h5{margin-top:4px;color:#e9e4db;font-size:14px;font-weight:500}
+.atlas-discovery-item-copy p{margin-top:5px;color:#a4b1bf;font-size:12px;line-height:1.65;white-space:pre-wrap}
+.atlas-discovery-item-copy a{display:inline-flex;align-items:center;gap:5px;margin-top:8px;color:var(--gold-hi);font-size:12px}
+.atlas-discovery-notes{display:flex;flex-direction:column;gap:10px;padding:15px;border:1px solid rgba(166,187,211,.12);background:rgba(5,15,27,.4)}
+.atlas-discovery-notes textarea{min-height:190px}
+.atlas-discovery-delete{display:flex;align-items:center;gap:7px;margin-top:auto;padding-top:12px;color:#a98783;border-top:1px solid rgba(166,187,211,.1);font-size:11px}
+.atlas-discovery-delete:hover{color:#e6b2ad}
+@media(max-width:900px){.atlas-discovery-list{grid-template-columns:repeat(2,minmax(0,1fr))}.atlas-discovery-columns{grid-template-columns:1fr}.atlas-discovery-notes textarea{min-height:110px}}
+@media(max-width:650px){.atlas-discovery{padding:19px 16px}.atlas-discovery-heading{flex-direction:column}.atlas-discovery-create{grid-template-columns:1fr}.atlas-discovery-list{grid-template-columns:1fr}.atlas-discovery-list-top{align-items:flex-start;flex-direction:column}.atlas-discovery-detail-head{flex-direction:column}.atlas-discovery-status{width:100%}.atlas-discovery-form-title{align-items:flex-start;flex-direction:column}.atlas-discovery-form-title select{width:100%}}

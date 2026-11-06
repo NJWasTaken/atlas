@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { api, apiBlob } from "../../lib/api";
 import PdfReaderWorkspace from "./PdfReaderWorkspace";
+import ExploreSessions from "./ExploreSessions";
 
 type DocumentItem = {
   id:number; title:string; filename:string; source_url:string|null; page_count:number;
@@ -152,6 +153,7 @@ export default function ExploreWorkspace() {
     <section className={`atlas-explore ${readerMode?"reader-mode":""}`} aria-label="Explore PDF library">
       {!selected ? (
         <>
+          <ExploreSessions />
           <div className="atlas-explore-intro">
             <div><p className="eyebrow">THE READING ROOM</p><h2>Make room for <em>curiosity.</em></h2><p>A quiet place for papers, books and ideas worth following.</p></div>
             <div className="atlas-explore-actions">
