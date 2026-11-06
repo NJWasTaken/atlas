@@ -406,3 +406,69 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and pa
   await page.getByRole("button",{name:"Library"}).click();
   await expect(page.getByText("Page 3 of 8")).toBeVisible();
 });
+
+
+test("Explore supports independent sessions with saved discoveries and questions", async ({ page }) => {
+  installApiMock(page);
+  const sessions = [];
+  const items = [];
+  let nextId = 501;
+  await page.route("**/api/v1/explore/sessions**", async route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace("/api/v1", "");
+    const method = request.method();
+    let body = {};
+    if (method !== "GET" && method !== "DELETE") {
+      try { body = request.postDataJSON?.() ?? {}; } catch { body = {}; }
+    }
+    const json = data => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(data) });
+    const created = data => route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(data) });
+    const empty = () => route.fulfill({ status: 204, body: "" });
+    if (path === "/explore/sessions" && method === "GET") return json(sessions);
+    if (path === "/explore/sessions" && method === "POST") {
+      const session = { id: nextId++, title: body.title, central_question: body.central_question, notes: "", status: "active", item_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+      sessions.unshift(session); return created(session);
+    }
+    const itemMatch = path.match(/^\\/explore\\/sessions\\/(\\d+)\\/items(?:\\/(\\d+))?$/);
+    const sessionMatch = path.match(/^\\/explore\\/sessions\\/(\\d+)$/);
+    if (itemMatch) {
+      if (method === "POST") {
+        const item = { id: nextId++, session_id: Number(itemMatch[1]), kind: body.kind, title: body.title, body: body.body || "", url: body.url || null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+        items.unshift(item); return created(item);
+      }
+      if (method === "DELETE") { const index = items.findIndex(item => item.id === Number(itemMatch[2])); if (index >= 0) items.splice(index, 1); return empty(); }
+    }
+    if (sessionMatch) {
+      const session = sessions.find(item => item.id === Number(sessionMatch[1]));
+      if (method === "GET") return json({ ...session, item_count: items.filter(item => item.session_id === session.id).length, items: items.filter(item => item.session_id === session.id) });
+      if (method === "PATCH") { Object.assign(session, body); return json(session); }
+      if (method === "DELETE") { sessions.splice(sessions.indexOf(session), 1); return empty(); }
+    }
+    return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ detail: "Unmocked exploration request: " + method + " " + path }) });
+  });
+
+  await signIn(page);
+  await page.getByRole("button", { name: "Explore" }).click();
+  await page.getByRole("button", { name: "Start an exploration" }).click();
+  await page.getByLabel("Exploration title").fill("The science of memory");
+  await page.getByLabel("What are you curious about?").fill("How does the brain turn experiences into memories?");
+  await page.getByRole("button", { name: "Create exploration" }).click();
+  await expect(page.getByRole("heading", { name: "The science of memory" })).toBeVisible();
+
+  await page.getByLabel("Saved item type").selectOption("discovery");
+  await page.getByLabel("Title").fill("Synaptic plasticity");
+  await page.getByLabel("Notes").fill("Connections between neurons can strengthen or weaken.");
+  await page.getByRole("button", { name: "Save to journal" }).click();
+  await expect(page.getByText("Synaptic plasticity")).toBeVisible();
+
+  await page.getByLabel("Saved item type").selectOption("question");
+  await page.getByLabel("Title").fill("What causes forgetting?");
+  await page.getByRole("button", { name: "Save to journal" }).click();
+  await expect(page.getByText("What causes forgetting?")).toBeVisible();
+
+  await page.getByLabel("Session notes").fill("Follow the link between consolidation and sleep.");
+  await page.getByRole("button", { name: "Save notes" }).click();
+  await expect(page.getByLabel("Save notes")).toBeDisabled();
+  await page.getByLabel("Status").selectOption("completed");
+  await expect(page.locator(".atlas-discovery-status")).toContainText("Completed");
+});
