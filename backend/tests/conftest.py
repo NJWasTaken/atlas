@@ -8,6 +8,8 @@ from app.db import Base, get_db
 from app.main import create_app
 from app import models  # noqa: F401
 from app import academics_models  # noqa: F401
+from app import explore_models  # noqa: F401
+from app import knowledge_models  # noqa: F401
 
 
 @pytest.fixture()

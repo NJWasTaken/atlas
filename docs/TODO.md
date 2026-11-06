@@ -59,18 +59,24 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Persist per-document page bookmarks and page-linked notes, including an optional quoted passage.
 - [x] Add PDF validation, a 12 MB size limit, encrypted-PDF rejection, URL host checks, ownership checks, migration coverage, and API/browser regression tests.
 - [x] Add direct text selection and persist normalized page-relative highlight rectangles with page-linked annotations and notes.
-- [ ] Build the discovery interface and exploration-session model/API.
-- [ ] Support saving discoveries and questions for later.
-- [ ] Add contextual prompts and learning paths.
-- [ ] Connect independent exploration to subjects, topics, and concepts.
-- [ ] Keep direct AI integrations optional; allow external AI handoff as an initial alternative.
+- [x] Add user-owned knowledge graph nodes and labelled connections with persistent 3D positions and ownership-checked CRUD APIs.
+- [x] Render an interactive Three.js graph with node selection, dragging, orbit controls, zoom, a keyboard-accessible node navigator, and manual connection mode.
+- [x] Add keyless DuckDuckGo web search through the backend, with India/English defaults, bounded results, timeouts, rate-limit feedback, and transient search-result handling.
+- [x] Add an in-app article reading view for public HTML pages, including bounded extraction, redirect validation, readable Markdown, and an original-site fallback.
+- [x] Allow students to save a source as a graph node and capture selected passages as personal notes linked to their source.
+- [x] Add editing/removal of individual graph connections, visible relationship labels, and per-node connection inspection.
+- [x] Add graph filtering by node type, saved-knowledge search across titles/notes/source URLs, connected-node filtering, and a filtered keyboard-accessible node navigator.
+- [ ] Link graph nodes to existing academic subjects, topics, and concepts without duplicating their canonical records.
+- [ ] Support linking existing PDF library documents and page-specific annotations into graph nodes.
+- [ ] Improve browser compatibility for JavaScript-heavy and restricted websites without weakening SSRF protections.
+- [ ] Keep AI-assisted graph suggestions and direct AI integrations optional; do not make them a dependency of manual knowledge building.
 
 ## My Universe
 
 - [ ] Implement personal notes and saved resources/concepts.
 - [ ] Add personal questions and retrieval/search.
 - [ ] Implement user-created knowledge connections.
-- [ ] Build a visual knowledge graph after the underlying knowledge entities and links are stable.
+- [ ] Add a My Universe view over the shared Explore knowledge graph, with cross-module filters and collections.
 - [ ] Explore AI-assisted connections only after the user-controlled model is established.
 
 ## AI Gateway

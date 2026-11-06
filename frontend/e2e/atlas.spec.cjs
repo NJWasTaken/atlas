@@ -21,7 +21,7 @@ function createPdfFixture() {
 const { test, expect } = require("@playwright/test");
 
 function installApiMock(page, options = {}) {
-  const state = { subjects: [], topics: [], concepts: [], notes: {}, exams: [], progress: {}, reviews: [], versions: [] };
+  const state = { subjects: [], topics: [], concepts: [], notes: {}, exams: [], progress: {}, reviews: [], versions: [], graphNodes: [], graphEdges: [] };
   let failSubjectsOnce = Boolean(options.failSubjectsOnce);
   let failSubjectCreateOnce = Boolean(options.failSubjectCreateOnce);
   let failCalendarNoteSaveOnce = Boolean(options.failCalendarNoteSaveOnce);
@@ -161,6 +161,29 @@ function installApiMock(page, options = {}) {
       const id=Number(path.split("/").pop()); const version=state.versions.find(v=>v.id===id);
       return json(version ?? {});
     }
+    if (path === "/explore/search" && method === "POST") return json({results:[{title:"Attention Is All You Need",url:"https://arxiv.org/abs/1706.03762",description:"A paper about attention-based sequence modelling.",age:"2017",domain:"arxiv.org"}],more_results_available:false});
+    if (path === "/explore/browse" && method === "POST") return json({url:body.url,title:"Attention Is All You Need",site_name:"arxiv.org",author:"Ashish Vaswani",published_date:"2017-06-12",excerpt:"The attention mechanism allows models to focus on relevant inputs.",content_markdown:"# Attention Is All You Need\n\nThe attention mechanism allows models to focus on relevant inputs when processing a sequence."});
+    if (path === "/explore/graph" && method === "GET") return json({ nodes:state.graphNodes, edges:state.graphEdges });
+    if (path === "/explore/graph/nodes" && method === "POST") {
+      const node={id:nextId++,kind:"concept",body:"",source_url:null,position_x:0,position_y:0,position_z:0,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),...body};
+      state.graphNodes.push(node); return created(node);
+    }
+    const graphNode=path.match(/^\/explore\/graph\/nodes\/(\d+)$/);
+    if (graphNode && method === "PATCH") {
+      const index=state.graphNodes.findIndex(n=>n.id===Number(graphNode[1]));
+      if(index<0)return route.fulfill({status:404});
+      state.graphNodes[index]={...state.graphNodes[index],...body,updated_at:new Date().toISOString()};
+      return json(state.graphNodes[index]);
+    }
+    if (graphNode && method === "DELETE") {
+      const id=Number(graphNode[1]);state.graphNodes=state.graphNodes.filter(n=>n.id!==id);
+      state.graphEdges=state.graphEdges.filter(e=>e.source_node_id!==id&&e.target_node_id!==id);return empty();
+    }
+    if (path === "/explore/graph/edges" && method === "POST") {
+      const edge={id:nextId++,created_at:new Date().toISOString(),...body};state.graphEdges.push(edge);return created(edge);
+    }
+    const graphEdge=path.match(/^\/explore\/graph\/edges\/(\d+)$/);
+    if (graphEdge && method === "DELETE") { state.graphEdges=state.graphEdges.filter(e=>e.id!==Number(graphEdge[1])); return empty(); }
     if (path.startsWith("/explore/")) return route.continue();
     return route.fulfill({ status:404, contentType:"application/json", body:JSON.stringify({detail:`Unmocked E2E API: ${method} ${path}`}) });
   });
@@ -399,10 +422,69 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and pa
   await page.getByRole("button",{name:/Saved/}).click();
   await expect(page.locator(".atlas-reader-bookmark").filter({hasText:"Page 3"})).toBeVisible();
   await page.getByRole("button",{name:/Pages/}).click();
-  await page.getByRole("button",{name:"Search"}).click();
+  await page.locator(".atlas-reader").getByRole("button",{name:"Search"}).click();
   await page.getByPlaceholder("Search words or phrases in this PDF…").fill("searchable text");
   await page.getByRole("button",{name:"Find"}).click();
   await expect(page.locator(".atlas-pdf-search-results")).toContainText("Page 1");
   await page.getByRole("button",{name:"Library"}).click();
   await expect(page.getByText("Page 3 of 8")).toBeVisible();
+});
+
+
+test("Explore lets the student build and connect knowledge nodes", async ({ page }) => {
+  installApiMock(page);
+  await signIn(page);
+  await page.getByRole("button",{name:"Explore"}).click();
+  await expect(page.getByRole("heading",{name:/Build your knowledge universe/})).toBeVisible();
+  await page.getByRole("button",{name:/Create your first node/}).click();
+  await page.getByLabel("Type").selectOption("topic");
+  await page.getByLabel("Title").fill("Neural networks");
+  await page.getByRole("button",{name:"Add to graph"}).click();
+  await expect(page.getByText("Neural networks",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Add node"}).click();
+  await page.getByLabel("Type").last().selectOption("concept");
+  await page.getByLabel("Title").last().fill("Backpropagation");
+  await page.getByRole("button",{name:"Add to graph"}).click();
+  await page.getByRole("button",{name:"Connect nodes"}).click();
+  await page.getByLabel("Connection label").fill("supports");
+  await page.locator(".atlas-graph-node-shortcuts button").nth(0).click();
+  await page.locator(".atlas-graph-node-shortcuts button").nth(1).click();
+  await expect(page.getByText("supports",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:/Remove connection supports/}).click();
+  await expect(page.getByText(/2 \/ 2 NODES · 0 \/ 0 CONNECTIONS/)).toBeVisible();
+  await page.getByLabel("Search saved knowledge").fill("Backpropagation");
+  await expect(page.locator(".atlas-graph-node-shortcuts button")).toHaveCount(1);
+  await expect(page.locator(".atlas-graph-node-shortcuts button").first()).toContainText("Backpropagation");
+  await page.getByLabel("Search saved knowledge").fill("");
+  await page.getByLabel("Filter by node type").selectOption("topic");
+  await expect(page.locator(".atlas-graph-node-shortcuts button")).toHaveCount(1);
+  await expect(page.locator(".atlas-graph-node-shortcuts button").first()).toContainText("Neural networks");
+  await page.getByLabel("Filter by node type").selectOption("all");
+  await expect(page.locator(".atlas-graph-node-shortcuts button")).toHaveCount(2);
+});
+
+
+test("Explore can search, read and capture a source passage into the knowledge graph", async ({ page }) => {
+  installApiMock(page);
+  await signIn(page);
+  await page.getByRole("button",{name:"Explore"}).click();
+  await page.getByLabel("SEARCH THE WEB").fill("attention mechanism");
+  await page.locator(".atlas-research-search button").click();
+  await page.getByRole("button",{name:/Attention Is All You Need/}).click();
+  await expect(page.locator(".atlas-browser-article > h3")).toHaveText("Attention Is All You Need");
+
+  await page.locator(".atlas-browser-content").evaluate(element => {
+    const paragraph=element.querySelector("p");
+    if (!paragraph) throw new Error("Expected article paragraph");
+    const range=document.createRange();
+    range.selectNodeContents(paragraph);
+    const selection=window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    element.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));
+  });
+  await expect(page.getByRole("button",{name:/Capture selection/})).toBeEnabled();
+  await page.getByRole("button",{name:/Capture selection/}).click();
+  await expect(page.getByText("Passage from Attention Is All You Need",{exact:true})).toBeVisible();
+  await expect(page.getByText("quoted from",{exact:true})).toBeVisible();
 });

@@ -15,7 +15,7 @@ The current working slice includes:
 - Daily and random quotations from API Ninjas when configured, with curated fallbacks, a six-hour in-process cache for the daily quote, fresh provider requests for each random-quote interaction, and last-known-quote fallback so provider outages do not block the Overview.
 - A dark celestial visual treatment and a reduced-motion-aware animated background.
 
-Explore now includes a private PDF library and a bundled PDF.js reading workspace. PDFs can be uploaded or imported from a public HTTP(S) URL (12 MB limit), are stored in the database, and are accessible only to their owner. The reader owns continuous vertical scrolling, visible-page tracking, page navigation, page thumbnails, document outline, in-document text search, zoom/fit controls, progress persistence, bookmarks, text selection, page-relative highlight overlays, page-linked notes, and distraction-free focus mode. Highlights are persisted as normalized page-relative rectangles in Explore annotations. Password-protected PDFs and scanned-document OCR are not supported. Atlas-side highlights and notes do not modify the underlying PDF file. My Universe remains a placeholder. Syllabus PDFs can be uploaded, parsed into an editable draft, and explicitly confirmed into the subject's topic/concept tree. Structural syllabus changes create version snapshots that can be inspected and restored. Concept check-ins are recorded as review history and receive a simple next-review interval based on understanding and recall. Saving a check-in refreshes subject readiness and Overview data without clearing the currently selected concept or its review panel. There is no OCR for scanned PDFs, adaptive spaced-repetition algorithm, personal knowledge repository, AI gateway, or data export yet.
+Explore includes a private PDF library and a bundled PDF.js reading workspace. PDFs can be uploaded or imported from a public HTTP(S) URL (12 MB limit), are stored in the database, and are accessible only to their owner. The reader supports continuous scrolling, page navigation, thumbnails, outline, text search, zoom/fit, progress, bookmarks, text selection/highlights, page-linked notes, and focus mode. Explore also includes a user-built knowledge graph rendered with Three.js. Authenticated users can create and edit topic, concept, question, note, source, and claim nodes; manually connect nodes with labelled directed edges; drag nodes in 3D; and persist their positions. A keyless DuckDuckGo adapter (via the Python `ddgs` package) provides transient web results with India/English defaults, bounded result counts, a request timeout, and retryable rate-limit feedback. Public HTML pages can be opened in a built-in article reader using Trafilatura extraction; selected passages can be saved as personal note nodes connected to source nodes. Search results and extracted page bodies are not persisted automatically. The reader is not a full Chromium browser and does not execute arbitrary website JavaScript. Password-protected PDFs and scanned-document OCR are not supported. Atlas-side PDF highlights and notes do not modify the underlying PDF file. My Universe remains a placeholder. Syllabus PDFs can be uploaded, parsed into an editable draft, and explicitly confirmed into the subject's topic/concept tree. Structural syllabus changes create version snapshots that can be inspected and restored. Concept check-ins are recorded as review history and receive a simple next-review interval based on understanding and recall. Saving a check-in refreshes subject readiness and Overview data without clearing the currently selected concept or its review panel. There is no OCR for scanned PDFs, adaptive spaced-repetition algorithm, AI gateway, or data export yet.
 
 ## System shape
 
@@ -73,6 +73,8 @@ The current entities are:
 | `SyllabusVersion` | Numbered JSON snapshots of a subject's topic/concept/prerequisite tree, with restore history |
 | `ConceptPrerequisite` | Directed same-subject prerequisite links between concepts; self-links and cycles are rejected |
 | `Exam` | User-owned exam associated with a subject and a date/time |
+| `KnowledgeNode` | User-owned topic, concept, question, note, source, or claim with personal notes, optional URL, and persisted 3D position |
+| `KnowledgeEdge` | User-created directed, labelled relationship between two nodes in the same user's graph |
 
 `backend/app/academics_models.py` defines topic, concept, progress, review-history, syllabus-version, and exam tables. Topics and concepts include optional JSON source-page references for imported syllabus material; `backend/app/models.py` defines users, subjects (including optional term and academic year), and day notes. Foreign keys and ORM cascades connect the records. Progress is unique per user/concept, and confidence is constrained to 1–5 when supplied.
 
@@ -88,6 +90,8 @@ Concept-progress updates use partial PATCH semantics: only fields explicitly sup
 | Quotes | `GET /quotes/daily`, `GET /quotes/random` |
 | Academics | Topic/concept CRUD; syllabus PDF draft/confirm; version list/detail/create/restore; progress get/update; concept review history; prerequisite get/replace; exam-aware readiness; exam CRUD |
 | Overview | Authenticated recent concept activity, continue-learning candidates, revision suggestions, and upcoming exams |
+| Explore knowledge | `GET /explore/graph`, graph node/edge CRUD, `POST /explore/search`, and `POST /explore/browse` |
+| Explore knowledge | `GET /explore/graph`, node/edge CRUD, `POST /explore/search`, and `POST /explore/browse` |
 
 All API routes are mounted under `/api/v1` except `/health`. The calendar range is limited to 63 days. Quote endpoints require authentication; API Ninjas is used when configured, otherwise a curated fallback is returned. Successful provider responses are cached in-process for six hours (daily) or one minute (random); a stale cached quote is served if the provider later fails. Curated fallback quotes keep a first-time or unconfigured dashboard usable.
 
@@ -186,12 +190,18 @@ This list covers the tracked project source, documentation, and configuration fi
 | `migrations/versions/0003_subject_term.py` | Adds optional term and academic-year fields to subjects. |
 | `migrations/versions/0004_syllabus_versions_reviews.py` | Adds syllabus snapshots, concept review history, and next-review scheduling. |
 | `migrations/versions/0005_concept_prerequisites.py` | Adds same-subject concept prerequisite relationships. |
+| `migrations/versions/0006_explore_library.py` | Adds the private PDF library, bookmarks, and annotations. |
+| `migrations/versions/0007_explore_highlight_positions.py` | Adds normalized page-relative PDF highlight rectangles. |
+| `migrations/versions/0008_knowledge_graph.py` | Adds user-owned knowledge graph nodes and labelled edges. |
 | `migrations/script.py.mako` | Template for future versioned schema revisions. |
 | `app/models.py` | Core `User`, `Subject`, and `DayNote` ORM models. |
 | `app/academics_models.py` | `Topic`, `Concept`, `ConceptProgress`, `ConceptReview`, `ConceptPrerequisite`, `SyllabusVersion`, and `Exam` ORM models and relationships, including imported source-page references. |
+| `app/knowledge_models.py` | User-owned knowledge graph nodes and labelled directed edges. |
+| `app/explore_models.py` | Private PDF documents, bookmarks, and annotations. |
 | `app/syllabus_import.py` | Bounded PDF text extraction, conservative heading detection, warnings, and page-reference capture. |
 | `app/schemas.py` | Pydantic request/response types for authentication, quotes, subjects, and calendar notes. |
 | `app/academics_schemas.py` | Pydantic validation and response types for topics, concepts, progress, and exams. |
+| `app/knowledge_schemas.py` | Graph node/edge, web-search, and article-reader request/response contracts. |
 | `app/security.py` | Password hashing/verification, JWT creation, and bearer-token current-user dependency. |
 | `app/core/__init__.py` | Marks the core configuration directory as a Python package. |
 | `app/core/config.py` | Reads backend settings from environment and `.env`; validates strong production JWT secrets and explicit trusted CORS origins. |
@@ -203,6 +213,7 @@ This list covers the tracked project source, documentation, and configuration fi
 | `app/routers/academics.py` | Ownership-checked topic/concept/progress/review-history/readiness/exam and syllabus version/draft/confirm/restore endpoints. |
 | `app/routers/overview.py` | User-scoped recent learning activity, continue-learning candidates, revision suggestions, and upcoming exam summary. |
 | `app/routers/explore.py` | Private PDF upload/URL import, document listing and delivery, reading progress, bookmarks, and page-linked notes with ownership checks. |
+| `app/routers/knowledge.py` | User-owned graph CRUD, DuckDuckGo search proxy, and bounded public-HTML article extraction for the research reader. |
 
 ### `frontend/`
 
@@ -221,6 +232,7 @@ This list covers the tracked project source, documentation, and configuration fi
 | `app/layout.tsx` | Root App Router layout; imports global styles, sets metadata, and mounts the celestial background. |
 | `app/page.tsx` | Main client page: auth state/forms, navigation, overview, subject operations, quote loading, and module composition. |
 | `app/components/AcademicsWorkspace.tsx` | Subject-level topics/concepts/progress/readiness UI and exam create/edit/delete controls. |
+| `app/components/KnowledgeGraphWorkspace.tsx` | Three.js graph editing, manual relationships, DuckDuckGo-backed web search, address-bar navigation, article reading, and source/passage capture. |
 | `app/components/DashboardCalendar.tsx` | Monthly/weekly Overview calendar, date-note editing, announced sync status, retry states, and display/edit/delete of exams on selected dates. |
 | `e2e/atlas.spec.cjs` | Playwright browser flows for sign-in, academics, progress, calendar notes, and exam management. |
 | `playwright.config.cjs` | Chromium browser-test configuration and local Next.js test server. |
@@ -236,4 +248,4 @@ This list covers the tracked project source, documentation, and configuration fi
 - The backend suite includes API, configuration, quote-cache, migration-adoption, and PostgreSQL integration coverage. GitHub Actions validates the SQLite and PostgreSQL migration chains and runs Playwright browser flows after the frontend typecheck/build. The existing-database adoption helper remains an explicit operator action requiring a verified backup; it has not been run against a user database.
 - The Overview provides monthly and weekly calendar views, date notes, exam events, recent learning activity, revision nudges, and upcoming exams; it is not a general-purpose event planner.
 - Home, Academics, and the calendar expose explicit loading/error/retry feedback for their primary data requests. This is a focused reliability pass, not yet a complete accessibility or responsive audit of every control and screen.
-- Explore's discovery sessions, saved questions/discoveries, contextual prompts, learning paths, academic links, and AI handoff remain future work. My Universe, scanned-PDF OCR, direct PDF highlight overlays, adaptive spaced repetition, direct AI integrations, and data export are also not implemented.
+- Explore's graph filtering, connection inspection/removal, academic links, and richer browser compatibility remain future work. The article reader extracts public HTML and does not execute arbitrary site JavaScript. Search uses the keyless DuckDuckGo wrapper; requests may be throttled by the upstream service, and search results are not stored. The graph navigator supports text search, node-type filters, and connected-only filtering. My Universe, scanned-PDF OCR, adaptive spaced repetition, direct AI integrations, and data export are also not implemented.

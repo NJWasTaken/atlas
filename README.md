@@ -170,9 +170,9 @@ Home is the first destination when opening Atlas. It should answer three questio
 - Quick links to unfinished learning activities.
 
 **Recent exploration**
-- Recently visited exploration sessions.
-- Saved concepts and discoveries.
-- Questions or topics the student wants to revisit.
+- Recently edited knowledge nodes and notes.
+- Recently saved research sources.
+- Questions and topics the student wants to revisit.
 
 **Daily inspiration**
 - A rotating collection of quotations related to learning, science, creativity, and curiosity.
@@ -390,101 +390,49 @@ The reading workspace is powered by a bundled PDF.js renderer rather than the br
 
 The initial reader supports PDFs up to 12 MB. Password-protected documents and scanned-document OCR are not supported. Highlights and notes are stored by Atlas as document annotations; they do not modify the underlying PDF file.
 
-### 3.1 Discovery
+### 3.1 User-built knowledge graph
 
-The discovery interface should allow students to:
+Explore is centred on a personal, interactive 3D knowledge graph rendered with Three.js.
 
-- Search for topics and concepts.
-- Ask questions.
-- Discover related subjects.
-- Explore unfamiliar fields.
-- Follow suggested learning paths.
-- Navigate from one idea to another.
+The graph is built by the student, not generated automatically. Students can create and edit nodes such as:
 
-Discovery should not be restricted to the student's enrolled subjects.
+- Topics and concepts.
+- Questions and unresolved doubts.
+- Personal notes and claims.
+- External sources.
 
-For example, a student studying machine learning might independently explore:
+Students can drag nodes into their preferred positions and create labelled, directed connections between them. Example relationship labels include:
 
-- Cognitive science.
-- Neuroscience.
-- Information theory.
-- Philosophy of intelligence.
-- Robotics.
-- Computational linguistics.
+- Related to.
+- Builds upon.
+- Prerequisite of.
+- Contrasts with.
+- Supports.
+- Example of.
+- Quoted from.
 
-### 3.2 Exploration workspace
+Node positions, notes, source links, and relationships are persisted in the student's account. The graph is intended to be a working model of the student's own understanding, not an automatically generated mind map.
 
-An exploration session represents a focused learning journey.
+### 3.2 Integrated research browser
 
-A session may contain:
+Explore combines web search and reading with the knowledge graph.
 
-- A central question or topic.
-- Notes and observations.
-- Subtopics discovered along the way.
-- Follow-up questions.
-- Related concepts.
-- External resources.
-- AI-assisted explanations.
-- Saved discoveries.
+The intended workflow is:
 
-Students should be able to return to previous exploration sessions and continue where they left off.
+1. Search the web from inside Explore.
+2. Open a result in Atlas's built-in article reading view.
+3. Read the extracted page without leaving the research workspace.
+4. Save a source as a graph node.
+5. Select a passage and capture it as a personal note linked to its source.
+6. Connect that source or note to other ideas in the graph.
 
-### 3.3 AI-assisted exploration
+Web search is provided through the keyless DuckDuckGo wrapper (`ddgs`) on the backend, using India/English search defaults. No API key or subscription is required. Because this is an unofficial wrapper over a public search service, requests may be throttled; Atlas bounds result counts and timeouts and reports retryable rate limits. Search results are transient; only sources explicitly saved by the student are added to their knowledge graph.
 
-AI should help students understand unfamiliar ideas, investigate questions, and explore related concepts.
+The built-in reader fetches public HTML pages and extracts their readable article content. It is not a full Chromium browser: websites that require client-side JavaScript, authentication, or block server-side access may need to be opened in the original browser. PDFs remain supported through the dedicated PDF reading library.
 
-Potential capabilities include:
+### 3.3 Student-controlled exploration
 
-- Explaining complex concepts at different levels.
-- Breaking down unfamiliar terminology.
-- Providing examples and analogies.
-- Generating follow-up questions.
-- Comparing related concepts.
-- Suggesting related topics.
-- Helping structure an exploration session.
-
-AI responses should be contextual.
-
-For example, when exploring a concept already covered in a university subject, Atlas should eventually be able to reference the student's existing notes and academic context.
-
-### 3.4 Learning paths
-
-A future feature should allow students to create or follow learning paths.
-
-A learning path is a sequence of related concepts that builds understanding progressively.
-
-For example:
-
-```text
-Understanding Large Language Models
-│
-├── Linear Algebra Foundations
-├── Probability and Statistics
-├── Neural Networks
-├── Backpropagation
-├── Attention Mechanisms
-├── Transformers
-└── Large Language Model Training
-```
-
-Learning paths should be editable rather than rigid courses.
-
-Students should be free to skip, rearrange, or expand topics.
-
-### 3.5 Connecting exploration to academics
-
-Explore should not be disconnected from university learning.
-
-Students should be able to:
-
-- Save an explored concept to My Universe.
-- Associate discoveries with academic subjects.
-- Link an exploration session to an existing concept.
-- Add external discoveries to their personal knowledge collection.
-
-This is one of the most important connections in Atlas.
-
----
+The student decides what belongs in the graph and how ideas relate. Atlas does not automatically create nodes, infer relationships, or rewrite personal notes. AI-assisted suggestions may be considered later as an opt-in enhancement, after the manual knowledge-building workflow is dependable.
 
 ## 4. My Universe
 
@@ -516,7 +464,7 @@ Students should be able to create notes independently or attach them to:
 - Subjects.
 - Topics.
 - Concepts.
-- Exploration sessions.
+- Knowledge graph nodes and source references.
 - Saved resources.
 
 Notes should support editing, timestamps, and contextual references.
@@ -572,17 +520,7 @@ Connections should be created and managed by the student, with AI-assisted sugge
 
 ### 4.5 Knowledge graph
 
-A future visual knowledge graph should allow students to explore their personal knowledge network.
-
-Potential capabilities:
-
-- Visualise concepts and their relationships.
-- Filter by subject or topic.
-- Identify clusters of related knowledge.
-- Navigate between connected ideas.
-- Discover relationships between academic and independently explored concepts.
-
-The knowledge graph should be useful for exploration, not merely decorative.
+The primary student-built 3D knowledge graph now lives in Explore, where independent research, source reading, notes, and manually created relationships come together. My Universe may later provide broader views over that shared knowledge, including filters across academic subjects, personal notes, and independently explored ideas.
 
 ---
 
@@ -737,10 +675,10 @@ The modules are designed around a few core workflows.
 
 1. Open Explore.
 2. Search for an interesting topic or ask a question.
-3. Investigate related concepts.
-4. Create an exploration session.
-5. Save useful discoveries.
-6. Connect them to existing knowledge in My Universe.
+3. Open useful sources in the integrated research reader.
+4. Capture important passages as personal notes.
+5. Create concepts, questions, and claims in the graph.
+6. Connect the ideas with relationships that you define.
 
 ## Journey 5: Building a personal knowledge network
 
@@ -1095,10 +1033,11 @@ The following describes the intended API surface.
 - Private PDF library with local upload and public-URL import.
 - PDF.js reading room with continuous scrolling, page thumbnails, document outline, in-document text search, zoom and fit controls.
 - Persistent reading position, bookmarks, text highlights, page-linked annotations and notes, and distraction-free focus mode.
-- Create exploration sessions.
-- Retrieve exploration sessions.
-- Update sessions.
-- Add and remove exploration items.
+- User-owned knowledge graph node and labelled-edge CRUD with persisted 3D positions.
+- Three.js graph canvas with node dragging, orbit/zoom, connection creation, and connection inspection/removal.
+- Keyless DuckDuckGo web search and a built-in public-HTML article reader with an address bar.
+- Save sources and capture selected passages as personal notes linked to their source.
+- Search results remain transient; saved graph content is explicitly user-selected.
 
 **My Universe**
 - Create and manage notes.
@@ -1218,16 +1157,17 @@ The product vision is broader than the current implementation. The following tab
 | Syllabus versioning | Planned |
 | Revision recommendation engine | Planned |
 | Prerequisite awareness | Future |
-| Explore discovery interface | Planned |
-| Exploration sessions | Planned |
+| User-built 3D knowledge graph | Implemented |
+| Integrated web search and article reader | Partial |
+| Exploration sessions | Superseded by the user-built graph |
 | AI Gateway | Planned |
 | External AI provider handoff | Planned |
 | Direct AI API integrations | Planned |
 | My Universe | Planned |
 | Personal notes system | Planned |
 | Saved concepts and resources | Planned |
-| Knowledge connections | Planned |
-| Visual knowledge graph | Future |
+| Knowledge connections in Explore | Implemented |
+| My Universe graph views and cross-module filters | Future |
 | AI-assisted knowledge connections | Future |
 | Data export and backup | Future |
 
@@ -1281,19 +1221,19 @@ The development roadmap prioritises a useful academic foundation before introduc
 
 ## Phase 5 — Explore
 
-- Build the discovery interface.
-- Implement exploration sessions.
-- Add contextual learning prompts.
-- Support saved discoveries.
-- Introduce connections between academic subjects and independent exploration.
+- Build out the user-owned 3D knowledge graph and manual relationship workflows.
+- Integrate web search and an in-app research reader.
+- Connect PDF documents and page annotations to graph sources.
+- Add graph filtering, saved-knowledge search, and larger-graph navigation.
+- Link knowledge nodes to academic subjects, topics, and concepts.
+- Keep AI-assisted suggestions optional and defer direct integrations.
 
 ## Phase 6 — My Universe
 
-- Build the personal knowledge repository.
-- Implement notes and saved items.
-- Introduce personal questions.
-- Implement knowledge connections.
-- Build the knowledge graph interface.
+- Build a broader personal knowledge repository over the shared graph.
+- Add cross-module collections, filters, and retrieval.
+- Expand independent notes and personal questions.
+- Connect personal knowledge to academic concepts without duplicating canonical records.
 
 ## Phase 7 — AI Gateway
 
@@ -1371,7 +1311,7 @@ Install backend dependencies:
 pip install -r requirements.txt
 ```
 
-Configure the required environment variables using the repository's environment template.
+Configure the required environment variables using the repository's environment template. Explore web search uses DuckDuckGo through the backend and requires no API key or subscription. The upstream service may apply rate limits, which Atlas reports as retryable errors.
 
 Start the development server using the project's FastAPI entry point. For the standard application entry point:
 

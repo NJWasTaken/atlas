@@ -8,6 +8,7 @@ from app.db import Base
 from app import models  # noqa: F401
 from app import academics_models  # noqa: F401
 from app import explore_models  # noqa: F401
+from app import knowledge_models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
