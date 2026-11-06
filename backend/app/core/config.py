@@ -13,7 +13,6 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:3000"
     cors_origins: str | None = None
     x_api_key: str | None = None
-    brave_search_api_key: str | None = None
 
     @property
     def allowed_origins(self) -> list[str]:
