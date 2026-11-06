@@ -450,7 +450,16 @@ test("Explore lets the student build and connect knowledge nodes", async ({ page
   await page.locator(".atlas-graph-node-shortcuts button").nth(1).click();
   await expect(page.getByText("supports",{exact:true})).toBeVisible();
   await page.getByRole("button",{name:/Remove connection supports/}).click();
-  await expect(page.getByText(/2 NODES · 0 CONNECTIONS/)).toBeVisible();
+  await expect(page.getByText(/2 \/ 2 NODES · 0 \/ 0 CONNECTIONS/)).toBeVisible();
+  await page.getByLabel("Search saved knowledge").fill("Backpropagation");
+  await expect(page.locator(".atlas-graph-node-shortcuts button")).toHaveCount(1);
+  await expect(page.locator(".atlas-graph-node-shortcuts button").first()).toContainText("Backpropagation");
+  await page.getByLabel("Search saved knowledge").fill("");
+  await page.getByLabel("Filter by node type").selectOption("topic");
+  await expect(page.locator(".atlas-graph-node-shortcuts button")).toHaveCount(1);
+  await expect(page.locator(".atlas-graph-node-shortcuts button").first()).toContainText("Neural networks");
+  await page.getByLabel("Filter by node type").selectOption("all");
+  await expect(page.locator(".atlas-graph-node-shortcuts button")).toHaveCount(2);
 });
 
 
