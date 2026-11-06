@@ -77,7 +77,7 @@ function GraphCanvas({nodes,edges,selectedId,onSelect,onMove,onCommit}:{nodes:No
     {nodes.map(node=><GraphNode key={node.id} node={node} selected={node.id===selectedId} onSelect={id=>onSelect(id)} onMove={onMove} onCommit={onCommit}/>)}
   </Canvas>;
 }
-function positionFor(count:number){const a=count*2.399963,r=1.8+Math.sqrt(count)*.65;return {position_x:Math.cos(a)*r,position_y:Math.sin(a)*r,position_z:Math.sin(a*.7)*1.8};}
+function positionFor(count:number){if(count===0)return {position_x:0,position_y:0,position_z:0};const index=count-1,a=index*2.399963,r=2+Math.sqrt(index)*.65;return {position_x:Math.cos(a)*r,position_y:Math.sin(a)*r,position_z:Math.sin(a*.7)*1.8};}
 
 export default function KnowledgeGraphWorkspace(){
   const [nodes,setNodes]=useState<Node[]>([]),[edges,setEdges]=useState<Edge[]>([]);
