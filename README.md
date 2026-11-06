@@ -520,17 +520,7 @@ Connections should be created and managed by the student, with AI-assisted sugge
 
 ### 4.5 Knowledge graph
 
-A future visual knowledge graph should allow students to explore their personal knowledge network.
-
-Potential capabilities:
-
-- Visualise concepts and their relationships.
-- Filter by subject or topic.
-- Identify clusters of related knowledge.
-- Navigate between connected ideas.
-- Discover relationships between academic and independently explored concepts.
-
-The knowledge graph should be useful for exploration, not merely decorative.
+The primary student-built 3D knowledge graph now lives in Explore, where independent research, source reading, notes, and manually created relationships come together. My Universe may later provide broader views over that shared knowledge, including filters across academic subjects, personal notes, and independently explored ideas.
 
 ---
 

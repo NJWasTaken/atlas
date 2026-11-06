@@ -90,6 +90,7 @@ Concept-progress updates use partial PATCH semantics: only fields explicitly sup
 | Quotes | `GET /quotes/daily`, `GET /quotes/random` |
 | Academics | Topic/concept CRUD; syllabus PDF draft/confirm; version list/detail/create/restore; progress get/update; concept review history; prerequisite get/replace; exam-aware readiness; exam CRUD |
 | Overview | Authenticated recent concept activity, continue-learning candidates, revision suggestions, and upcoming exams |
+| Explore knowledge | `GET /explore/graph`, graph node/edge CRUD, `POST /explore/search`, and `POST /explore/browse` |
 | Explore knowledge | `GET /explore/graph`, node/edge CRUD, `POST /explore/search`, and `POST /explore/browse` |
 
 All API routes are mounted under `/api/v1` except `/health`. The calendar range is limited to 63 days. Quote endpoints require authentication; API Ninjas is used when configured, otherwise a curated fallback is returned. Successful provider responses are cached in-process for six hours (daily) or one minute (random); a stale cached quote is served if the provider later fails. Curated fallback quotes keep a first-time or unconfigured dashboard usable.

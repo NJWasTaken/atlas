@@ -64,7 +64,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Add server-side Brave Search API integration with a private backend key, India/English search defaults, bounded results, and transient search-result handling.
 - [x] Add an in-app article reading view for public HTML pages, including bounded extraction, redirect validation, readable Markdown, and an original-site fallback.
 - [x] Allow students to save a source as a graph node and capture selected passages as personal notes linked to their source.
-- [ ] Add editing and removal of individual graph connections, plus visible relationship labels and connection inspection.
+- [x] Add editing/removal of individual graph connections, visible relationship labels, and per-node connection inspection.
 - [ ] Add graph filtering, saved-knowledge search, and larger-graph navigation/layout tools.
 - [ ] Link graph nodes to existing academic subjects, topics, and concepts without duplicating their canonical records.
 - [ ] Support linking existing PDF library documents and page-specific annotations into graph nodes.
@@ -76,7 +76,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [ ] Implement personal notes and saved resources/concepts.
 - [ ] Add personal questions and retrieval/search.
 - [ ] Implement user-created knowledge connections.
-- [ ] Build a visual knowledge graph after the underlying knowledge entities and links are stable.
+- [ ] Add a My Universe view over the shared Explore knowledge graph, with cross-module filters and collections.
 - [ ] Explore AI-assisted connections only after the user-controlled model is established.
 
 ## AI Gateway
