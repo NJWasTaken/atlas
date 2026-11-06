@@ -133,7 +133,8 @@ export default function KnowledgeGraphWorkspace(){
     catch(e){setError(e instanceof Error?e.message:"Search is unavailable.");}finally{setSearching(false);}
   }
   async function openPage(url:string){
-    setOpening(true);setArticle(null);setError("");
+    const target=url.trim().startsWith("http://")||url.trim().startsWith("https://")?url.trim():"https://"+url.trim();
+    setAddressUrl(target);setOpening(true);setArticle(null);setError("");
     try{setArticle(await api<Article>("/explore/browse",{method:"POST",body:JSON.stringify({url:target})}));}
     catch(e){setError(e instanceof Error?e.message:"Could not open this page. Try the original website.");}finally{setOpening(false);}
   }
