@@ -471,7 +471,7 @@ test("Explore supports independent sessions with saved discoveries and questions
 
   await page.getByLabel("Session notes").fill("Follow the link between consolidation and sleep.");
   await page.getByRole("button", { name: "Save notes" }).click();
-  await expect(page.getByLabel("Save notes")).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Save notes" })).toBeDisabled();
   await page.getByLabel("Status").selectOption("completed");
   await expect(page.locator(".atlas-discovery-status select")).toHaveValue("completed");
 });
