@@ -210,3 +210,32 @@
 .atlas-browser-address input{width:100%;min-width:0;height:32px;color:#b6c2cf;outline:0;background:transparent;font:10px 'DM Sans',sans-serif}
 .atlas-browser-address button{padding:5px 9px;color:var(--gold-hi);border:1px solid rgba(197,168,117,.2);font-size:9px}
 .atlas-browser-address button:disabled{opacity:.4}
+
+/* Reader controls: improve readability and comfortable hit targets. */
+.atlas-reader-back,.atlas-reader-mode,.atlas-reader-document-title span,
+.atlas-reader-tool,.atlas-reader-page-control,.atlas-reader-zoom,
+.atlas-reader-tabs button,.atlas-reader-tabs button span,
+.atlas-reader-note-form>span,.atlas-reader-note-form label,
+.atlas-reader-note-form textarea,.atlas-reader-note-form .atlas-button,
+.atlas-reader-note p,.atlas-reader-bookmark strong,.atlas-reader-bookmark small,
+.atlas-pdf-search input,.atlas-pdf-search button,.atlas-pdf-search-results button,
+.atlas-pdf-thumb,.atlas-pdf-outline-item,.atlas-pdf-selection-preview,.atlas-reader-empty {
+  font-size:12px;
+}
+.atlas-reader-back,.atlas-reader-mode,.atlas-reader-tool,.atlas-reader-tabs button,
+.atlas-pdf-search button,.atlas-pdf-thumb,.atlas-pdf-outline-item { min-height:36px; }
+.atlas-reader-page-control input,.atlas-reader-page-control button,.atlas-reader-zoom button {
+  min-width:32px;min-height:32px;font-size:12px;
+}
+.atlas-reader-page-control input { width:44px; }
+.atlas-reader-note-form { gap:13px; }
+.atlas-reader-note-form textarea { min-height:88px;line-height:1.65; }
+.atlas-reader-list-heading,.atlas-reader-note-page,.atlas-reader-sidebar-foot,.atlas-pdf-page-label { font-size:10px; }
+.atlas-reader-bookmark strong { font-size:12px; }
+.atlas-reader-bookmark small { font-size:11px; }
+.atlas-reader-note blockquote { font-size:13px; }
+@media(max-width:560px) {
+  .atlas-reader-tool,.atlas-reader-tabs button,.atlas-pdf-thumb,
+  .atlas-pdf-outline-item,.atlas-pdf-search input,.atlas-pdf-search button { font-size:11px; }
+}
+
