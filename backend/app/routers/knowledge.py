@@ -1,10 +1,12 @@
 import asyncio
+import asyncio
 import ipaddress
 import socket
 from urllib.parse import urljoin, urlparse
 
 import httpx
 import trafilatura
+from ddgs import DDGS
 from ddgs import DDGS
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -82,12 +84,26 @@ def _duckduckgo_search(query: str, count: int) -> list[dict]:
         raise HTTPException(502, "DuckDuckGo search is temporarily unavailable. Try again shortly.") from exc
 
 
+def _duckduckgo_search(query: str, count: int) -> list[dict]:
+    try:
+        with DDGS(timeout=10) as ddgs:
+            items = ddgs.text(query, region="in-en", safesearch="moderate", max_results=count)
+            return [{
+                "title": item.get("title") or "",
+                "url": item.get("href") or item.get("url") or "",
+                "description": item.get("body") or item.get("description") or "",
+                "age": item.get("published") or item.get("date"),
+            } for item in items]
+    except Exception as exc:
+        message = str(exc).lower()
+        if "rate" in message or "429" in message or "too many" in message:
+            raise HTTPException(429, "DuckDuckGo is rate-limiting searches. Wait a moment and try again.") from exc
+        raise HTTPException(502, "DuckDuckGo search is temporarily unavailable. Try again shortly.") from exc
+
+
 async def search_web(query: str, count: int) -> list[dict]:
     try:
-        return await asyncio.wait_for(
-            asyncio.to_thread(_duckduckgo_search, query, count),
-            timeout=12,
-        )
+        return await asyncio.wait_for(asyncio.to_thread(_duckduckgo_search, query, count), timeout=12)
     except asyncio.TimeoutError as exc:
         raise HTTPException(504, "DuckDuckGo search took too long. Try again shortly.") from exc
 
