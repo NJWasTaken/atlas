@@ -61,11 +61,11 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Add direct text selection and persist normalized page-relative highlight rectangles with page-linked annotations and notes.
 - [x] Add user-owned knowledge graph nodes and labelled connections with persistent 3D positions and ownership-checked CRUD APIs.
 - [x] Render an interactive Three.js graph with node selection, dragging, orbit controls, zoom, a keyboard-accessible node navigator, and manual connection mode.
-- [x] Add server-side Brave Search API integration with a private backend key, India/English search defaults, bounded results, and transient search-result handling.
+- [x] Add keyless DuckDuckGo web search through the backend, with India/English defaults, bounded results, timeouts, rate-limit feedback, and transient search-result handling.
 - [x] Add an in-app article reading view for public HTML pages, including bounded extraction, redirect validation, readable Markdown, and an original-site fallback.
 - [x] Allow students to save a source as a graph node and capture selected passages as personal notes linked to their source.
 - [x] Add editing/removal of individual graph connections, visible relationship labels, and per-node connection inspection.
-- [ ] Add graph filtering, saved-knowledge search, and larger-graph navigation/layout tools.
+- [x] Add graph filtering by node type, saved-knowledge search across titles/notes/source URLs, connected-node filtering, and a filtered keyboard-accessible node navigator.
 - [ ] Link graph nodes to existing academic subjects, topics, and concepts without duplicating their canonical records.
 - [ ] Support linking existing PDF library documents and page-specific annotations into graph nodes.
 - [ ] Improve browser compatibility for JavaScript-heavy and restricted websites without weakening SSRF protections.
