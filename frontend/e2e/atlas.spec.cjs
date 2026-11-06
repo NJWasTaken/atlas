@@ -429,8 +429,8 @@ test("Explore supports independent sessions with saved discoveries and questions
       const session = { id: nextId++, title: body.title, central_question: body.central_question, notes: "", status: "active", item_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
       sessions.unshift(session); return created(session);
     }
-    const itemMatch = path.match(/^\\/explore\\/sessions\\/(\\d+)\\/items(?:\\/(\\d+))?$/);
-    const sessionMatch = path.match(/^\\/explore\\/sessions\\/(\\d+)$/);
+    const itemMatch = path.match(new RegExp("^/explore/sessions/(\\\\d+)/items(?:/(\\\\d+))?$"));
+    const sessionMatch = path.match(new RegExp("^/explore/sessions/(\\\\d+)$"));
     if (itemMatch) {
       if (method === "POST") {
         const item = { id: nextId++, session_id: Number(itemMatch[1]), kind: body.kind, title: body.title, body: body.body || "", url: body.url || null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
