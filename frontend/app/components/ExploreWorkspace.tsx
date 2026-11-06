@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { api, apiBlob } from "../../lib/api";
 import PdfReaderWorkspace from "./PdfReaderWorkspace";
+import KnowledgeGraphWorkspace from "./KnowledgeGraphWorkspace";
 
 type DocumentItem = {
   id:number; title:string; filename:string; source_url:string|null; page_count:number;
@@ -149,6 +150,8 @@ export default function ExploreWorkspace() {
   },[selected?.page_count]);
 
   return (
+    <>
+      <KnowledgeGraphWorkspace />
     <section className={`atlas-explore ${readerMode?"reader-mode":""}`} aria-label="Explore PDF library">
       {!selected ? (
         <>
@@ -189,5 +192,6 @@ export default function ExploreWorkspace() {
         </div>
       )}
     </section>
+    </>
   );
 }

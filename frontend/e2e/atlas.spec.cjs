@@ -21,7 +21,7 @@ function createPdfFixture() {
 const { test, expect } = require("@playwright/test");
 
 function installApiMock(page, options = {}) {
-  const state = { subjects: [], topics: [], concepts: [], notes: {}, exams: [], progress: {}, reviews: [], versions: [] };
+  const state = { subjects: [], topics: [], concepts: [], notes: {}, exams: [], progress: {}, reviews: [], versions: [], graphNodes: [], graphEdges: [] };
   let failSubjectsOnce = Boolean(options.failSubjectsOnce);
   let failSubjectCreateOnce = Boolean(options.failSubjectCreateOnce);
   let failCalendarNoteSaveOnce = Boolean(options.failCalendarNoteSaveOnce);
@@ -160,6 +160,25 @@ function installApiMock(page, options = {}) {
     if (path.startsWith("/subjects/") && path.includes("/syllabus/versions/")) {
       const id=Number(path.split("/").pop()); const version=state.versions.find(v=>v.id===id);
       return json(version ?? {});
+    }
+    if (path === "/explore/graph" && method === "GET") return json({ nodes:state.graphNodes, edges:state.graphEdges });
+    if (path === "/explore/graph/nodes" && method === "POST") {
+      const node={id:nextId++,kind:"concept",body:"",source_url:null,position_x:0,position_y:0,position_z:0,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),...body};
+      state.graphNodes.push(node); return created(node);
+    }
+    const graphNode=path.match(/^\/explore\/graph\/nodes\/(\d+)$/);
+    if (graphNode && method === "PATCH") {
+      const index=state.graphNodes.findIndex(n=>n.id===Number(graphNode[1]));
+      if(index<0)return route.fulfill({status:404});
+      state.graphNodes[index]={...state.graphNodes[index],...body,updated_at:new Date().toISOString()};
+      return json(state.graphNodes[index]);
+    }
+    if (graphNode && method === "DELETE") {
+      const id=Number(graphNode[1]);state.graphNodes=state.graphNodes.filter(n=>n.id!==id);
+      state.graphEdges=state.graphEdges.filter(e=>e.source_node_id!==id&&e.target_node_id!==id);return empty();
+    }
+    if (path === "/explore/graph/edges" && method === "POST") {
+      const edge={id:nextId++,created_at:new Date().toISOString(),...body};state.graphEdges.push(edge);return created(edge);
     }
     if (path.startsWith("/explore/")) return route.continue();
     return route.fulfill({ status:404, contentType:"application/json", body:JSON.stringify({detail:`Unmocked E2E API: ${method} ${path}`}) });
@@ -405,4 +424,24 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and pa
   await expect(page.locator(".atlas-pdf-search-results")).toContainText("Page 1");
   await page.getByRole("button",{name:"Library"}).click();
   await expect(page.getByText("Page 3 of 8")).toBeVisible();
+});
+
+
+test("Explore lets the student build and connect knowledge nodes", async ({ page }) => {
+  installApiMock(page);
+  await signIn(page);
+  await page.getByRole("button",{name:"Explore"}).click();
+  await expect(page.getByRole("heading",{name:/Build your knowledge universe/})).toBeVisible();
+  await page.getByRole("button",{name:/Create your first node/}).click();
+  await page.getByLabel("Title").fill("Neural networks");
+  await page.getByRole("button",{name:"Add to graph"}).click();
+  await expect(page.getByText("Neural networks",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Add node"}).click();
+  await page.getByLabel("Type").last().selectOption("concept");
+  await page.getByLabel("Title").last().fill("Backpropagation");
+  await page.getByRole("button",{name:"Add to graph"}).click();
+  await page.getByRole("button",{name:"Connect nodes"}).click();
+  await page.locator(".atlas-graph-canvas canvas").click({position:{x:260,y:240}});
+  await page.locator(".atlas-graph-canvas canvas").click({position:{x:420,y:280}});
+  await expect(page.getByText(/1 CONNECTION/)).toBeVisible();
 });

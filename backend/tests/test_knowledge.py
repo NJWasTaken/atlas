@@ -34,7 +34,8 @@ def test_graph_rejects_self_edges_and_cross_user_access(client):
     assert client.delete(f"/api/v1/explore/graph/nodes/{node['id']}", headers=other).status_code == 404
 
 
-def test_search_requires_a_server_side_brave_key(client):
+def test_search_requires_a_server_side_brave_key(client, monkeypatch):
+    monkeypatch.setattr(knowledge.settings, "brave_search_api_key", None)
     token = register(client, "search@example.com")
     response = client.post("/api/v1/explore/search", headers=auth_headers(token), json={"q": "knowledge graphs"})
     assert response.status_code == 503
