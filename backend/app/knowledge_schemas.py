@@ -149,6 +149,11 @@ class WebSearchResponse(BaseModel):
 class BrowseRequest(BaseModel):
     url: str = Field(min_length=8, max_length=2048)
 
+    @field_validator("url")
+    @classmethod
+    def clean_url(cls, value: str) -> str:
+        return value.strip()
+
 
 class BrowseResponse(BaseModel):
     url: str

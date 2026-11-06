@@ -29,6 +29,8 @@ def validate_public_url(value: str) -> str:
     if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
         raise HTTPException(400, "Use a public HTTP or HTTPS URL.")
     try:
+        if parsed.port not in {None, 80, 443}:
+            raise HTTPException(400, "Only standard HTTP and HTTPS ports are supported.")
         addresses = {
             item[4][0] for item in socket.getaddrinfo(
                 parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80),

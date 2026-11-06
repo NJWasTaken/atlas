@@ -1,3 +1,6 @@
+import pytest
+from fastapi import HTTPException
+
 from tests.conftest import register, auth_headers
 from app.routers import knowledge
 
@@ -62,3 +65,18 @@ def test_browser_rejects_non_public_and_non_http_urls(client, monkeypatch):
     monkeypatch.setattr(knowledge, "validate_public_url", lambda value: (_ for _ in ()).throw(knowledge.HTTPException(400, "Use a public HTTP or HTTPS URL.")))
     response = client.post("/api/v1/explore/browse", headers=auth_headers(token), json={"url": "file:///etc/passwd"})
     assert response.status_code == 400
+
+
+def test_browser_url_validation_blocks_nonstandard_ports_and_private_hosts(monkeypatch):
+    with pytest.raises(HTTPException) as port_error:
+        knowledge.validate_public_url("https://example.org:8080/article")
+    assert port_error.value.status_code == 400
+
+    monkeypatch.setattr(
+        knowledge.socket,
+        "getaddrinfo",
+        lambda *args, **kwargs: [(None, None, None, None, ("127.0.0.1", 0))],
+    )
+    with pytest.raises(HTTPException) as private_error:
+        knowledge.validate_public_url("https://example.org/article")
+    assert private_error.value.status_code == 400
