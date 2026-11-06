@@ -88,3 +88,95 @@ class AnnotationOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+class ExploreSessionCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=240)
+    central_question: str = Field(min_length=1, max_length=4000)
+    notes: str = Field(default="", max_length=20000)
+
+    @field_validator("title", "central_question")
+    @classmethod
+    def clean_required_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("This field cannot be blank")
+        return value
+
+
+class ExploreSessionUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=240)
+    central_question: str | None = Field(default=None, min_length=1, max_length=4000)
+    notes: str | None = Field(default=None, max_length=20000)
+    status: str | None = Field(default=None, pattern="^(active|paused|completed)$")
+
+    @field_validator("title", "central_question", "notes")
+    @classmethod
+    def clean_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value and value != "":
+            raise ValueError("This field cannot be blank")
+        return value
+
+
+class ExploreSessionItemCreate(BaseModel):
+    kind: str = Field(pattern="^(discovery|question|resource)$")
+    title: str = Field(min_length=1, max_length=240)
+    body: str = Field(default="", max_length=12000)
+    url: str | None = Field(default=None, max_length=2048)
+
+    @field_validator("title")
+    @classmethod
+    def clean_item_title(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("A title is required")
+        return value
+
+    @field_validator("url")
+    @classmethod
+    def validate_resource_url(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        value = value.strip()
+        from urllib.parse import urlparse
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("Use a public HTTP or HTTPS link")
+        return value
+
+
+class ExploreSessionItemUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=240)
+    body: str | None = Field(default=None, max_length=12000)
+    url: str | None = Field(default=None, max_length=2048)
+
+
+class ExploreSessionItemOut(BaseModel):
+    id: int
+    session_id: int
+    kind: str
+    title: str
+    body: str
+    url: str | None
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ExploreSessionOut(BaseModel):
+    id: int
+    title: str
+    central_question: str
+    notes: str
+    status: str
+    item_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ExploreSessionDetail(ExploreSessionOut):
+    items: list[ExploreSessionItemOut] = Field(default_factory=list)

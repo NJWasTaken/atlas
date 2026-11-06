@@ -65,3 +65,62 @@ def test_url_import_rejects_non_http_and_private_targets(client):
     unsupported = client.post("/api/v1/explore/documents/import-url", headers=headers, json={"url": "file:///etc/passwd"})
     assert unsupported.status_code == 400
     assert "public HTTP or HTTPS" in unsupported.json()["detail"]
+
+
+def test_exploration_sessions_save_questions_and_discoveries_with_ownership(client):
+    token = register(client, "explorer@example.com")
+    headers = auth_headers(token)
+    created = client.post("/api/v1/explore/sessions", headers=headers, json={
+        "title": "How do brains learn?",
+        "central_question": "What connects memory and neural networks?",
+        "notes": "Start with the biological analogy.",
+    })
+    assert created.status_code == 201
+    session = created.json()
+    assert session["item_count"] == 0
+
+    discovery = client.post(f"/api/v1/explore/sessions/{session['id']}/items", headers=headers, json={
+        "kind": "discovery", "title": "Hebbian learning", "body": "Neurons that fire together strengthen their connection."
+    })
+    assert discovery.status_code == 201
+    question = client.post(f"/api/v1/explore/sessions/{session['id']}/items", headers=headers, json={
+        "kind": "question", "title": "Where does forgetting fit?", "body": "Look into synaptic pruning."
+    })
+    assert question.status_code == 201
+    resource = client.post(f"/api/v1/explore/sessions/{session['id']}/items", headers=headers, json={
+        "kind": "resource", "title": "A useful article", "url": "https://example.com/article"
+    })
+    assert resource.status_code == 201
+
+    detail = client.get(f"/api/v1/explore/sessions/{session['id']}", headers=headers)
+    assert detail.status_code == 200
+    assert {item["kind"] for item in detail.json()["items"]} == {"discovery", "question", "resource"}
+    assert detail.json()["item_count"] == 3
+
+    updated = client.patch(f"/api/v1/explore/sessions/{session['id']}", headers=headers, json={"status": "completed"})
+    assert updated.status_code == 200
+    assert updated.json()["status"] == "completed"
+
+    other = auth_headers(register(client, "another-explorer@example.com"))
+    assert client.get(f"/api/v1/explore/sessions/{session['id']}", headers=other).status_code == 404
+    assert client.delete(f"/api/v1/explore/sessions/{session['id']}/items/{discovery.json()['id']}", headers=other).status_code == 404
+    assert client.delete(f"/api/v1/explore/sessions/{session['id']}", headers=other).status_code == 404
+
+
+def test_exploration_session_validation_and_cascade_delete(client):
+    headers = auth_headers(register(client, "explore-validation@example.com"))
+    blank = client.post("/api/v1/explore/sessions", headers=headers, json={"title": " ", "central_question": " "})
+    assert blank.status_code == 422
+    created = client.post("/api/v1/explore/sessions", headers=headers, json={
+        "title": "A small investigation", "central_question": "Why do leaves change colour?"
+    }).json()
+    invalid_url = client.post(f"/api/v1/explore/sessions/{created['id']}/items", headers=headers, json={
+        "kind": "resource", "title": "Not a safe URL", "url": "javascript:alert(1)"
+    })
+    assert invalid_url.status_code == 422
+    item = client.post(f"/api/v1/explore/sessions/{created['id']}/items", headers=headers, json={
+        "kind": "question", "title": "What triggers the change?"
+    })
+    assert item.status_code == 201
+    assert client.delete(f"/api/v1/explore/sessions/{created['id']}", headers=headers).status_code == 204
+    assert client.get(f"/api/v1/explore/sessions/{created['id']}", headers=headers).status_code == 404

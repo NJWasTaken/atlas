@@ -14,10 +14,12 @@ from io import BytesIO
 from app.db import get_db
 from app.models import User
 from app.security import get_current_user
-from app.explore_models import ExploreDocument, ExploreBookmark, ExploreAnnotation
+from app.explore_models import ExploreDocument, ExploreBookmark, ExploreAnnotation, ExploreSession, ExploreSessionItem
 from app.explore_schemas import (
     DocumentOut, DocumentProgressUpdate, UrlImport, BookmarkCreate, BookmarkOut,
     AnnotationCreate, AnnotationUpdate, AnnotationOut,
+    ExploreSessionCreate, ExploreSessionUpdate, ExploreSessionItemCreate,
+    ExploreSessionItemUpdate, ExploreSessionOut, ExploreSessionDetail, ExploreSessionItemOut,
 )
 
 router = APIRouter(prefix="/explore", tags=["explore"])
@@ -246,4 +248,114 @@ def delete_annotation(document_id: int, annotation_id: int, db: Session = Depend
     if annotation is None:
         raise HTTPException(404, "Annotation not found")
     db.delete(annotation)
+    db.commit()
+
+
+# Independent exploration sessions and the discoveries/questions collected in them.
+def owned_session(db: Session, session_id: int, user_id: int) -> ExploreSession:
+    session = db.scalar(select(ExploreSession).where(
+        ExploreSession.id == session_id, ExploreSession.user_id == user_id
+    ))
+    if session is None:
+        raise HTTPException(404, "Exploration session not found")
+    return session
+
+
+def session_summary(session: ExploreSession) -> dict:
+    return {
+        "id": session.id,
+        "title": session.title,
+        "central_question": session.central_question,
+        "notes": session.notes,
+        "status": session.status,
+        "item_count": len(session.items),
+        "created_at": session.created_at,
+        "updated_at": session.updated_at,
+    }
+
+
+@router.get("/sessions", response_model=list[ExploreSessionOut])
+def list_explore_sessions(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    sessions = list(db.scalars(
+        select(ExploreSession).where(ExploreSession.user_id == user.id)
+        .order_by(ExploreSession.updated_at.desc(), ExploreSession.id.desc())
+    ))
+    return [session_summary(item) for item in sessions]
+
+
+@router.post("/sessions", response_model=ExploreSessionOut, status_code=201)
+def create_explore_session(data: ExploreSessionCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    session = ExploreSession(
+        user_id=user.id, title=data.title.strip(),
+        central_question=data.central_question.strip(), notes=data.notes.strip(),
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session_summary(session)
+
+
+@router.get("/sessions/{session_id}", response_model=ExploreSessionDetail)
+def get_explore_session(session_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    session = owned_session(db, session_id, user.id)
+    return {**session_summary(session), "items": session.items}
+
+
+@router.patch("/sessions/{session_id}", response_model=ExploreSessionOut)
+def update_explore_session(session_id: int, data: ExploreSessionUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    session = owned_session(db, session_id, user.id)
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(session, key, value.strip() if isinstance(value, str) else value)
+    db.commit()
+    db.refresh(session)
+    return session_summary(session)
+
+
+@router.delete("/sessions/{session_id}", status_code=204)
+def delete_explore_session(session_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    session = owned_session(db, session_id, user.id)
+    db.delete(session)
+    db.commit()
+
+
+@router.post("/sessions/{session_id}/items", response_model=ExploreSessionItemOut, status_code=201)
+def create_explore_session_item(session_id: int, data: ExploreSessionItemCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    session = owned_session(db, session_id, user.id)
+    item = ExploreSessionItem(
+        session_id=session.id, kind=data.kind, title=data.title.strip(),
+        body=data.body.strip(), url=data.url,
+    )
+    db.add(item)
+    session.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.patch("/sessions/{session_id}/items/{item_id}", response_model=ExploreSessionItemOut)
+def update_explore_session_item(session_id: int, item_id: int, data: ExploreSessionItemUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    session = owned_session(db, session_id, user.id)
+    item = db.scalar(select(ExploreSessionItem).where(
+        ExploreSessionItem.id == item_id, ExploreSessionItem.session_id == session.id
+    ))
+    if item is None:
+        raise HTTPException(404, "Saved item not found")
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(item, key, value.strip() if isinstance(value, str) else value)
+    session.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.delete("/sessions/{session_id}/items/{item_id}", status_code=204)
+def delete_explore_session_item(session_id: int, item_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    session = owned_session(db, session_id, user.id)
+    item = db.scalar(select(ExploreSessionItem).where(
+        ExploreSessionItem.id == item_id, ExploreSessionItem.session_id == session.id
+    ))
+    if item is None:
+        raise HTTPException(404, "Saved item not found")
+    db.delete(item)
+    session.updated_at = datetime.now(timezone.utc)
     db.commit()
