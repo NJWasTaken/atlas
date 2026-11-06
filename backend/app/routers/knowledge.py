@@ -100,13 +100,11 @@ def _duckduckgo_search(query: str, count: int) -> list[dict]:
             raise HTTPException(429, "DuckDuckGo is rate-limiting searches. Wait a moment and try again.") from exc
         raise HTTPException(502, "DuckDuckGo search is temporarily unavailable. Try again shortly.") from exc
 
-
 async def search_web(query: str, count: int) -> list[dict]:
     try:
         return await asyncio.wait_for(asyncio.to_thread(_duckduckgo_search, query, count), timeout=12)
     except asyncio.TimeoutError as exc:
         raise HTTPException(504, "DuckDuckGo search took too long. Try again shortly.") from exc
-
 
 async def fetch_article(url: str) -> dict:
     current = validate_public_url(url)
@@ -260,7 +258,7 @@ async def web_search(data: WebSearchRequest, user: User = Depends(get_current_us
             age=item.get("age"),
             domain=parsed.hostname,
         ))
-    more = bool(payload.get("query", {}).get("more_results_available", False))
+    more = len(payload) >= data.count
     return {"results": results, "more_results_available": more}
 
 
