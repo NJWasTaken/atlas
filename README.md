@@ -426,7 +426,7 @@ The intended workflow is:
 5. Select a passage and capture it as a personal note linked to its source.
 6. Connect that source or note to other ideas in the graph.
 
-Web search is provided through the Brave Search API. The API key is configured on the backend and must never be exposed to the browser. Search results are transient; only sources explicitly saved by the student are added to their knowledge graph.
+Web search is provided through the keyless DuckDuckGo wrapper (`ddgs`) on the backend, using India/English search defaults. No API key or subscription is required. Because this is an unofficial wrapper over a public search service, requests may be throttled; Atlas bounds result counts and timeouts and reports retryable rate limits. Search results are transient; only sources explicitly saved by the student are added to their knowledge graph.
 
 The built-in reader fetches public HTML pages and extracts their readable article content. It is not a full Chromium browser: websites that require client-side JavaScript, authentication, or block server-side access may need to be opened in the original browser. PDFs remain supported through the dedicated PDF reading library.
 
