@@ -87,7 +87,7 @@ export default function KnowledgeGraphWorkspace(){
   const [kind,setKind]=useState<Kind>("concept"),[title,setTitle]=useState(""),[body,setBody]=useState(""),[sourceUrl,setSourceUrl]=useState("");
   const [editTitle,setEditTitle]=useState(""),[editBody,setEditBody]=useState(""),[editKind,setEditKind]=useState<Kind>("concept"),[editUrl,setEditUrl]=useState("");
   const [query,setQuery]=useState(""),[searching,setSearching]=useState(false),[results,setResults]=useState<SearchResult[]>([]),[addressUrl,setAddressUrl]=useState("");
-  const [article,setArticle]=useState<Article|null>(null),[opening,setOpening]=useState(false);
+  const [article,setArticle]=useState<Article|null>(null),[opening,setOpening]=useState(false),[selectedPassage,setSelectedPassage]=useState("");
   const selected=nodes.find(n=>n.id===selectedId)??null;
   const connections=selected?edges.filter(edge=>edge.source_node_id===selected.id||edge.target_node_id===selected.id):[];
 
@@ -134,7 +134,7 @@ export default function KnowledgeGraphWorkspace(){
   }
   async function openPage(url:string){
     const target=url.trim().startsWith("http://")||url.trim().startsWith("https://")?url.trim():"https://"+url.trim();
-    setAddressUrl(target);setOpening(true);setArticle(null);setError("");
+    setAddressUrl(target);setOpening(true);setArticle(null);setSelectedPassage("");setError("");
     try{setArticle(await api<Article>("/explore/browse",{method:"POST",body:JSON.stringify({url:target})}));}
     catch(e){setError(e instanceof Error?e.message:"Could not open this page. Try the original website.");}finally{setOpening(false);}
   }
@@ -146,14 +146,14 @@ export default function KnowledgeGraphWorkspace(){
     catch(e){setError(e instanceof Error?e.message:"Could not save source.");}finally{setBusy(false);}
   }
   async function captureSelection(){
-    if(!article)return;const quote=window.getSelection()?.toString().trim()??"";if(!quote){setError("Select a passage in the article first.");return;}
+    if(!article)return;const quote=selectedPassage.trim();if(!quote){setError("Select a passage in the article first.");return;}if(quote.length>2000){setError("Passages are limited to 2,000 characters. Write a summary in your own words for longer material.");return;}
     setBusy(true);
     try{
       let source=nodes.find(n=>n.kind==="source"&&n.source_url===article.url);
       if(!source){source=await api<Node>("/explore/graph/nodes",{method:"POST",body:JSON.stringify({kind:"source",title:article.title,source_url:article.url,body:"",...positionFor(nodes.length)})});setNodes(v=>[...v,source!]);}
       const note=await api<Node>("/explore/graph/nodes",{method:"POST",body:JSON.stringify({kind:"note",title:("Passage from "+article.title).slice(0,240),body:quote,source_url:article.url,...positionFor(nodes.length+1)})});
       const edge=await api<Edge>("/explore/graph/edges",{method:"POST",body:JSON.stringify({source_node_id:note.id,target_node_id:source.id,label:"quoted from"})});
-      setNodes(v=>[...v,note]);setEdges(v=>[...v,edge]);setSelectedId(note.id);setPanel("knowledge");setNotice("Passage captured and linked to its source.");
+      setNodes(v=>[...v,note]);setEdges(v=>[...v,edge]);setSelectedId(note.id);setPanel("knowledge");setSelectedPassage("");setNotice("Passage captured and linked to its source.");
     }catch(e){setError(e instanceof Error?e.message:"Could not capture passage.");}finally{setBusy(false);}
   }
 
@@ -176,8 +176,8 @@ export default function KnowledgeGraphWorkspace(){
         {panel==="research"?<div className="atlas-research-pane">
           <form className="atlas-research-search" onSubmit={search}><label htmlFor="atlas-research-query">SEARCH THE WEB</label><div><Search size={15}/><input id="atlas-research-query" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search a question, concept, paper…"/><button type="submit" disabled={searching||!query.trim()} aria-label="Search">{searching?<LoaderCircle className="atlas-spin" size={15}/>:<ArrowUpRight size={15}/>}</button></div></form>\n          <form className="atlas-browser-address" onSubmit={event=>{event.preventDefault();if(addressUrl.trim())void openPage(addressUrl);}}><label htmlFor="atlas-browser-url">OPEN A WEBSITE</label><div><input id="atlas-browser-url" type="url" value={addressUrl} onChange={event=>setAddressUrl(event.target.value)} placeholder="Paste a website URL…"/><button type="submit" disabled={opening||!addressUrl.trim()}>Go</button></div></form>
           {article?<div className="atlas-browser-article"><button className="atlas-browser-back" onClick={()=>setArticle(null)}><ChevronLeft size={14}/> Back to results</button><div className="atlas-browser-meta"><span>{article.site_name}</span>{article.published_date&&<span>{article.published_date}</span>}</div><h3>{article.title}</h3>{article.author&&<p className="atlas-browser-author">By {article.author}</p>}
-            <div className="atlas-browser-actions"><button className="atlas-button atlas-primary" onClick={()=>void saveSource()} disabled={busy}><Plus size={13}/> Save source</button><button className="atlas-button atlas-secondary" onClick={()=>void captureSelection()} disabled={busy}><StickyNote size={13}/> Capture selection</button><a href={article.url} target="_blank" rel="noreferrer" aria-label="Open original website"><ExternalLink size={14}/></a></div>
-            <div className="atlas-browser-content"><ReactMarkdown remarkPlugins={[remarkGfm]}>{article.content_markdown}</ReactMarkdown></div>
+            <div className="atlas-browser-actions"><button className="atlas-button atlas-primary" onClick={()=>void saveSource()} disabled={busy}><Plus size={13}/> Save source</button><button className="atlas-button atlas-secondary" onClick={()=>void captureSelection()} disabled={busy||!selectedPassage}><StickyNote size={13}/> Capture selection</button><a href={article.url} target="_blank" rel="noreferrer" aria-label="Open original website"><ExternalLink size={14}/></a></div>
+            <div className="atlas-browser-content" onMouseUp={()=>setSelectedPassage(window.getSelection()?.toString().trim()??"")} onKeyUp={()=>setSelectedPassage(window.getSelection()?.toString().trim()??"")}><ReactMarkdown remarkPlugins={[remarkGfm]}>{article.content_markdown}</ReactMarkdown></div>
           </div>:opening?<div className="atlas-knowledge-loading"><LoaderCircle className="atlas-spin" size={18}/> Opening article…</div>:results.length?<div className="atlas-research-results"><div className="atlas-research-results-heading">SEARCH RESULTS <span>{results.length}</span></div>{results.map((r,i)=><article key={r.url+"-"+i} className="atlas-research-result"><span>{r.domain}{r.age?" · "+r.age:""}</span><button onClick={()=>void openPage(r.url)}>{r.title}<ArrowUpRight size={13}/></button><p>{r.description}</p></article>)}</div>:<div className="atlas-research-empty"><BookOpen size={22}/><h3>Research without leaving Atlas.</h3><p>Search for papers, concepts, explanations, and anything else you're curious about. Open a result to read it here, then save sources or capture passages into your graph.</p></div>}
           <p className="atlas-research-attribution">Search powered by Brave. Search results are temporary; only sources you explicitly save become part of your graph.</p>
         </div>:<div className="atlas-node-editor">

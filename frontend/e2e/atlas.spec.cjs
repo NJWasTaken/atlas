@@ -161,6 +161,8 @@ function installApiMock(page, options = {}) {
       const id=Number(path.split("/").pop()); const version=state.versions.find(v=>v.id===id);
       return json(version ?? {});
     }
+    if (path === "/explore/search" && method === "POST") return json({results:[{title:"Attention Is All You Need",url:"https://arxiv.org/abs/1706.03762",description:"A paper about attention-based sequence modelling.",age:"2017",domain:"arxiv.org"}],more_results_available:false});
+    if (path === "/explore/browse" && method === "POST") return json({url:body.url,title:"Attention Is All You Need",site_name:"arxiv.org",author:"Ashish Vaswani",published_date:"2017-06-12",excerpt:"The attention mechanism allows models to focus on relevant inputs.",content_markdown:"# Attention Is All You Need\n\nThe attention mechanism allows models to focus on relevant inputs when processing a sequence."});
     if (path === "/explore/graph" && method === "GET") return json({ nodes:state.graphNodes, edges:state.graphEdges });
     if (path === "/explore/graph/nodes" && method === "POST") {
       const node={id:nextId++,kind:"concept",body:"",source_url:null,position_x:0,position_y:0,position_z:0,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),...body};
@@ -449,4 +451,30 @@ test("Explore lets the student build and connect knowledge nodes", async ({ page
   await expect(page.getByText("supports",{exact:true})).toBeVisible();
   await page.getByRole("button",{name:/Remove connection supports/}).click();
   await expect(page.getByText(/2 NODES · 0 CONNECTIONS/)).toBeVisible();
+});
+
+
+test("Explore can search, read and capture a source passage into the knowledge graph", async ({ page }) => {
+  installApiMock(page);
+  await signIn(page);
+  await page.getByRole("button",{name:"Explore"}).click();
+  await page.getByLabel("SEARCH THE WEB").fill("attention mechanism");
+  await page.getByRole("button",{name:"Search"}).click();
+  await page.getByRole("button",{name:/Attention Is All You Need/}).click();
+  await expect(page.getByRole("heading",{name:"Attention Is All You Need"})).toBeVisible();
+
+  await page.locator(".atlas-browser-content").evaluate(element => {
+    const paragraph=element.querySelector("p");
+    if (!paragraph) throw new Error("Expected article paragraph");
+    const range=document.createRange();
+    range.selectNodeContents(paragraph);
+    const selection=window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    element.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));
+  });
+  await expect(page.getByRole("button",{name:/Capture selection/})).toBeEnabled();
+  await page.getByRole("button",{name:/Capture selection/}).click();
+  await expect(page.getByText("Passage from Attention Is All You Need",{exact:true})).toBeVisible();
+  await expect(page.getByText("quoted from",{exact:true})).toBeVisible();
 });
