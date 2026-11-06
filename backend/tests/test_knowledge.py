@@ -37,27 +37,38 @@ def test_graph_rejects_self_edges_and_cross_user_access(client):
     assert client.delete(f"/api/v1/explore/graph/nodes/{node['id']}", headers=other).status_code == 404
 
 
-def test_search_requires_a_server_side_brave_key(client, monkeypatch):
-    monkeypatch.setattr(knowledge.settings, "brave_search_api_key", None)
-    token = register(client, "search@example.com")
-    response = client.post("/api/v1/explore/search", headers=auth_headers(token), json={"q": "knowledge graphs"})
-    assert response.status_code == 503
-    assert "BRAVE_SEARCH_API_KEY" in response.json()["detail"]
-
-
-def test_search_maps_provider_results_without_persisting_them(client, monkeypatch):
+def test_search_maps_duckduckgo_results_without_persisting_them(client, monkeypatch):
     token = register(client, "search-mock@example.com")
 
     async def fake_search(query, count):
         assert query == "graph databases"
         assert count == 10
-        return {"web": {"results": [{"title": "Graph databases", "url": "https://example.org/graphs", "description": "A guide"}]}, "query": {"more_results_available": True}}
+        return [{
+            "title": "Graph databases",
+            "url": "https://example.org/graphs",
+            "description": "A guide",
+            "age": "2 days ago",
+        }]
 
     monkeypatch.setattr(knowledge, "search_web", fake_search)
     response = client.post("/api/v1/explore/search", headers=auth_headers(token), json={"q": "graph databases"})
     assert response.status_code == 200
     assert response.json()["results"][0]["domain"] == "example.org"
-    assert response.json()["more_results_available"] is True
+    assert response.json()["results"][0]["description"] == "A guide"
+    assert response.json()["results"][0]["age"] == "2 days ago"
+    assert response.json()["more_results_available"] is False
+
+
+def test_duckduckgo_rate_limit_is_reported_as_retryable(client, monkeypatch):
+    token = register(client, "search-rate-limit@example.com")
+
+    async def rate_limited(query, count):
+        raise knowledge.HTTPException(429, "DuckDuckGo is rate-limiting searches. Wait a moment and try again.")
+
+    monkeypatch.setattr(knowledge, "search_web", rate_limited)
+    response = client.post("/api/v1/explore/search", headers=auth_headers(token), json={"q": "rate limits"})
+    assert response.status_code == 429
+    assert "rate-limiting" in response.json()["detail"]
 
 
 def test_browser_rejects_non_public_and_non_http_urls(client, monkeypatch):
