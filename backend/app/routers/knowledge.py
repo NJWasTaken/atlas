@@ -1,9 +1,11 @@
+import asyncio
 import ipaddress
 import socket
 from urllib.parse import urljoin, urlparse
 
 import httpx
 import trafilatura
+from ddgs import DDGS
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -55,28 +57,39 @@ def owned_node(db: Session, node_id: int, user_id: int) -> KnowledgeNode:
     return node
 
 
-async def search_web(query: str, count: int) -> dict:
-    if not settings.brave_search_api_key:
-        raise HTTPException(503, "Web search is not configured. Add BRAVE_SEARCH_API_KEY to the backend environment.")
-    headers = {
-        "Accept": "application/json",
-        "Accept-Encoding": "gzip",
-        "X-Subscription-Token": settings.brave_search_api_key,
-    }
-    params = {"q": query, "count": count, "country": "IN", "search_lang": "en", "safesearch": "moderate"}
+def _duckduckgo_search(query: str, count: int) -> list[dict]:
     try:
-        async with httpx.AsyncClient(timeout=12, trust_env=False) as client:
-            response = await client.get("https://api.search.brave.com/res/v1/web/search", headers=headers, params=params)
-        if response.status_code == 401:
-            raise HTTPException(503, "The configured Brave Search API key was rejected.")
-        if response.status_code == 429:
-            raise HTTPException(429, "The search provider is rate-limiting requests. Try again shortly.")
-        response.raise_for_status()
-        return response.json()
-    except HTTPException:
-        raise
-    except httpx.HTTPError as exc:
-        raise HTTPException(502, "The web search provider could not be reached.") from exc
+        with DDGS(timeout=10) as ddgs:
+            items = ddgs.text(
+                query,
+                region="in-en",
+                safesearch="moderate",
+                max_results=count,
+            )
+            return [
+                {
+                    "title": item.get("title") or "",
+                    "url": item.get("href") or item.get("url") or "",
+                    "description": item.get("body") or item.get("description") or "",
+                    "age": item.get("published") or item.get("date"),
+                }
+                for item in items
+            ]
+    except Exception as exc:
+        message = str(exc).lower()
+        if "rate" in message or "429" in message or "too many" in message:
+            raise HTTPException(429, "DuckDuckGo is rate-limiting searches. Wait a moment and try again.") from exc
+        raise HTTPException(502, "DuckDuckGo search is temporarily unavailable. Try again shortly.") from exc
+
+
+async def search_web(query: str, count: int) -> list[dict]:
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(_duckduckgo_search, query, count),
+            timeout=12,
+        )
+    except asyncio.TimeoutError as exc:
+        raise HTTPException(504, "DuckDuckGo search took too long. Try again shortly.") from exc
 
 
 async def fetch_article(url: str) -> dict:
@@ -218,7 +231,7 @@ def delete_edge(edge_id: int, db: Session = Depends(get_db), user: User = Depend
 async def web_search(data: WebSearchRequest, user: User = Depends(get_current_user)):
     payload = await search_web(data.q, data.count)
     results = []
-    for item in payload.get("web", {}).get("results", []):
+    for item in payload:
         url = item.get("url")
         title = item.get("title")
         if not url or not title:
