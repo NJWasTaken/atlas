@@ -390,101 +390,49 @@ The reading workspace is powered by a bundled PDF.js renderer rather than the br
 
 The initial reader supports PDFs up to 12 MB. Password-protected documents and scanned-document OCR are not supported. Highlights and notes are stored by Atlas as document annotations; they do not modify the underlying PDF file.
 
-### 3.1 Discovery
+### 3.1 User-built knowledge graph
 
-The discovery interface should allow students to:
+Explore is centred on a personal, interactive 3D knowledge graph rendered with Three.js.
 
-- Search for topics and concepts.
-- Ask questions.
-- Discover related subjects.
-- Explore unfamiliar fields.
-- Follow suggested learning paths.
-- Navigate from one idea to another.
+The graph is built by the student, not generated automatically. Students can create and edit nodes such as:
 
-Discovery should not be restricted to the student's enrolled subjects.
+- Topics and concepts.
+- Questions and unresolved doubts.
+- Personal notes and claims.
+- External sources.
 
-For example, a student studying machine learning might independently explore:
+Students can drag nodes into their preferred positions and create labelled, directed connections between them. Example relationship labels include:
 
-- Cognitive science.
-- Neuroscience.
-- Information theory.
-- Philosophy of intelligence.
-- Robotics.
-- Computational linguistics.
+- Related to.
+- Builds upon.
+- Prerequisite of.
+- Contrasts with.
+- Supports.
+- Example of.
+- Quoted from.
 
-### 3.2 Exploration workspace
+Node positions, notes, source links, and relationships are persisted in the student's account. The graph is intended to be a working model of the student's own understanding, not an automatically generated mind map.
 
-An exploration session represents a focused learning journey.
+### 3.2 Integrated research browser
 
-A session may contain:
+Explore combines web search and reading with the knowledge graph.
 
-- A central question or topic.
-- Notes and observations.
-- Subtopics discovered along the way.
-- Follow-up questions.
-- Related concepts.
-- External resources.
-- AI-assisted explanations.
-- Saved discoveries.
+The intended workflow is:
 
-Students should be able to return to previous exploration sessions and continue where they left off.
+1. Search the web from inside Explore.
+2. Open a result in Atlas's built-in article reading view.
+3. Read the extracted page without leaving the research workspace.
+4. Save a source as a graph node.
+5. Select a passage and capture it as a personal note linked to its source.
+6. Connect that source or note to other ideas in the graph.
 
-### 3.3 AI-assisted exploration
+Web search is provided through the Brave Search API. The API key is configured on the backend and must never be exposed to the browser. Search results are transient; only sources explicitly saved by the student are added to their knowledge graph.
 
-AI should help students understand unfamiliar ideas, investigate questions, and explore related concepts.
+The built-in reader fetches public HTML pages and extracts their readable article content. It is not a full Chromium browser: websites that require client-side JavaScript, authentication, or block server-side access may need to be opened in the original browser. PDFs remain supported through the dedicated PDF reading library.
 
-Potential capabilities include:
+### 3.3 Student-controlled exploration
 
-- Explaining complex concepts at different levels.
-- Breaking down unfamiliar terminology.
-- Providing examples and analogies.
-- Generating follow-up questions.
-- Comparing related concepts.
-- Suggesting related topics.
-- Helping structure an exploration session.
-
-AI responses should be contextual.
-
-For example, when exploring a concept already covered in a university subject, Atlas should eventually be able to reference the student's existing notes and academic context.
-
-### 3.4 Learning paths
-
-A future feature should allow students to create or follow learning paths.
-
-A learning path is a sequence of related concepts that builds understanding progressively.
-
-For example:
-
-```text
-Understanding Large Language Models
-│
-├── Linear Algebra Foundations
-├── Probability and Statistics
-├── Neural Networks
-├── Backpropagation
-├── Attention Mechanisms
-├── Transformers
-└── Large Language Model Training
-```
-
-Learning paths should be editable rather than rigid courses.
-
-Students should be free to skip, rearrange, or expand topics.
-
-### 3.5 Connecting exploration to academics
-
-Explore should not be disconnected from university learning.
-
-Students should be able to:
-
-- Save an explored concept to My Universe.
-- Associate discoveries with academic subjects.
-- Link an exploration session to an existing concept.
-- Add external discoveries to their personal knowledge collection.
-
-This is one of the most important connections in Atlas.
-
----
+The student decides what belongs in the graph and how ideas relate. Atlas does not automatically create nodes, infer relationships, or rewrite personal notes. AI-assisted suggestions may be considered later as an opt-in enhancement, after the manual knowledge-building workflow is dependable.
 
 ## 4. My Universe
 
@@ -1371,7 +1319,7 @@ Install backend dependencies:
 pip install -r requirements.txt
 ```
 
-Configure the required environment variables using the repository's environment template.
+Configure the required environment variables using the repository's environment template. To enable the integrated web search in Explore, set `BRAVE_SEARCH_API_KEY` in the backend environment. Search remains unavailable when this optional key is not configured. Keep the key server-side; do not add it to a `NEXT_PUBLIC_` variable.
 
 Start the development server using the project's FastAPI entry point. For the standard application entry point:
 
