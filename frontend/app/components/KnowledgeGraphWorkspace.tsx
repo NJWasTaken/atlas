@@ -35,13 +35,21 @@ function Label({node}:{node:Node}){
   useEffect(()=>()=>texture.dispose(),[texture]);
   return <sprite position={[0,-.55,0]} scale={[2.8,.5,1]}><spriteMaterial map={texture} transparent depthWrite={false}/></sprite>;
 }
-function EdgeBeam({a,b}:{a:Node;b:Node}){
+function EdgeBeam({a,b,label}:{a:Node;b:Node;label:string}){
   const data=useMemo(()=>{
     const start=new THREE.Vector3(a.position_x,a.position_y,a.position_z),end=new THREE.Vector3(b.position_x,b.position_y,b.position_z);
-    const d=end.clone().sub(start);
-    return {mid:start.add(end).multiplyScalar(.5),length:Math.max(.01,d.length()),q:new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize())};
+    const d=end.clone().sub(start),length=Math.max(.01,d.length());
+    const direction=length>.01?d.normalize():new THREE.Vector3(0,1,0);
+    return {mid:start.add(end).multiplyScalar(.5),length,q:new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),direction)};
   },[a.position_x,a.position_y,a.position_z,b.position_x,b.position_y,b.position_z]);
-  return <mesh position={data.mid.toArray()} quaternion={data.q}><cylinderGeometry args={[.012,.012,data.length,7]}/><meshBasicMaterial color="#73879b" transparent opacity={.55}/></mesh>;
+  const texture=useMemo(()=>{
+    const canvas=document.createElement("canvas");canvas.width=420;canvas.height=88;
+    const ctx=canvas.getContext("2d");
+    if(ctx){ctx.fillStyle="rgba(7,17,29,.9)";ctx.beginPath();ctx.roundRect(4,5,412,78,14);ctx.fill();ctx.fillStyle="#d5c09a";ctx.font="28px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(label.length>22?label.slice(0,20)+"…":label,210,44);}
+    return new THREE.CanvasTexture(canvas);
+  },[label]);
+  useEffect(()=>()=>texture.dispose(),[texture]);
+  return <group><mesh position={data.mid.toArray()} quaternion={data.q}><cylinderGeometry args={[.012,.012,data.length,7]}/><meshBasicMaterial color="#73879b" transparent opacity={.55}/></mesh><sprite position={[data.mid.x,data.mid.y+.18,data.mid.z+.05]} scale={[1.5,.32,1]}><spriteMaterial map={texture} transparent depthWrite={false}/></sprite></group>;
 }
 function GraphNode({node,selected,onSelect,onMove,onCommit}:{node:Node;selected:boolean;onSelect:(id:number)=>void;onMove:(id:number,x:number,y:number,z:number)=>void;onCommit:(id:number,x:number,y:number,z:number)=>void}){
   const dragging=useRef(false),pos=useRef(new THREE.Vector3(node.position_x,node.position_y,node.position_z));
@@ -65,7 +73,7 @@ function GraphCanvas({nodes,edges,selectedId,onSelect,onMove,onCommit}:{nodes:No
   const map=useMemo(()=>new Map(nodes.map(n=>[n.id,n])),[nodes]);
   return <Canvas camera={{position:[0,0,13],fov:48}} dpr={[1,1.75]} gl={{antialias:true,alpha:true}} onPointerMissed={()=>onSelect(null)}>
     <ambientLight intensity={1.3}/><pointLight position={[4,5,7]} intensity={36} color="#d4e2f1"/><pointLight position={[-6,-3,-4]} intensity={18} color="#c5a875"/><Controls/>
-    {edges.map(edge=>{const a=map.get(edge.source_node_id),b=map.get(edge.target_node_id);return a&&b?<EdgeBeam key={edge.id} a={a} b={b}/>:null;})}
+    {edges.map(edge=>{const a=map.get(edge.source_node_id),b=map.get(edge.target_node_id);return a&&b?<EdgeBeam key={edge.id} a={a} b={b} label={edge.label}/>:null;})}
     {nodes.map(node=><GraphNode key={node.id} node={node} selected={node.id===selectedId} onSelect={id=>onSelect(id)} onMove={onMove} onCommit={onCommit}/>)}
   </Canvas>;
 }
@@ -80,7 +88,7 @@ export default function KnowledgeGraphWorkspace(){
   const [editTitle,setEditTitle]=useState(""),[editBody,setEditBody]=useState(""),[editKind,setEditKind]=useState<Kind>("concept"),[editUrl,setEditUrl]=useState("");
   const [query,setQuery]=useState(""),[searching,setSearching]=useState(false),[results,setResults]=useState<SearchResult[]>([]);
   const [article,setArticle]=useState<Article|null>(null),[opening,setOpening]=useState(false);
-  const selected=nodes.find(n=>n.id===selectedId)??null;
+  const selected=nodes.find(n=>n.id===selectedId)??null;\n  const connections=selected?edges.filter(edge=>edge.source_node_id===selected.id||edge.target_node_id===selected.id):[];
 
   useEffect(()=>{let live=true;api<{nodes:Node[];edges:Edge[]}>("/explore/graph").then(g=>{if(live){setNodes(g.nodes);setEdges(g.edges);}}).catch(e=>{if(live)setError(e instanceof Error?e.message:"Could not load your graph.");}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[]);
   useEffect(()=>{if(selected){setEditTitle(selected.title);setEditBody(selected.body);setEditKind(selected.kind);setEditUrl(selected.source_url??"");}},[selectedId,selected?.updated_at]);
@@ -114,6 +122,10 @@ export default function KnowledgeGraphWorkspace(){
   }
   function moveNode(id:number,x:number,y:number,z:number){setNodes(v=>v.map(n=>n.id===id?{...n,position_x:x,position_y:y,position_z:z}:n));}
   async function commitPosition(id:number,x:number,y:number,z:number){try{await api<Node>("/explore/graph/nodes/"+id,{method:"PATCH",body:JSON.stringify({position_x:x,position_y:y,position_z:z})});}catch(e){setError(e instanceof Error?e.message:"Could not save node position.");}}
+  async function deleteEdge(edge:Edge){
+    try{await api<void>("/explore/graph/edges/"+edge.id,{method:"DELETE"});setEdges(v=>v.filter(item=>item.id!==edge.id));setNotice("Connection removed.");}
+    catch(e){setError(e instanceof Error?e.message:"Could not remove connection.");}
+  }
   async function search(e:React.FormEvent){
     e.preventDefault();if(!query.trim())return;setSearching(true);setError("");setArticle(null);
     try{const r=await api<{results:SearchResult[]}>("/explore/search",{method:"POST",body:JSON.stringify({q:query.trim(),count:10})});setResults(r.results);}
@@ -174,6 +186,7 @@ export default function KnowledgeGraphWorkspace(){
             <label>Type<select value={editKind} onChange={e=>setEditKind(e.target.value as Kind)}>{kinds.map(k=><option key={k} value={k}>{pretty[k]}</option>)}</select></label><label>Title<input value={editTitle} onChange={e=>setEditTitle(e.target.value)} maxLength={240}/></label><label>Your notes<textarea value={editBody} onChange={e=>setEditBody(e.target.value)} rows={10} placeholder="Write what you understand, what remains unclear, or how this connects…"/></label>
             {(editKind==="source"||editUrl)&&<label>Source URL<input type="url" value={editUrl} onChange={e=>setEditUrl(e.target.value)} placeholder="https://…"/></label>}
             {selected.source_url&&<a className="atlas-node-source-link" href={selected.source_url} target="_blank" rel="noreferrer"><ExternalLink size={13}/> Open original source</a>}
+            {connections.length>0&&<div className="atlas-node-connections"><span>CONNECTIONS</span>{connections.map(edge=>{const outgoing=edge.source_node_id===selected.id;const other=nodes.find(node=>node.id===(outgoing?edge.target_node_id:edge.source_node_id));return <div key={edge.id}><p><strong>{edge.label}</strong> {outgoing?"→":"←"} {other?.title??"Missing node"}</p><button type="button" aria-label={"Remove connection "+edge.label+" to "+(other?.title??"node")} onClick={()=>void deleteEdge(edge)}><X size={12}/></button></div>;})}</div>}
             <button className="atlas-button atlas-primary atlas-full" onClick={()=>void saveNode()} disabled={busy||!editTitle.trim()}><Check size={14}/> Save changes</button><button className="atlas-node-delete" onClick={()=>void deleteNode()} disabled={busy}><Trash2 size={13}/> Delete node and its connections</button>
           </div>:<div className="atlas-node-empty"><StickyNote size={23}/><h3>Make the knowledge yours.</h3><p>Select a node to edit it, or add a new topic, concept, question, note, source, or claim. All relationships are created by you.</p><button className="atlas-button atlas-primary" onClick={()=>setCreating(true)}><Plus size={14}/> Add a node</button></div>}
         </div>}

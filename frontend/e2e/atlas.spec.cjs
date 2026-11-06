@@ -180,6 +180,8 @@ function installApiMock(page, options = {}) {
     if (path === "/explore/graph/edges" && method === "POST") {
       const edge={id:nextId++,created_at:new Date().toISOString(),...body};state.graphEdges.push(edge);return created(edge);
     }
+    const graphEdge=path.match(/^\/explore\/graph\/edges\/(\d+)$/);
+    if (graphEdge && method === "DELETE") { state.graphEdges=state.graphEdges.filter(e=>e.id!==Number(graphEdge[1])); return empty(); }
     if (path.startsWith("/explore/")) return route.continue();
     return route.fulfill({ status:404, contentType:"application/json", body:JSON.stringify({detail:`Unmocked E2E API: ${method} ${path}`}) });
   });
@@ -441,7 +443,10 @@ test("Explore lets the student build and connect knowledge nodes", async ({ page
   await page.getByLabel("Title").last().fill("Backpropagation");
   await page.getByRole("button",{name:"Add to graph"}).click();
   await page.getByRole("button",{name:"Connect nodes"}).click();
+  await page.getByLabel("Connection label").fill("supports");
   await page.locator(".atlas-graph-node-shortcuts button").nth(0).click();
   await page.locator(".atlas-graph-node-shortcuts button").nth(1).click();
-  await expect(page.getByText(/1 CONNECTION/)).toBeVisible();
+  await expect(page.getByText("supports",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:/Remove connection supports/}).click();
+  await expect(page.getByText(/2 NODES · 0 CONNECTIONS/)).toBeVisible();
 });
