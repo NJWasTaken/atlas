@@ -78,12 +78,21 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
     return ()=>{cancelled=true;observer.disconnect();try{renderTask?.cancel();}catch{};try{page?.cleanup();}catch{}};
   },[pdf,pageNumber,scale]);
 
-  const selectText=()=>{
+  const selectText=(event?:MouseEvent)=>{
     const selection=window.getSelection();
     const text=selection?.toString().trim();
-    if(!selection||!text||!host.current)return;
-    const pageRect=host.current.getBoundingClientRect();
+    const page=host.current;
+    if(!selection||!text||!page||selection.rangeCount===0)return;
+
+    // Selection can be created in the text layer and the mouseup target may
+    // be a nested span. Verify the range belongs to this page before saving it.
     const range=selection.getRangeAt(0);
+    const anchor=range.commonAncestorContainer;
+    if(!page.contains(anchor.nodeType===Node.TEXT_NODE?anchor.parentNode:anchor))return;
+    if(event?.target instanceof Node&&!page.contains(event.target))return;
+
+    const pageRect=page.getBoundingClientRect();
+    if(pageRect.width<=0||pageRect.height<=0)return;
     const rects=Array.from(range.getClientRects()).map(rect=>({
       x:clamp((rect.left-pageRect.left)/pageRect.width,0,1),
       y:clamp((rect.top-pageRect.top)/pageRect.height,0,1),
@@ -92,9 +101,17 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
     })).filter(rect=>rect.width>0&&rect.height>0);
     onSelect(pageNumber,text,rects);
   };
+
+  // Listen on the document too: PDF text selection can finish on an inner
+  // text-layer span rather than bubbling through the page wrapper.
+  useEffect(()=>{
+    const handleMouseUp=(event:MouseEvent)=>selectText(event);
+    document.addEventListener("mouseup",handleMouseUp);
+    return()=>document.removeEventListener("mouseup",handleMouseUp);
+  },[pageNumber,onSelect]);
   return <div className="atlas-pdf-page-shell" id={`atlas-pdf-page-${pageNumber}`} data-page={pageNumber}>
     <div className="atlas-pdf-page-label">PAGE {pageNumber}</div>
-    <div className="atlas-pdf-page" ref={host} onMouseUp={selectText} style={{width:dimensions.width||"min(100%, 780px)",height:dimensions.height||Math.max(500,Math.round(990*scale))}}>
+    <div className="atlas-pdf-page" ref={host} onMouseUp={event=>selectText(event.nativeEvent)} style={{width:dimensions.width||"min(100%, 780px)",height:dimensions.height||Math.max(500,Math.round(990*scale))}}>
       <canvas ref={canvasRef} className="atlas-pdf-canvas"/>
       <div className="atlas-pdf-text-layer"/>
       {annotations.filter(note=>note.page_number===pageNumber).flatMap(note=>(note.highlight_rects||[]).map((rect,index)=><span key={`${note.id}-${index}`} className="atlas-pdf-highlight" title={note.selected_text||note.note} style={{left:`${rect.x*100}%`,top:`${rect.y*100}%`,width:`${rect.width*100}%`,height:`${rect.height*100}%`}}/>))}

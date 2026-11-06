@@ -391,7 +391,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and pa
   await page.getByLabel("Your note").fill("Compare this result with the lecture discussion.");
   await page.getByRole("button",{name:"Save page note"}).click();
   await expect(page.getByText("Compare this result with the lecture discussion.")).toBeVisible();
-  await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);span.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
+  await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
   await page.getByLabel("Your note").fill("This passage is worth highlighting.");
   await page.getByRole("button",{name:"Save highlight & note"}).click();
   await expect(page.locator(".atlas-pdf-highlight")).toHaveCount(1);
