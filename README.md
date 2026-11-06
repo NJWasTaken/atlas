@@ -1035,7 +1035,7 @@ The following describes the intended API surface.
 - Persistent reading position, bookmarks, text highlights, page-linked annotations and notes, and distraction-free focus mode.
 - User-owned knowledge graph node and labelled-edge CRUD with persisted 3D positions.
 - Three.js graph canvas with node dragging, orbit/zoom, connection creation, and connection inspection/removal.
-- Brave Search API proxy and a built-in public-HTML article reader with an address bar.
+- Keyless DuckDuckGo web search and a built-in public-HTML article reader with an address bar.
 - Save sources and capture selected passages as personal notes linked to their source.
 - Search results remain transient; saved graph content is explicitly user-selected.
 
@@ -1311,7 +1311,7 @@ Install backend dependencies:
 pip install -r requirements.txt
 ```
 
-Configure the required environment variables using the repository's environment template. To enable the integrated web search in Explore, set `BRAVE_SEARCH_API_KEY` in the backend environment. Search remains unavailable when this optional key is not configured. Keep the key server-side; do not add it to a `NEXT_PUBLIC_` variable.
+Configure the required environment variables using the repository's environment template. Explore web search uses DuckDuckGo through the backend and requires no API key or subscription. The upstream service may apply rate limits, which Atlas reports as retryable errors.
 
 Start the development server using the project's FastAPI entry point. For the standard application entry point:
 
