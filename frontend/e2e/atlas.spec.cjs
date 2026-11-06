@@ -459,7 +459,7 @@ test("Explore can search, read and capture a source passage into the knowledge g
   await signIn(page);
   await page.getByRole("button",{name:"Explore"}).click();
   await page.getByLabel("SEARCH THE WEB").fill("attention mechanism");
-  await page.getByRole("button",{name:"Search"}).click();
+  await page.locator(".atlas-research-search button").click();
   await page.getByRole("button",{name:/Attention Is All You Need/}).click();
   await expect(page.getByRole("heading",{name:"Attention Is All You Need"})).toBeVisible();
 
