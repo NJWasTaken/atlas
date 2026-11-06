@@ -429,17 +429,20 @@ test("Explore supports independent sessions with saved discoveries and questions
       const session = { id: nextId++, title: body.title, central_question: body.central_question, notes: "", status: "active", item_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
       sessions.unshift(session); return created(session);
     }
-    const itemMatch = path.match(new RegExp("^/explore/sessions/(\\\\d+)/items(?:/(\\\\d+))?$"));
-    const sessionMatch = path.match(new RegExp("^/explore/sessions/(\\\\d+)$"));
-    if (itemMatch) {
+    const pathParts = path.split("/").filter(Boolean);
+    const isSessionPath = pathParts[0] === "explore" && pathParts[1] === "sessions" && pathParts.length === 3;
+    const isItemsPath = pathParts[0] === "explore" && pathParts[1] === "sessions" && pathParts.length >= 4 && pathParts[3] === "items";
+    const itemSessionId = Number(pathParts[2]);
+    const itemId = Number(pathParts[4]);
+    if (isItemsPath) {
       if (method === "POST") {
-        const item = { id: nextId++, session_id: Number(itemMatch[1]), kind: body.kind, title: body.title, body: body.body || "", url: body.url || null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+        const item = { id: nextId++, session_id: itemSessionId, kind: body.kind, title: body.title, body: body.body || "", url: body.url || null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
         items.unshift(item); return created(item);
       }
-      if (method === "DELETE") { const index = items.findIndex(item => item.id === Number(itemMatch[2])); if (index >= 0) items.splice(index, 1); return empty(); }
+      if (method === "DELETE") { const index = items.findIndex(item => item.id === itemId); if (index >= 0) items.splice(index, 1); return empty(); }
     }
-    if (sessionMatch) {
-      const session = sessions.find(item => item.id === Number(sessionMatch[1]));
+    if (isSessionPath) {
+      const session = sessions.find(item => item.id === Number(pathParts[2]));
       if (method === "GET") return json({ ...session, item_count: items.filter(item => item.session_id === session.id).length, items: items.filter(item => item.session_id === session.id) });
       if (method === "PATCH") { Object.assign(session, body); return json(session); }
       if (method === "DELETE") { sessions.splice(sessions.indexOf(session), 1); return empty(); }
