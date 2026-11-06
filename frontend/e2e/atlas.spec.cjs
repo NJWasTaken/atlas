@@ -437,6 +437,7 @@ test("Explore lets the student build and connect knowledge nodes", async ({ page
   await page.getByRole("button",{name:"Explore"}).click();
   await expect(page.getByRole("heading",{name:/Build your knowledge universe/})).toBeVisible();
   await page.getByRole("button",{name:/Create your first node/}).click();
+  await page.getByLabel("Type").selectOption("topic");
   await page.getByLabel("Title").fill("Neural networks");
   await page.getByRole("button",{name:"Add to graph"}).click();
   await expect(page.getByText("Neural networks",{exact:true})).toBeVisible();
