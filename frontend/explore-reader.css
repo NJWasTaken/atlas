@@ -242,3 +242,9 @@
  .atlas-reader-theme-select{max-width:88px}
  .atlas-reader-annotation-filters{grid-template-columns:1fr}
 }
+
+.atlas-reader-annotation-edit-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.atlas-reader-annotation-edit-fields label{display:grid;gap:5px;color:#aab5c2;font-size:9px}
+.atlas-reader-annotation-edit-fields select{min-width:0;width:100%;height:31px;padding:0 7px;border:1px solid rgba(166,187,211,.2);border-radius:6px;background:#102238;color:#dce3ea;font-size:9px}
+.atlas-reader-edit-comment>label{display:grid;gap:5px;color:#aab5c2;font-size:9px}
+@media(max-width:560px){.atlas-reader-annotation-edit-fields{grid-template-columns:1fr}}
