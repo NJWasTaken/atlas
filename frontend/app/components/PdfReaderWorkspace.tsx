@@ -343,15 +343,21 @@ export default function PdfReaderWorkspace(props:Props) {
     catch(error){onError(error instanceof Error?error.message:"Could not save bookmark.");}
     finally{setSaving(false);}
   }
+  async function persistAnnotation(payload:AnnotationPayload){
+    setSaving(true);setAnnotationRetry(null);
+    try{
+      const item=await api<Annotation>(\`/explore/documents/\${documentId}/annotations\`,{method:"POST",body:JSON.stringify(payload)});
+      onAnnotationsChange([item,...annotations]);
+      setNote("");setSelectedText("");setSelectedRects([]);setSelectionAnchor(null);setCommentMode(false);window.getSelection()?.removeAllRanges();
+      setActivePanel("annotations");
+    }catch(error){
+      const message=error instanceof Error?error.message:"Could not save annotation.";
+      setAnnotationRetry({message,run:()=>persistAnnotation(payload)});
+    }finally{setSaving(false);}
+  }
   async function saveAnnotation(annotationType:"highlight"|"underline"|"strikeout"="highlight",color:"yellow"|"green"|"blue"|"pink"="yellow",comment=note.trim()){
     if(!selectedText.trim()||!selectedRects.length)return;
-    setSaving(true);
-    try{
-      const item=await api<Annotation>(`/explore/documents/${documentId}/annotations`,{method:"POST",body:JSON.stringify({page_number:selectedPage,selected_text:selectedText,note:comment,highlight_rects:selectedRects,annotation_type:annotationType,color})});
-      onAnnotationsChange([item,...annotations]);setNote("");setSelectedText("");setSelectedRects([]);setSelectionAnchor(null);setCommentMode(false);window.getSelection()?.removeAllRanges();
-      setActivePanel("annotations");
-    }catch(error){onError(error instanceof Error?error.message:"Could not save annotation.");}
-    finally{setSaving(false);}
+    await persistAnnotation({page_number:selectedPage,selected_text:selectedText,note:comment,highlight_rects:selectedRects,annotation_type:annotationType,color});
   }
   function toggleLockedTool(type:"highlight"|"underline"){
     if(lockedTool?.type===type){setLockedTool(null);return;}
@@ -365,14 +371,19 @@ export default function PdfReaderWorkspace(props:Props) {
     lastAutoSavedRevision.current=selectionRevision;
     void saveAnnotation(lockedTool.type,lockedTool.color,"");
   },[selectionRevision,lockedTool]);
-  async function updateAnnotation(id:number){
-    setSaving(true);
+  async function persistAnnotationUpdate(id:number,payload:{note:string;annotation_type:"highlight"|"underline"|"strikeout";color:"yellow"|"green"|"blue"|"pink"}){
+    setSaving(true);setAnnotationRetry(null);
     try{
-      const updated=await api<Annotation>(`/explore/documents/${documentId}/annotations/${id}`,{method:"PATCH",body:JSON.stringify({note:editingAnnotationNote,annotation_type:editingAnnotationType,color:editingAnnotationColor})});
+      const updated=await api<Annotation>(\`/explore/documents/\${documentId}/annotations/\${id}\`,{method:"PATCH",body:JSON.stringify(payload)});
       onAnnotationsChange(annotations.map(item=>item.id===id?updated:item));
       setEditingAnnotationId(null);setEditingAnnotationNote("");
-    }catch(error){onError(error instanceof Error?error.message:"Could not update annotation.");}
-    finally{setSaving(false);}
+    }catch(error){
+      const message=error instanceof Error?error.message:"Could not update annotation.";
+      setAnnotationRetry({message,run:()=>persistAnnotationUpdate(id,payload)});
+    }finally{setSaving(false);}
+  }
+  async function updateAnnotation(id:number){
+    await persistAnnotationUpdate(id,{note:editingAnnotationNote,annotation_type:editingAnnotationType,color:editingAnnotationColor});
   }
   async function exportAnnotatedPdf(){
     setExporting(true);
@@ -396,10 +407,15 @@ export default function PdfReaderWorkspace(props:Props) {
     try{await api<void>(`/explore/documents/${documentId}/bookmarks/${id}`,{method:"DELETE"});onBookmarksChange(bookmarks.filter(item=>item.id!==id));}
     catch(error){onError(error instanceof Error?error.message:"Could not remove bookmark.");}
   }
-  async function deleteAnnotation(id:number){
-    try{await api<void>(`/explore/documents/${documentId}/annotations/${id}`,{method:"DELETE"});onAnnotationsChange(annotations.filter(item=>item.id!==id));}
-    catch(error){onError(error instanceof Error?error.message:"Could not remove annotation.");}
+  async function persistAnnotationDelete(id:number){
+    setSaving(true);setAnnotationRetry(null);
+    try{await api<void>(\`/explore/documents/\${documentId}/annotations/\${id}\`,{method:"DELETE"});onAnnotationsChange(annotations.filter(item=>item.id!==id));}
+    catch(error){
+      const message=error instanceof Error?error.message:"Could not remove annotation.";
+      setAnnotationRetry({message,run:()=>persistAnnotationDelete(id)});
+    }finally{setSaving(false);}
   }
+  async function deleteAnnotation(id:number){await persistAnnotationDelete(id);}
   useEffect(()=>{setSelectedPage(page);},[page]);
   const currentBookmark=bookmarks.some(mark=>mark.page_number===page);
   const pageNumbers=useMemo(()=>Array.from({length:pageCount},(_,index)=>index+1),[pageCount]);
