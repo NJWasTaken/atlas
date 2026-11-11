@@ -13,6 +13,7 @@ type Mark = { id:number; page_number:number; label:string };
 type Rect = { x:number; y:number; width:number; height:number };
 type Annotation = { id:number; page_number:number; selected_text:string|null; note:string; highlight_rects:Rect[]|null; annotation_type:"highlight"|"underline"|"strikeout"|"comment"; color:"yellow"|"green"|"blue"|"pink"; created_at:string; updated_at:string };
 type OutlineItem = { title:string; page:number|null; depth:number };
+type AnnotationPayload = { page_number:number; selected_text:string; note:string; highlight_rects:Rect[]; annotation_type:"highlight"|"underline"|"strikeout"; color:"yellow"|"green"|"blue"|"pink" };
 type Props = {
   documentId:number; title:string; pageCount:number; pdfUrl:string; initialPage:number;
   bookmarks:Mark[]; annotations:Annotation[]; readerMode:boolean;
@@ -138,6 +139,7 @@ export default function PdfReaderWorkspace(props:Props) {
   const [scale,setScale]=useState(1);
   const [activePanel,setActivePanel]=useState<"thumbnails"|"outline"|"annotations"|"bookmarks">("thumbnails");
   const [outline,setOutline]=useState<OutlineItem[]>([]);
+  const [pageSizes,setPageSizes]=useState<Record<number,{width:number;height:number}>>({});
   const [query,setQuery]=useState("");
   const [searching,setSearching]=useState(false);
   const [matches,setMatches]=useState<{page:number;snippet:string}[]>([]);
@@ -158,13 +160,9 @@ export default function PdfReaderWorkspace(props:Props) {
   const [editingAnnotationNote,setEditingAnnotationNote]=useState("");
   const [editingAnnotationType,setEditingAnnotationType]=useState<"highlight"|"underline"|"strikeout">("highlight");
   const [editingAnnotationColor,setEditingAnnotationColor]=useState<"yellow"|"green"|"blue"|"pink">("yellow");
-  const [readingTheme,setReadingTheme]=useState<"paper"|"sepia"|"dark">(()=>{
-    if(typeof window==="undefined")return "paper";
-    try{
-      const saved=window.localStorage.getItem(`atlas:pdf-theme:${documentId}`);
-      return saved==="sepia"||saved==="dark"?saved:"paper";
-    }catch{return "paper";}
-  });
+  const [annotationRetry,setAnnotationRetry]=useState<{message:string;run:()=>Promise<void>}|null>(null);
+  const [readingTheme,setReadingTheme]=useState<"paper"|"sepia"|"dark">("paper");
+  const [themeLoaded,setThemeLoaded]=useState(false);
   const [exporting,setExporting]=useState(false);
   const [saving,setSaving]=useState(false);
   const [showSearch,setShowSearch]=useState(false);
@@ -174,6 +172,20 @@ export default function PdfReaderWorkspace(props:Props) {
   const pdfRef=useRef<PdfDocument|null>(null);
   const scaleMode=useRef<"width"|"page"|number>("width");
   const scaleRequest=useRef(0);
+
+  useEffect(()=>{
+    setThemeLoaded(false);
+    try{
+      const saved=window.localStorage.getItem(`atlas:pdf-theme:${documentId}`);
+      setReadingTheme(saved==="sepia"||saved==="dark"?saved:"paper");
+    }catch{setReadingTheme("paper");}
+    setThemeLoaded(true);
+  },[documentId]);
+  useEffect(()=>{
+    if(!themeLoaded)return;
+    try{window.localStorage.setItem(`atlas:pdf-theme:${documentId}`,readingTheme);}
+    catch{onError("Could not save this document's reading theme in this browser.");}
+  },[documentId,readingTheme,themeLoaded,onError]);
 
   useEffect(()=>{
     let cancelled=false;let task:any;
@@ -189,7 +201,7 @@ export default function PdfReaderWorkspace(props:Props) {
         const doc=await task.promise;
         if(cancelled){await doc.destroy();return;}
         (window as any).pdfjsUtilTransform=pdfjs.Util.transform;
-        pdfRef.current=doc;setPdf(doc);
+        pdfRef.current=doc;setPdf(doc);setPageSizes({});
         const raw=await doc.getOutline();
         const items:OutlineItem[]=[];
         const walk=async(nodes:any[],depth:number)=>{
@@ -210,6 +222,23 @@ export default function PdfReaderWorkspace(props:Props) {
     })();
     return()=>{cancelled=true;try{task?.destroy();}catch{};pdfRef.current=null;};
   },[pdfUrl,onError]);
+
+  useEffect(()=>{
+    if(!pdf)return;
+    let cancelled=false;
+    const start=Math.max(1,page-8),end=Math.min(pageCount,page+8);
+    (async()=>{
+      for(let number=start;number<=end;number++){
+        try{
+          const proxy=await pdf.getPage(number);
+          if(cancelled)return;
+          const viewport=proxy.getViewport({scale:1});
+          setPageSizes(current=>current[number]?current:{...current,[number]:{width:viewport.width,height:viewport.height}});
+        }catch(error){if(!cancelled)console.debug(`Could not measure PDF page ${number}`,error);}
+      }
+    })();
+    return()=>{cancelled=true;};
+  },[pdf,page,pageCount]);
 
   const updateScale=useCallback(()=>{
     const container=scrollRef.current;const document=pdfRef.current;if(!container||!document)return;
