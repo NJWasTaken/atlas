@@ -79,6 +79,11 @@ class AnnotationUpdate(BaseModel):
     annotation_type: Literal["highlight", "underline", "strikeout"] | None = None
     color: Literal["yellow", "green", "blue", "pink"] | None = None
 
+    @field_validator("note", mode="before")
+    @classmethod
+    def clean_optional_note(cls, value):
+        return "" if value is None else value.strip()
+
 
 class AnnotationOut(BaseModel):
     id: int
