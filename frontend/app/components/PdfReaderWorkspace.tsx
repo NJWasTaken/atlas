@@ -61,7 +61,6 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
             const span=document.createElement("span");
             const fontHeight=Math.max(1,Math.hypot(tx[2],tx[3]));
             span.textContent=item.str;
-            if(searchTerm&&item.str.toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase()))span.className="atlas-pdf-search-hit";
             span.style.left=`${tx[4]}px`;
             span.style.top=`${tx[5]-fontHeight}px`;
             span.style.fontSize=`${fontHeight}px`;
@@ -77,6 +76,16 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
     observer.observe(hostNode);
     return ()=>{cancelled=true;observer.disconnect();try{renderTask?.cancel();}catch{};try{page?.cleanup();}catch{}};
   },[pdf,pageNumber,scale]);
+
+  useEffect(()=>{
+    const layer=host.current?.querySelector(".atlas-pdf-text-layer");
+    if(!layer)return;
+    const needle=searchTerm.trim().toLocaleLowerCase();
+    layer.querySelectorAll("span").forEach(span=>{
+      const hit=Boolean(needle&&span.textContent?.toLocaleLowerCase().includes(needle));
+      span.classList.toggle("atlas-pdf-search-hit",hit);
+    });
+  },[searchTerm,dimensions.width,dimensions.height]);
 
   const selectText=()=>{
     const selection=window.getSelection();
