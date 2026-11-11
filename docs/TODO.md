@@ -2,6 +2,12 @@
 
 This backlog is based on the [README roadmap](../README.md#roadmap) and the implementation currently present in the repository. The README is the product-level source for intended behavior; this list distinguishes that vision from unfinished code. Re-check both documents as features land.
 
+## Contribution workflow
+
+- Make small fixes, copy changes, and isolated polish directly on the working branch; do not open a PR solely for these changes.
+- Open a PR for a substantial, cohesive feature or architectural change with a clear scope, meaningful tests, and documentation updates where needed.
+- Group related implementation, regression coverage, and UX work into one reviewable change rather than splitting it into several small PRs.
+
 ## Recently completed
 
 - [x] Fix concept-progress PATCH handling so omitted fields retain their stored values instead of being overwritten by schema defaults. Regression coverage remains part of the automated-test task below.
@@ -54,7 +60,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 ## Explore — PDF reader only
 
-**Product direction:** Explore is a focused PDF reading room. It is not a general research workspace or knowledge-management surface. No topic workspaces, standalone notes, whiteboards, knowledge graphs, web research capture, or AI layer. The PDF is the primary object; annotations are anchored to selected passages and remain attached to that document.
+**Product direction:** Explore is a focused PDF reading room. It is not a general research workspace or knowledge-management surface. No topic workspaces, standalone notes, whiteboards, knowledge graphs, or web research capture. The PDF is the primary object; annotations are anchored to selected passages and remain attached to that document.
 
 - [x] Private PDF library with device upload and public-URL import, per-user ownership, document metadata, and durable reading position.
 - [x] Bundled PDF.js reader with continuous scrolling, page navigation, thumbnails, document outline, text search, zoom/fit, bookmarks, and focus mode.
@@ -76,7 +82,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [ ] Tune contrast for varied source PDFs and add per-document theme persistence.
 - [ ] Complete keyboard, screen-reader, touch, and mobile interaction testing for the reader.
 
-**Explicit non-goals:** standalone notes, whiteboards, topic workspaces, knowledge graphs, web article research, social/sharing features, AI chat, and automatic knowledge organization.
+**Explicit non-goals:** standalone notes, whiteboards, topic workspaces, knowledge graphs, web article research, social/sharing features, and automatic knowledge organization.
 
 ### Design references
 
@@ -87,18 +93,24 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [Stirling PDF](https://docs.stirlingpdf.com/Functionality/Read-and-Annotate/) — annotation review and standards-friendly PDF export patterns.
 - [Folio](https://github.com/owenpkent/folio) — reading-first ergonomics, focus, and accessibility ideas; treat as an evolving reference rather than a proven production baseline.
 
+## Next substantial change: PDF reader reliability and accessibility
+
+The next PR should finish the remaining reader work as one cohesive quality pass before starting another product module.
+
+1. Reproduce and document reader behaviour with a representative PDF set: varied page sizes, long documents, and documents with/without outlines.
+2. Verify fit-width, fit-page, manual zoom, page indicators, smooth navigation, and reading-position persistence; fix gaps found by those checks.
+3. Evaluate Lector against the current custom PDF.js renderer for compatibility, performance, and maintenance cost. Record the decision before replacing rendering infrastructure.
+4. Complete annotation editing for mark type/colour and add reliable retry/error recovery for annotation mutations.
+5. Tune paper, sepia, and dark theme contrast against varied PDFs and persist the selected theme per document.
+6. Complete keyboard, screen-reader, touch, and mobile interaction coverage for the reader, including reduced-motion behaviour.
+7. Add automated regression tests for the fixes and update the reader documentation/status only after verification.
+
+Keep freehand ink/area markup out of this PR unless the evaluation shows it is essential to the reading workflow; it is explicitly optional.
+
 ## My Universe
 
 - [ ] Implement personal notes and saved resources/concepts.
 - [ ] Add personal questions and retrieval/search.
-- [ ] Explore AI-assisted connections only after the user-controlled model is established.
-
-## AI Gateway
-
-- [ ] Define provider-neutral configuration and request/response contracts.
-- [ ] Build contextual prompt construction with explicit user-controlled context.
-- [ ] Support external provider handoff.
-- [ ] Add opt-in direct provider integrations only when required; do not make a paid provider a core dependency.
 
 ## Release readiness and refinement
 
