@@ -213,15 +213,46 @@ export default function PdfReaderWorkspace(props:Props) {
         if(nearest!==page){setPage(nearest);onProgressChange(nearest);}
       });
     };
-    root.addEventListener("scroll",update,{passive:true});update();
-    return()=>{root.removeEventListener("scroll",update);cancelAnimationFrame(frame);};
+    const dismissSelection=()=>setSelectionAnchor(null);
+    root.addEventListener("scroll",update,{passive:true});
+    root.addEventListener("scroll",dismissSelection,{passive:true});
+    update();
+    return()=>{root.removeEventListener("scroll",update);root.removeEventListener("scroll",dismissSelection);cancelAnimationFrame(frame);};
   },[pdf,scale,page,onProgressChange]);
 
   const goToPage=useCallback((next:number)=>{
-    const target=clamp(next,1,pageCount);setPage(target);onProgressChange(target);
+    const target=clamp(next,1,pageCount);setSelectionAnchor(null);setPage(target);onProgressChange(target);
     pageRefs.current.get(target)?.scrollIntoView({behavior:"smooth",block:"start"});
   },[pageCount,onProgressChange]);
   useEffect(()=>{if(pdf&&initialPage>1){const timer=window.setTimeout(()=>goToPage(initialPage),180);return()=>clearTimeout(timer);}},[pdf,initialPage,goToPage]);
+
+  useEffect(()=>{
+    const handleReaderKeys=(event:KeyboardEvent)=>{
+      const target=event.target as HTMLElement|null;
+      const editing=Boolean(target&&(target.isContentEditable||["INPUT","TEXTAREA","SELECT"].includes(target.tagName)));
+      if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="f"){
+        event.preventDefault();setShowSearch(true);return;
+      }
+      if(editing)return;
+      if(event.key==="Escape"){
+        setSelectionAnchor(null);setSelectedText("");setSelectedRects([]);setCommentMode(false);return;
+      }
+      if(event.key==="ArrowRight"||event.key==="PageDown"){
+        event.preventDefault();goToPage(page+1);return;
+      }
+      if(event.key==="ArrowLeft"||event.key==="PageUp"){
+        event.preventDefault();goToPage(page-1);return;
+      }
+      if(event.key==="+"||event.key==="="){
+        event.preventDefault();const next=clamp(Math.round(scale*100)+10,50,300);scaleMode.current=next;setZoom(next);setScale(next/100);return;
+      }
+      if(event.key==="-"){
+        event.preventDefault();const next=clamp(Math.round(scale*100)-10,50,300);scaleMode.current=next;setZoom(next);setScale(next/100);
+      }
+    };
+    window.addEventListener("keydown",handleReaderKeys);
+    return()=>window.removeEventListener("keydown",handleReaderKeys);
+  },[goToPage,page,scale]);
 
   async function searchPdf(event?:React.FormEvent){
     event?.preventDefault();if(!pdf||!query.trim())return;
