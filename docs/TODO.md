@@ -63,14 +63,16 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] First reader shell refinement — give the PDF canvas more room, calm the toolbar/sidebar, improve focus-mode framing, and add a responsive annotation surface while retaining the celestial theme.
 - [x] Add reader keyboard shortcuts: Ctrl/Cmd+F for search, arrow/PageUp/PageDown navigation, +/- zoom, and Escape to clear the active selection.
 - [ ] Reading ergonomics — verify fit-width/fit-page/manual zoom, page indicator, smooth navigation, robust responsive layout, and persistent reading position across real documents.
-- [x] Rendering quality/performance first pass — mount full PDF canvas/text layers only for the current page and four pages either side; retain lightweight scroll slots for the rest.\n- [ ] Evaluate a maintained virtualized PDF.js layer (Lector) against the current custom renderer; test varied page sizes and very long documents.
+- [x] Rendering quality/performance first pass — mount full PDF canvas/text layers only for the current page and four pages either side; retain lightweight scroll slots for the rest.
+- [ ] Evaluate a maintained virtualized PDF.js layer (Lector) against the current custom renderer; test varied page sizes and very long documents.
 - [x] Selection-first annotations — floating toolbar for highlight, underline, strike-through, and anchored comment; four highlight colours; selected-text and page context.
 - [x] Add an annotation list with page-jump navigation and deletion; preserve legacy page-only notes as page-comment annotations during migration.
 - [x] Add locked highlighter/underline modes with a persistent colour choice for repeated marking.
 - [ ] Annotation management refinement — search/filter by passage, type, and colour; edit existing comments/marks; and add dependable autosave/error recovery.
 - [ ] Add freehand ink/area markup only if it fits naturally into the reading flow and can be persisted accessibly.
 - [x] Export a separate PDF copy with standard highlight, underline, and strike-through annotations embedded; never modify the original upload.
-- [x] Add paper, sepia, and dark reading themes with the original PDF content preserved.\n- [ ] Tune contrast for varied source PDFs and add per-document theme persistence.
+- [x] Add paper, sepia, and dark reading themes with the original PDF content preserved.
+- [ ] Tune contrast for varied source PDFs and add per-document theme persistence.
 - [ ] Complete keyboard, screen-reader, touch, and mobile interaction testing for the reader.
 
 **Explicit non-goals:** standalone notes, whiteboards, topic workspaces, knowledge graphs, web article research, social/sharing features, AI chat, and automatic knowledge organization.
