@@ -414,6 +414,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByLabel("Search annotations").fill("");
   await page.getByLabel("Reading theme").selectOption("sepia");
   await expect(page.locator(".atlas-reader.theme-sepia")).toHaveCount(1);
+  await expect.poll(()=>page.evaluate(()=>localStorage.getItem("atlas:pdf-theme:40"))).toBe("sepia");
   await page.getByLabel("Reading theme").selectOption("dark");
   await expect(page.locator(".atlas-reader.theme-dark")).toHaveCount(1);
   await page.getByLabel("Reading theme").selectOption("paper");
