@@ -1,5 +1,5 @@
 from io import BytesIO
-from pypdf import PdfWriter
+from pypdf import PdfReader, PdfWriter
 
 from tests.conftest import register, auth_headers
 
@@ -76,3 +76,42 @@ def test_url_import_rejects_non_http_and_private_targets(client):
     unsupported = client.post("/api/v1/explore/documents/import-url", headers=headers, json={"url": "file:///etc/passwd"})
     assert unsupported.status_code == 400
     assert "public HTTP or HTTPS" in unsupported.json()["detail"]
+
+def test_export_embeds_standard_pdf_annotations_without_changing_original(client):
+    token = register(client, "pdf-export@example.com")
+    headers = auth_headers(token)
+    created = client.post(
+        "/api/v1/explore/documents",
+        headers=headers,
+        files={"file": ("paper.pdf", sample_pdf(), "application/pdf")},
+    ).json()
+    document_id = created["id"]
+    saved = client.post(
+        f"/api/v1/explore/documents/{document_id}/annotations",
+        headers=headers,
+        json={
+            "page_number": 1,
+            "selected_text": "A highlighted passage",
+            "note": "Review this claim",
+            "annotation_type": "highlight",
+            "color": "green",
+            "highlight_rects": [{"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.03}],
+        },
+    )
+    assert saved.status_code == 201
+
+    exported = client.get(f"/api/v1/explore/documents/{document_id}/export", headers=headers)
+    assert exported.status_code == 200
+    assert exported.headers["content-type"].startswith("application/pdf")
+    assert exported.headers["content-disposition"].endswith('filename="paper-annotated.pdf"')
+    exported_reader = PdfReader(BytesIO(exported.content))
+    annots = exported_reader.pages[0].get("/Annots")
+    assert annots is not None and len(annots) == 1
+    annotation = annots[0].get_object()
+    assert annotation["/Subtype"] == "/Highlight"
+    assert annotation["/Contents"] == "Review this claim"
+
+    original = client.get(f"/api/v1/explore/documents/{document_id}/file", headers=headers)
+    original_reader = PdfReader(BytesIO(original.content))
+    assert original_reader.pages[0].get("/Annots") is None
+
