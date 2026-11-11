@@ -68,19 +68,20 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Validate PDFs, enforce the 12 MB limit, reject encrypted files, validate public import hosts, and cover ownership and persistence with tests.
 - [x] First reader shell refinement — give the PDF canvas more room, calm the toolbar/sidebar, improve focus-mode framing, and add a responsive annotation surface while retaining the celestial theme.
 - [x] Add reader keyboard shortcuts: Ctrl/Cmd+F for search, arrow/PageUp/PageDown navigation, +/- zoom, and Escape to clear the active selection.
-- [ ] Reading ergonomics — verify fit-width/fit-page/manual zoom, page indicator, smooth navigation, robust responsive layout, and persistent reading position across real documents.
-- [x] Rendering quality/performance first pass — mount full PDF canvas/text layers only for the current page and four pages either side; retain lightweight scroll slots for the rest.
-- [ ] Evaluate a maintained virtualized PDF.js layer (Lector) against the current custom renderer; test varied page sizes and very long documents.
+- [x] Add browser regression coverage for fit-width, fit-page, manual +/- zoom, page indicators, page navigation, and reading-position restoration.
+- [ ] Validate reading ergonomics against a representative set of real PDFs, including unusually tall/wide pages and very long documents.
+- [x] Rendering quality/performance pass — mount full PDF canvas/text layers only for the current page and four pages either side; retain lightweight scroll slots and measure nearby page dimensions so mixed-size documents keep a more accurate scroll track.
+- [x] Evaluate Lector against the custom PDF.js renderer. Defer adoption: current Lector docs require pdfjs-dist ^5.5.207 while Atlas uses 6.4.299, and Lector has an open PDF.js 6.x compatibility issue. Keep the custom renderer until the dependency gap closes and a migration spike proves feature parity.
 - [x] Selection-first annotations — floating toolbar for highlight, underline, strike-through, and anchored comment; four highlight colours; selected-text and page context.
 - [x] Add an annotation list with page-jump navigation and deletion; preserve legacy page-only notes as page-comment annotations during migration.
 - [x] Add locked highlighter/underline modes with a persistent colour choice for repeated marking.
-- [x] Annotation management first pass — search/filter by passage, type, and colour; inline editing of existing comments.
-- [ ] Refine mark type/colour editing and add dependable mutation retry/error recovery.
+- [x] Annotation management — search/filter by passage, type, and colour; edit mark type, colour, and comment; provide retryable recovery for failed create, update, and delete mutations.
 - [ ] Add freehand ink/area markup only if it fits naturally into the reading flow and can be persisted accessibly.
 - [x] Export a separate PDF copy with standard highlight, underline, and strike-through annotations embedded; never modify the original upload.
-- [x] Add paper, sepia, and dark reading themes with the original PDF content preserved.
-- [ ] Tune contrast for varied source PDFs and add per-document theme persistence.
-- [ ] Complete keyboard, screen-reader, touch, and mobile interaction testing for the reader.
+- [x] Add paper, sepia, and dark reading themes with per-document persistence; themes affect the reading surround, not source-page pixels, to preserve contrast across different PDFs.
+- [ ] Review theme contrast against a representative set of real source PDFs and displays.
+- [x] Add reader accessibility foundations: semantic navigation tabs, live page status, visible keyboard focus, arrow-key tab navigation, larger touch targets, mobile layout refinements, and reduced-motion handling.
+- [ ] Complete manual screen-reader and real-device touch/mobile testing before claiming full accessibility completion.
 
 **Explicit non-goals:** standalone notes, whiteboards, topic workspaces, knowledge graphs, web article research, social/sharing features, and automatic knowledge organization.
 
@@ -97,13 +98,13 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 The next PR should finish the remaining reader work as one cohesive quality pass before starting another product module.
 
-1. Reproduce and document reader behaviour with a representative PDF set: varied page sizes, long documents, and documents with/without outlines.
-2. Verify fit-width, fit-page, manual zoom, page indicators, smooth navigation, and reading-position persistence; fix gaps found by those checks.
-3. Evaluate Lector against the current custom PDF.js renderer for compatibility, performance, and maintenance cost. Record the decision before replacing rendering infrastructure.
-4. Complete annotation editing for mark type/colour and add reliable retry/error recovery for annotation mutations.
-5. Tune paper, sepia, and dark theme contrast against varied PDFs and persist the selected theme per document.
-6. Complete keyboard, screen-reader, touch, and mobile interaction coverage for the reader, including reduced-motion behaviour.
-7. Add automated regression tests for the fixes and update the reader documentation/status only after verification.
+1. [x] Add representative browser fixtures for mixed portrait/landscape/tall pages, a 120-page document, and documents with and without outlines. Real-world PDF sampling remains a manual follow-up.
+2. [x] Cover fit-width, fit-page, manual zoom shortcuts, page indicators, outline navigation, and reading-position restoration in Playwright.
+3. [x] Evaluate Lector and record the compatibility-based defer decision; do not replace the renderer until PDF.js 6.x support is available and migration parity is demonstrated.
+4. [x] Add mark type/colour editing and retry recovery for failed annotation create, update, and delete operations.
+5. [x] Persist paper/sepia/dark theme per document and tune the ambient reading surface without filtering source-page pixels. Review contrast on real PDFs remains open.
+6. [x] Add semantic controls, keyboard tab navigation, focus visibility, mobile/touch-target styling, and reduced-motion coverage. Manual assistive-technology and physical-device checks remain open.
+7. [x] Add automated regression coverage and update reader documentation/status.
 
 Keep freehand ink/area markup out of this PR unless the evaluation shows it is essential to the reading workflow; it is explicitly optional.
 
