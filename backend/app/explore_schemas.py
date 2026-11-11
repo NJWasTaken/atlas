@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing import Annotated, Literal
 
 
@@ -65,6 +65,18 @@ class AnnotationCreate(BaseModel):
     note: str = Field(default="", max_length=12000)
     annotation_type: Literal["highlight", "underline", "strikeout"] = "highlight"
     color: Literal["yellow", "green", "blue", "pink"] = "yellow"
+
+    @field_validator("selected_text")
+    @classmethod
+    def clean_selected_text(cls, value: str | None) -> str | None:
+        cleaned = value.strip() if value else None
+        return cleaned or None
+
+    @model_validator(mode="after")
+    def require_pdf_anchor(self):
+        if not self.selected_text or not self.highlight_rects:
+            raise ValueError("Select text in the PDF before creating an annotation")
+        return self
 
     @field_validator("note")
     @classmethod
