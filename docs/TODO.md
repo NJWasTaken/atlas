@@ -61,7 +61,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Persist page bookmarks and page-relative text-selection highlights/annotations per document.
 - [x] Validate PDFs, enforce the 12 MB limit, reject encrypted files, validate public import hosts, and cover ownership and persistence with tests.
 - [x] First reader shell refinement — give the PDF canvas more room, calm the toolbar/sidebar, improve focus-mode framing, and add a responsive annotation surface while retaining the celestial theme.
-- [ ] Reading ergonomics — reliable fit-width/fit-page/manual zoom, page indicator, keyboard shortcuts, smooth navigation, robust responsive layout, and persistent reading position.
+- [x] Add reader keyboard shortcuts: Ctrl/Cmd+F for search, arrow/PageUp/PageDown navigation, +/- zoom, and Escape to clear the active selection.\n- [ ] Reading ergonomics — verify fit-width/fit-page/manual zoom, page indicator, smooth navigation, robust responsive layout, and persistent reading position across real documents.
 - [ ] Rendering quality/performance — evaluate a maintained virtualized PDF.js layer (Lector) against the current custom renderer; support long documents without mounting every page at once.
 - [x] Selection-first annotations — floating toolbar for highlight, underline, strike-through, and anchored comment; four highlight colours; selected-text and page context.
 - [ ] Annotation management — searchable/filterable annotation list, jump-to-source navigation, edit/delete, visible mark states, and dependable autosave/error recovery.
