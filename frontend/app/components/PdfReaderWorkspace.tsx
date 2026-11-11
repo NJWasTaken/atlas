@@ -162,7 +162,7 @@ export default function PdfReaderWorkspace(props:Props) {
   const [editingAnnotationColor,setEditingAnnotationColor]=useState<"yellow"|"green"|"blue"|"pink">("yellow");
   const [annotationRetry,setAnnotationRetry]=useState<{message:string;run:()=>Promise<void>}|null>(null);
   const [readingTheme,setReadingTheme]=useState<"paper"|"sepia"|"dark">("paper");
-  const [themeLoaded,setThemeLoaded]=useState(false);
+  const [themeDocumentId,setThemeDocumentId]=useState<number|null>(null);
   const [exporting,setExporting]=useState(false);
   const [saving,setSaving]=useState(false);
   const [showSearch,setShowSearch]=useState(false);
@@ -174,18 +174,17 @@ export default function PdfReaderWorkspace(props:Props) {
   const scaleRequest=useRef(0);
 
   useEffect(()=>{
-    setThemeLoaded(false);
     try{
       const saved=window.localStorage.getItem(`atlas:pdf-theme:${documentId}`);
       setReadingTheme(saved==="sepia"||saved==="dark"?saved:"paper");
     }catch{setReadingTheme("paper");}
-    setThemeLoaded(true);
+    setThemeDocumentId(documentId);
   },[documentId]);
   useEffect(()=>{
-    if(!themeLoaded)return;
+    if(themeDocumentId!==documentId)return;
     try{window.localStorage.setItem(`atlas:pdf-theme:${documentId}`,readingTheme);}
     catch{onError("Could not save this document's reading theme in this browser.");}
-  },[documentId,readingTheme,themeLoaded,onError]);
+  },[documentId,readingTheme,themeDocumentId,onError]);
 
   useEffect(()=>{
     let cancelled=false;let task:any;
@@ -466,7 +465,7 @@ export default function PdfReaderWorkspace(props:Props) {
         <div className="atlas-reader-status" role="status" aria-live="polite"><span>PAGE {page} OF {pageCount}</span><span>{Math.round(page/pageCount*100)}% THROUGH</span></div>
       </main>
       {sidebarOpen&&<aside className="atlas-reader-sidebar">
-        <div className="atlas-reader-tabs" role="tablist" aria-label="PDF navigation panels">
+        <div className="atlas-reader-tabs" role="tablist" aria-label="PDF navigation panels" onKeyDown={event=>{if(event.key!=="ArrowRight"&&event.key!=="ArrowLeft")return;event.preventDefault();const panels=["thumbnails","outline","annotations","bookmarks"] as const;const current=panels.indexOf(activePanel);const next=panels[(current+(event.key==="ArrowRight"?1:-1)+panels.length)%panels.length];setActivePanel(next);window.requestAnimationFrame(()=>document.getElementById("atlas-reader-tab-"+next)?.focus());}}>
           <button role="tab" aria-selected={activePanel==="thumbnails"} aria-controls="atlas-reader-panel-thumbnails" id="atlas-reader-tab-thumbnails" className={activePanel==="thumbnails"?"active":""} onClick={()=>setActivePanel("thumbnails")}><Grid2X2 size={14}/> Pages</button>
           <button role="tab" aria-selected={activePanel==="outline"} aria-controls="atlas-reader-panel-outline" id="atlas-reader-tab-outline" className={activePanel==="outline"?"active":""} onClick={()=>setActivePanel("outline")}><List size={14}/> Outline</button>
           <button role="tab" aria-selected={activePanel==="annotations"} aria-controls="atlas-reader-panel-annotations" id="atlas-reader-tab-annotations" className={activePanel==="annotations"?"active":""} onClick={()=>setActivePanel("annotations")}><StickyNote size={14}/> Marks <span>{annotations.length}</span></button>
