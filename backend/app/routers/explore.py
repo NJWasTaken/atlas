@@ -217,7 +217,7 @@ def add_annotation(document_id: int, data: AnnotationCreate, db: Session = Depen
     document = owned_document(db, document_id, user.id)
     if data.page_number > document.page_count:
         raise HTTPException(422, "Page number is outside this document.")
-    annotation = ExploreAnnotation(document_id=document_id, page_number=data.page_number, selected_text=data.selected_text, highlight_rects=[rect.model_dump() for rect in data.highlight_rects], note=data.note.strip())
+    annotation = ExploreAnnotation(document_id=document_id, page_number=data.page_number, selected_text=data.selected_text, highlight_rects=[rect.model_dump() for rect in data.highlight_rects], note=data.note.strip(), annotation_type=data.annotation_type, color=data.color)
     db.add(annotation)
     db.commit()
     db.refresh(annotation)
