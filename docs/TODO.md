@@ -72,6 +72,15 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 **Explicit non-goals:** standalone notes, whiteboards, topic workspaces, knowledge graphs, web article research, social/sharing features, AI chat, and automatic knowledge organization.
 
+### Design references
+
+- [Zotero PDF Reader](https://www.zotero.org/support/pdf_reader) — selection popovers, fast colour selection, locked highlighter/underline modes, annotation lists, and page-jump navigation. Borrow the reading/annotation loop, not its standalone note editor.
+- [Lector](https://github.com/anaralabs/lector) — React/PDF.js primitives and virtualized page rendering; evaluate as a possible replacement for the current custom page layer after checking PDF.js version compatibility.
+- [PDF.js](https://github.com/mozilla/pdf.js) — keep this as the rendering foundation rather than implementing a PDF engine.
+- [Okular](https://okular.kde.org/) — practical annotation tools, document navigation, and keyboard-oriented workflows.
+- [Stirling PDF](https://docs.stirlingpdf.com/Functionality/Read-and-Annotate/) — annotation review and standards-friendly PDF export patterns.
+- [Folio](https://github.com/owenpkent/folio) — reading-first ergonomics, focus, and accessibility ideas; treat as an evolving reference rather than a proven production baseline.
+
 ## My Universe
 
 - [ ] Implement personal notes and saved resources/concepts.
