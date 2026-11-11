@@ -399,10 +399,13 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByLabel("Comment").fill("Compare this result with the lecture discussion.");
   await page.getByRole("button",{name:"Save highlight & comment"}).click();
   await expect(page.getByText("Compare this result with the lecture discussion.")).toBeVisible();
-  await page.getByRole("button",{name:"Edit comment"}).click();
+  await page.getByRole("button",{name:"Edit annotation"}).click();
   await page.getByLabel("Edit annotation comment").fill("Revisit this argument in the next reading.");
-  await page.getByRole("button",{name:"Save",exact:true}).click();
+  await page.getByLabel("Edit annotation type").selectOption("underline");
+  await page.getByLabel("Edit annotation colour").selectOption("pink");
+  await page.getByRole("button",{name:"Save changes"}).click();
   await expect(page.getByText("Revisit this argument in the next reading.")).toBeVisible();
+  await expect(page.locator(".atlas-pdf-mark-underline.atlas-pdf-color-pink")).toHaveCount(1);
   await page.getByLabel("Filter annotation colour").selectOption("green");
   await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(1);
   await page.getByLabel("Filter annotation colour").selectOption("all");
