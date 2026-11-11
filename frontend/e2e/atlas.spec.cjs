@@ -541,7 +541,7 @@ test("PDF reader navigates a long mixed-size document with an outline on mobile"
   expect(landscapeRatio).toBeGreaterThan(1);
   await expect.poll(()=>doc?.last_page).toBe(116);
   await expect(page.locator(".atlas-pdf-page")).toHaveCount(9);
-  await expect(page.locator(".atlas-reader-tabs [role=tab"][aria-selected="true"])).toHaveCount(1);
+  await expect(page.getByRole("tab",{name:/Outline/})).toHaveAttribute("aria-selected","true");
   await expect.poll(()=>page.locator(".atlas-reader-tabs button").first().evaluate(node=>parseFloat(getComputedStyle(node).minHeight))).toBeGreaterThanOrEqual(42);
   await expect(page.locator(".atlas-pdf-scroll")).toHaveAttribute("aria-label","PDF pages");
 });
