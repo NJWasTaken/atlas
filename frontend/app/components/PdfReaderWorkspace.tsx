@@ -171,6 +171,7 @@ export default function PdfReaderWorkspace(props:Props) {
   const pageRefs=useRef<Map<number,HTMLDivElement>>(new Map());
   const pdfRef=useRef<PdfDocument|null>(null);
   const scaleMode=useRef<"width"|"page"|number>("width");
+  const scaleRequest=useRef(0);
 
   useEffect(()=>{
     let cancelled=false;let task:any;
@@ -209,10 +210,12 @@ export default function PdfReaderWorkspace(props:Props) {
   },[pdfUrl,onError]);
 
   const updateScale=useCallback(()=>{
-    const container=scrollRef.current;if(!container||!pdfRef.current)return;
+    const container=scrollRef.current;const document=pdfRef.current;if(!container||!document)return;
+    const request=++scaleRequest.current;
     const width=Math.max(260,container.clientWidth-56);
     const pageHeight=Math.max(280,container.clientHeight-48);
-    pdfRef.current.getPage(page).then((p:any)=>{
+    document.getPage(page).then((p:any)=>{
+      if(request!==scaleRequest.current)return;
       const base=p.getViewport({scale:1});
       const widthScale=width/base.width;
       const fitPage=Math.min(widthScale,pageHeight/base.height);
