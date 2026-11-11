@@ -156,7 +156,13 @@ export default function PdfReaderWorkspace(props:Props) {
   const [annotationColorFilter,setAnnotationColorFilter]=useState("all");
   const [editingAnnotationId,setEditingAnnotationId]=useState<number|null>(null);
   const [editingAnnotationNote,setEditingAnnotationNote]=useState("");
-  const [readingTheme,setReadingTheme]=useState<"paper"|"sepia"|"dark">("paper");
+  const [editingAnnotationType,setEditingAnnotationType]=useState<"highlight"|"underline"|"strikeout">("highlight");
+  const [editingAnnotationColor,setEditingAnnotationColor]=useState<"yellow"|"green"|"blue"|"pink">("yellow");
+  const [readingTheme,setReadingTheme]=useState<"paper"|"sepia"|"dark">(()=>{
+    if(typeof window==="undefined")return "paper";
+    const saved=window.localStorage.getItem(`atlas:pdf-theme:${documentId}`);
+    return saved==="sepia"||saved==="dark"?saved:"paper";
+  });
   const [exporting,setExporting]=useState(false);
   const [saving,setSaving]=useState(false);
   const [showSearch,setShowSearch]=useState(false);
@@ -325,10 +331,10 @@ export default function PdfReaderWorkspace(props:Props) {
     lastAutoSavedRevision.current=selectionRevision;
     void saveAnnotation(lockedTool.type,lockedTool.color,"");
   },[selectionRevision,lockedTool]);
-  async function updateAnnotationComment(id:number){
+  async function updateAnnotation(id:number){
     setSaving(true);
     try{
-      const updated=await api<Annotation>(`/explore/documents/${documentId}/annotations/${id}`,{method:"PATCH",body:JSON.stringify({note:editingAnnotationNote})});
+      const updated=await api<Annotation>(`/explore/documents/${documentId}/annotations/${id}`,{method:"PATCH",body:JSON.stringify({note:editingAnnotationNote,annotation_type:editingAnnotationType,color:editingAnnotationColor})});
       onAnnotationsChange(annotations.map(item=>item.id===id?updated:item));
       setEditingAnnotationId(null);setEditingAnnotationNote("");
     }catch(error){onError(error instanceof Error?error.message:"Could not update annotation.");}
@@ -383,7 +389,7 @@ export default function PdfReaderWorkspace(props:Props) {
           <option value="yellow">Yellow</option><option value="green">Green</option><option value="blue">Blue</option><option value="pink">Pink</option>
         </select>
       </div>
-      <select aria-label="Reading theme" value={readingTheme} onChange={event=>setReadingTheme(event.target.value as typeof readingTheme)} className="atlas-reader-theme-select">
+      <select aria-label="Reading theme" value={readingTheme} onChange={event=>{const theme=event.target.value as typeof readingTheme;setReadingTheme(theme);try{window.localStorage.setItem(`atlas:pdf-theme:${documentId}`,theme);}catch{onError("Could not save this document's reading theme in this browser.");}}} className="atlas-reader-theme-select">
         <option value="paper">Paper</option><option value="sepia">Sepia</option><option value="dark">Dark</option>
       </select>
       <button className="atlas-reader-tool" onClick={()=>void exportAnnotatedPdf()} disabled={exporting} title="Download a copy with PDF annotations"><Download size={14}/>{exporting?"Exporting…":"Export PDF"}</button>
@@ -428,8 +434,15 @@ export default function PdfReaderWorkspace(props:Props) {
           {visibleAnnotations.length?visibleAnnotations.map(item=><article className={`atlas-reader-note atlas-reader-mark-card atlas-pdf-color-${item.color}`} key={item.id}>
             <button className="atlas-reader-note-page" onClick={()=>goToPage(item.page_number)}>{item.annotation_type.toUpperCase()} · PAGE {item.page_number} <ArrowUpRight size={11}/></button>
             {item.selected_text&&<blockquote>{item.selected_text}</blockquote>}
-            {editingAnnotationId===item.id?<div className="atlas-reader-edit-comment"><textarea aria-label="Edit annotation comment" rows={3} value={editingAnnotationNote} onChange={event=>setEditingAnnotationNote(event.target.value)}/><div><button onClick={()=>void updateAnnotationComment(item.id)} disabled={saving}>Save</button><button onClick={()=>setEditingAnnotationId(null)}>Cancel</button></div></div>:item.note&&<p>{item.note}</p>}
-            <div className="atlas-reader-mark-actions">{item.note&&<button onClick={()=>{setEditingAnnotationId(item.id);setEditingAnnotationNote(item.note);}}>Edit comment</button>}<button className="atlas-reader-note-delete" onClick={()=>void deleteAnnotation(item.id)} aria-label="Delete annotation"><Trash2 size={12}/></button></div>
+            {editingAnnotationId===item.id?<div className="atlas-reader-edit-comment">
+              <label>Comment<textarea aria-label="Edit annotation comment" rows={3} value={editingAnnotationNote} onChange={event=>setEditingAnnotationNote(event.target.value)}/></label>
+              <div className="atlas-reader-annotation-edit-fields">
+                <label>Mark type<select aria-label="Edit annotation type" value={editingAnnotationType} onChange={event=>setEditingAnnotationType(event.target.value as typeof editingAnnotationType)}><option value="highlight">Highlight</option><option value="underline">Underline</option><option value="strikeout">Strike-through</option></select></label>
+                <label>Colour<select aria-label="Edit annotation colour" value={editingAnnotationColor} onChange={event=>setEditingAnnotationColor(event.target.value as typeof editingAnnotationColor)}><option value="yellow">Yellow</option><option value="green">Green</option><option value="blue">Blue</option><option value="pink">Pink</option></select></label>
+              </div>
+              <div><button onClick={()=>void updateAnnotation(item.id)} disabled={saving}>Save changes</button><button onClick={()=>setEditingAnnotationId(null)} disabled={saving}>Cancel</button></div>
+            </div>:item.note&&<p>{item.note}</p>}
+            <div className="atlas-reader-mark-actions"><button onClick={()=>{setEditingAnnotationId(item.id);setEditingAnnotationNote(item.note);setEditingAnnotationType(item.annotation_type==="comment"?"highlight":item.annotation_type);setEditingAnnotationColor(item.color);}}>Edit annotation</button><button className="atlas-reader-note-delete" onClick={()=>void deleteAnnotation(item.id)} aria-label="Delete annotation"><Trash2 size={12}/></button></div>
           </article>):<p className="atlas-reader-empty">{annotations.length?"No annotations match these filters.":"Select a passage in the PDF to highlight it or attach a comment."}</p>}
         </div>}
         {activePanel==="bookmarks"&&<div className="atlas-pdf-sidebar-scroll"><div className="atlas-reader-list-heading">BOOKMARKED PAGES</div>{bookmarks.length?bookmarks.map(mark=><article className="atlas-reader-bookmark" key={mark.id}><button onClick={()=>goToPage(mark.page_number)}><Bookmark size={13}/><span><strong>{mark.label}</strong><small>Page {mark.page_number}</small></span><ArrowUpRight size={13}/></button><button className="atlas-reader-note-delete" onClick={()=>void deleteBookmark(mark.id)} aria-label="Remove bookmark"><Trash2 size={12}/></button></article>):<p className="atlas-reader-empty">Bookmark a page to find your way back to it.</p>}</div>}
