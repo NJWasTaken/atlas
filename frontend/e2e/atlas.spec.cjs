@@ -479,6 +479,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByPlaceholder("Search words or phrases in this PDF…").fill("searchable text");
   await page.getByRole("button",{name:"Find"}).click();
   await expect(page.locator(".atlas-pdf-search-results")).toContainText("Page 1");
+  await page.getByLabel("Reading theme").selectOption("dark");
   await page.getByRole("button",{name:"Library"}).click();
   await expect(page.getByText("Page 3 of 8")).toBeVisible();
   await page.getByRole("button",{name:/Research paper/}).click();
