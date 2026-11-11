@@ -45,6 +45,13 @@ def test_bookmarks_and_annotations_are_document_scoped(client):
     assert saved["annotation_type"] == "underline"
     assert saved["color"] == "blue"
     assert saved["highlight_rects"] == [{"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.03}]
+    mark_only = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "selected_text": "A second passage", "highlight_rects": [{"x": 0.2, "y": 0.4, "width": 0.3, "height": 0.02}]})
+    assert mark_only.status_code == 201
+    assert mark_only.json()["note"] == ""
+    assert mark_only.json()["annotation_type"] == "highlight"
+    assert mark_only.json()["color"] == "yellow"
+    invalid_style = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "selected_text": "Invalid style", "annotation_type": "circle", "color": "orange", "highlight_rects": [{"x": 0.2, "y": 0.4, "width": 0.3, "height": 0.02}]})
+    assert invalid_style.status_code == 422
     invalid_rect = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "note": "Invalid", "highlight_rects": [{"x": 1.2, "y": 0.2, "width": 0.4, "height": 0.03}]})
     assert invalid_rect.status_code == 422
     other = register(client, "other-reader@example.com")
