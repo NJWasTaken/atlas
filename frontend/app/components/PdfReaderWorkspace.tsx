@@ -4,14 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, ArrowUpRight, Bookmark, BookOpen, Check, ChevronLeft, ChevronRight,
   FileText, List, LoaderCircle, Maximize2, Minus, Plus, Search, StickyNote,
-  Grid2X2, Trash2, X, PanelLeftClose, PanelLeftOpen,
+  Grid2X2, Trash2, X, PanelLeftClose, PanelLeftOpen, Highlighter, Underline, Lock, Download,
 } from "lucide-react";
-import { api } from "../../lib/api";
+import { api, apiBlob } from "../../lib/api";
 
 type PdfDocument = any;
 type Mark = { id:number; page_number:number; label:string };
 type Rect = { x:number; y:number; width:number; height:number };
-type Annotation = { id:number; page_number:number; selected_text:string|null; note:string; highlight_rects:Rect[]|null; created_at:string; updated_at:string };
+type Annotation = { id:number; page_number:number; selected_text:string|null; note:string; highlight_rects:Rect[]|null; annotation_type:"highlight"|"underline"|"strikeout"|"comment"; color:"yellow"|"green"|"blue"|"pink"; created_at:string; updated_at:string };
 type OutlineItem = { title:string; page:number|null; depth:number };
 type Props = {
   documentId:number; title:string; pageCount:number; pdfUrl:string; initialPage:number;
@@ -23,7 +23,7 @@ type Props = {
 
 function clamp(n:number,min:number,max:number){return Math.min(max,Math.max(min,n));}
 
-function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:PdfDocument;pageNumber:number;scale:number;searchTerm:string;annotations:Annotation[];onSelect:(page:number,text:string,rects:Rect[])=>void}) {
+function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:PdfDocument;pageNumber:number;scale:number;searchTerm:string;annotations:Annotation[];onSelect:(page:number,text:string,rects:Rect[],anchor:{left:number;top:number;width:number;height:number})=>void}) {
   const host=useRef<HTMLDivElement>(null);
   const canvasRef=useRef<HTMLCanvasElement>(null);
   const [dimensions,setDimensions]=useState({width:0,height:0});
@@ -61,7 +61,6 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
             const span=document.createElement("span");
             const fontHeight=Math.max(1,Math.hypot(tx[2],tx[3]));
             span.textContent=item.str;
-            if(searchTerm&&item.str.toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase()))span.className="atlas-pdf-search-hit";
             span.style.left=`${tx[4]}px`;
             span.style.top=`${tx[5]-fontHeight}px`;
             span.style.fontSize=`${fontHeight}px`;
@@ -77,6 +76,16 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
     observer.observe(hostNode);
     return ()=>{cancelled=true;observer.disconnect();try{renderTask?.cancel();}catch{};try{page?.cleanup();}catch{}};
   },[pdf,pageNumber,scale]);
+
+  useEffect(()=>{
+    const layer=host.current?.querySelector(".atlas-pdf-text-layer");
+    if(!layer)return;
+    const needle=searchTerm.trim().toLocaleLowerCase();
+    layer.querySelectorAll("span").forEach(span=>{
+      const hit=Boolean(needle&&span.textContent?.toLocaleLowerCase().includes(needle));
+      span.classList.toggle("atlas-pdf-search-hit",hit);
+    });
+  },[searchTerm,dimensions.width,dimensions.height]);
 
   const selectText=()=>{
     const selection=window.getSelection();
@@ -100,7 +109,7 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
       width:clamp(rect.width/pageRect.width,0,1),
       height:clamp(rect.height/pageRect.height,0,1),
     })).filter(rect=>rect.width>0&&rect.height>0);
-    onSelect(pageNumber,text,rects);
+    onSelect(pageNumber,text,rects,(()=>{const rect=range.getBoundingClientRect();return {left:rect.left,top:rect.top,width:rect.width,height:rect.height};})());
   };
 
   // Listen on the document too: PDF text selection can finish on an inner
@@ -110,12 +119,12 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
     document.addEventListener("mouseup",handleMouseUp);
     return()=>document.removeEventListener("mouseup",handleMouseUp);
   },[pageNumber,onSelect]);
-  return <div className="atlas-pdf-page-shell" id={`atlas-pdf-page-${pageNumber}`} data-page={pageNumber}>
+  return <div className="atlas-pdf-page-shell">
     <div className="atlas-pdf-page-label">PAGE {pageNumber}</div>
     <div className="atlas-pdf-page" ref={host} onMouseUp={selectText} style={{width:dimensions.width||"min(100%, 780px)",height:dimensions.height||Math.max(500,Math.round(990*scale))}}>
       <canvas ref={canvasRef} className="atlas-pdf-canvas"/>
       <div className="atlas-pdf-text-layer"/>
-      {annotations.filter(note=>note.page_number===pageNumber).flatMap(note=>(note.highlight_rects||[]).map((rect,index)=><span key={`${note.id}-${index}`} className="atlas-pdf-highlight" title={note.selected_text||note.note} style={{left:`${rect.x*100}%`,top:`${rect.y*100}%`,width:`${rect.width*100}%`,height:`${rect.height*100}%`}}/>))}
+      {annotations.filter(mark=>mark.page_number===pageNumber).flatMap(mark=>(mark.highlight_rects||[]).map((rect,index)=><span key={`${mark.id}-${index}`} className={`atlas-pdf-mark atlas-pdf-mark-${mark.annotation_type} atlas-pdf-color-${mark.color}`} title={mark.note||mark.selected_text||"PDF annotation"} style={{left:`${rect.x*100}%`,top:`${rect.y*100}%`,width:`${rect.width*100}%`,height:`${rect.height*100}%`}}/>))}
     </div>
   </div>;
 }
@@ -127,7 +136,7 @@ export default function PdfReaderWorkspace(props:Props) {
   const [page,setPage]=useState(initialPage);
   const [zoom,setZoom]=useState<"width"|"page"|number>("width");
   const [scale,setScale]=useState(1);
-  const [activePanel,setActivePanel]=useState<"thumbnails"|"outline"|"notes"|"bookmarks">("thumbnails");
+  const [activePanel,setActivePanel]=useState<"thumbnails"|"outline"|"annotations"|"bookmarks">("thumbnails");
   const [outline,setOutline]=useState<OutlineItem[]>([]);
   const [query,setQuery]=useState("");
   const [searching,setSearching]=useState(false);
@@ -136,6 +145,19 @@ export default function PdfReaderWorkspace(props:Props) {
   const [selectedRects,setSelectedRects]=useState<Rect[]>([]);
   const [selectedPage,setSelectedPage]=useState(initialPage);
   const [note,setNote]=useState("");
+  const [selectionAnchor,setSelectionAnchor]=useState<{left:number;top:number;width:number;height:number}|null>(null);
+  const [commentMode,setCommentMode]=useState(false);
+  const [lockedTool,setLockedTool]=useState<{type:"highlight"|"underline";color:"yellow"|"green"|"blue"|"pink"}|null>(null);
+  const [lockedColor,setLockedColor]=useState<"yellow"|"green"|"blue"|"pink">("yellow");
+  const [selectionRevision,setSelectionRevision]=useState(0);
+  const lastAutoSavedRevision=useRef(0);
+  const [annotationSearch,setAnnotationSearch]=useState("");
+  const [annotationTypeFilter,setAnnotationTypeFilter]=useState("all");
+  const [annotationColorFilter,setAnnotationColorFilter]=useState("all");
+  const [editingAnnotationId,setEditingAnnotationId]=useState<number|null>(null);
+  const [editingAnnotationNote,setEditingAnnotationNote]=useState("");
+  const [readingTheme,setReadingTheme]=useState<"paper"|"sepia"|"dark">("paper");
+  const [exporting,setExporting]=useState(false);
   const [saving,setSaving]=useState(false);
   const [showSearch,setShowSearch]=useState(false);
   const [sidebarOpen,setSidebarOpen]=useState(true);
@@ -211,15 +233,52 @@ export default function PdfReaderWorkspace(props:Props) {
         if(nearest!==page){setPage(nearest);onProgressChange(nearest);}
       });
     };
-    root.addEventListener("scroll",update,{passive:true});update();
-    return()=>{root.removeEventListener("scroll",update);cancelAnimationFrame(frame);};
+    const repositionSelection=()=>{
+      const selection=window.getSelection();
+      if(!selection||selection.isCollapsed||!selection.rangeCount){setSelectionAnchor(null);return;}
+      const rect=selection.getRangeAt(0).getBoundingClientRect();
+      if(rect.bottom<0||rect.top>window.innerHeight){setSelectionAnchor(null);return;}
+      setSelectionAnchor({left:rect.left,top:rect.top,width:rect.width,height:rect.height});
+    };
+    root.addEventListener("scroll",update,{passive:true});
+    root.addEventListener("scroll",repositionSelection,{passive:true});
+    update();
+    return()=>{root.removeEventListener("scroll",update);root.removeEventListener("scroll",repositionSelection);cancelAnimationFrame(frame);};
   },[pdf,scale,page,onProgressChange]);
 
   const goToPage=useCallback((next:number)=>{
-    const target=clamp(next,1,pageCount);setPage(target);onProgressChange(target);
+    const target=clamp(next,1,pageCount);setSelectionAnchor(null);setPage(target);onProgressChange(target);
     pageRefs.current.get(target)?.scrollIntoView({behavior:"smooth",block:"start"});
   },[pageCount,onProgressChange]);
   useEffect(()=>{if(pdf&&initialPage>1){const timer=window.setTimeout(()=>goToPage(initialPage),180);return()=>clearTimeout(timer);}},[pdf,initialPage,goToPage]);
+
+  useEffect(()=>{
+    const handleReaderKeys=(event:KeyboardEvent)=>{
+      const target=event.target as HTMLElement|null;
+      const editing=Boolean(target&&(target.isContentEditable||["INPUT","TEXTAREA","SELECT"].includes(target.tagName)));
+      if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="f"){
+        event.preventDefault();setShowSearch(true);return;
+      }
+      if(editing)return;
+      if(event.key==="Escape"){
+        setSelectionAnchor(null);setSelectedText("");setSelectedRects([]);setCommentMode(false);return;
+      }
+      if(event.key==="ArrowRight"||event.key==="PageDown"){
+        event.preventDefault();goToPage(page+1);return;
+      }
+      if(event.key==="ArrowLeft"||event.key==="PageUp"){
+        event.preventDefault();goToPage(page-1);return;
+      }
+      if(event.key==="+"||event.key==="="){
+        event.preventDefault();const next=clamp(Math.round(scale*100)+10,50,300);scaleMode.current=next;setZoom(next);setScale(next/100);return;
+      }
+      if(event.key==="-"){
+        event.preventDefault();const next=clamp(Math.round(scale*100)-10,50,300);scaleMode.current=next;setZoom(next);setScale(next/100);
+      }
+    };
+    window.addEventListener("keydown",handleReaderKeys);
+    return()=>window.removeEventListener("keydown",handleReaderKeys);
+  },[goToPage,page,scale]);
 
   async function searchPdf(event?:React.FormEvent){
     event?.preventDefault();if(!pdf||!query.trim())return;
@@ -244,16 +303,55 @@ export default function PdfReaderWorkspace(props:Props) {
     catch(error){onError(error instanceof Error?error.message:"Could not save bookmark.");}
     finally{setSaving(false);}
   }
-  async function saveAnnotation(event:React.FormEvent){
-    event.preventDefault();if(!note.trim())return;
+  async function saveAnnotation(annotationType:"highlight"|"underline"|"strikeout"="highlight",color:"yellow"|"green"|"blue"|"pink"="yellow",comment=note.trim()){
+    if(!selectedText.trim()||!selectedRects.length)return;
     setSaving(true);
     try{
-      const item=await api<Annotation>(`/explore/documents/${documentId}/annotations`,{method:"POST",body:JSON.stringify({page_number:selectedPage,selected_text:selectedText||null,note:note.trim(),highlight_rects:selectedRects})});
-      onAnnotationsChange([item,...annotations]);setNote("");setSelectedText("");setSelectedRects([]);
-      setActivePanel("notes");
+      const item=await api<Annotation>(`/explore/documents/${documentId}/annotations`,{method:"POST",body:JSON.stringify({page_number:selectedPage,selected_text:selectedText,note:comment,highlight_rects:selectedRects,annotation_type:annotationType,color})});
+      onAnnotationsChange([item,...annotations]);setNote("");setSelectedText("");setSelectedRects([]);setSelectionAnchor(null);setCommentMode(false);window.getSelection()?.removeAllRanges();
+      setActivePanel("annotations");
     }catch(error){onError(error instanceof Error?error.message:"Could not save annotation.");}
     finally{setSaving(false);}
   }
+  function toggleLockedTool(type:"highlight"|"underline"){
+    if(lockedTool?.type===type){setLockedTool(null);return;}
+    lastAutoSavedRevision.current=selectionRevision;
+    setLockedTool({type,color:lockedColor});
+    setCommentMode(false);
+  }
+  useEffect(()=>{
+    if(!lockedTool||selectionRevision===0||selectionRevision<=lastAutoSavedRevision.current)return;
+    if(!selectedText.trim()||!selectedRects.length)return;
+    lastAutoSavedRevision.current=selectionRevision;
+    void saveAnnotation(lockedTool.type,lockedTool.color,"");
+  },[selectionRevision,lockedTool]);
+  async function updateAnnotationComment(id:number){
+    setSaving(true);
+    try{
+      const updated=await api<Annotation>(`/explore/documents/${documentId}/annotations/${id}`,{method:"PATCH",body:JSON.stringify({note:editingAnnotationNote})});
+      onAnnotationsChange(annotations.map(item=>item.id===id?updated:item));
+      setEditingAnnotationId(null);setEditingAnnotationNote("");
+    }catch(error){onError(error instanceof Error?error.message:"Could not update annotation.");}
+    finally{setSaving(false);}
+  }
+  async function exportAnnotatedPdf(){
+    setExporting(true);
+    try{
+      const blob=await apiBlob(`/explore/documents/${documentId}/export`);
+      const url=URL.createObjectURL(blob);
+      const link=document.createElement("a");link.href=url;
+      const base=title.replace(/\.pdf$/i,"").replace(/[^a-z0-9-_]+/gi,"-").replace(/^-+|-+$/g,"")||"document";
+      link.download=`${base}-annotated.pdf`;document.body.appendChild(link);link.click();link.remove();
+      window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+    }catch(error){onError(error instanceof Error?error.message:"Could not export annotated PDF.");}
+    finally{setExporting(false);}
+  }
+  const visibleAnnotations=useMemo(()=>annotations.filter(item=>{
+    const text=`${item.selected_text||""} ${item.note||""}`.toLocaleLowerCase();
+    return (!annotationSearch.trim()||text.includes(annotationSearch.trim().toLocaleLowerCase()))
+      &&(annotationTypeFilter==="all"||item.annotation_type===annotationTypeFilter)
+      &&(annotationColorFilter==="all"||item.color===annotationColorFilter);
+  }),[annotations,annotationSearch,annotationTypeFilter,annotationColorFilter]);
   async function deleteBookmark(id:number){
     try{await api<void>(`/explore/documents/${documentId}/bookmarks/${id}`,{method:"DELETE"});onBookmarksChange(bookmarks.filter(item=>item.id!==id));}
     catch(error){onError(error instanceof Error?error.message:"Could not remove bookmark.");}
@@ -266,7 +364,7 @@ export default function PdfReaderWorkspace(props:Props) {
   const currentBookmark=bookmarks.some(mark=>mark.page_number===page);
   const pageNumbers=useMemo(()=>Array.from({length:pageCount},(_,index)=>index+1),[pageCount]);
 
-  return <div className={`atlas-reader ${readerMode?"is-focus":""}`}>
+  return <div className={`atlas-reader theme-${readingTheme} ${readerMode?"is-focus":""}`}>
     <header className="atlas-reader-header">
       <button className="atlas-reader-back" onClick={onExit}><ArrowLeft size={15}/> Library</button>
       <div className="atlas-reader-document-title"><FileText size={16}/><span>{title}</span><small>PDF</small></div>
@@ -278,15 +376,35 @@ export default function PdfReaderWorkspace(props:Props) {
       <button className={`atlas-reader-tool ${zoom==="width"?"active":""}`} onClick={()=>{scaleMode.current="width";setZoom("width");updateScale();}}>Fit width</button>
       <button className={`atlas-reader-tool ${zoom==="page"?"active":""}`} onClick={()=>{scaleMode.current="page";setZoom("page");updateScale();}}>Fit page</button>
       <div className="atlas-reader-zoom"><button onClick={()=>{const n=clamp(scale*100-10,50,300);scaleMode.current=n;setZoom(n);updateScale();}} aria-label="Zoom out"><Minus size={14}/></button><span>{Math.round(scale*100)}%</span><button onClick={()=>{const n=clamp(scale*100+10,50,300);scaleMode.current=n;setZoom(n);updateScale();}} aria-label="Zoom in"><Plus size={14}/></button></div>
+      <div className="atlas-reader-tool-group" aria-label="Annotation modes">
+        <button className={lockedTool?.type==="highlight"?"atlas-reader-tool active":"atlas-reader-tool"} onClick={()=>toggleLockedTool("highlight")} aria-pressed={lockedTool?.type==="highlight"} title="Lock highlighter mode" aria-label="Toggle locked highlight mode"><Highlighter size={14}/> Highlight {lockedTool?.type==="highlight"&&<Lock size={11}/>}</button>
+        <button className={lockedTool?.type==="underline"?"atlas-reader-tool active":"atlas-reader-tool"} onClick={()=>toggleLockedTool("underline")} aria-pressed={lockedTool?.type==="underline"} title="Lock underline mode" aria-label="Toggle locked underline mode"><Underline size={14}/> Underline {lockedTool?.type==="underline"&&<Lock size={11}/>}</button>
+        <select aria-label="Annotation colour" value={lockedColor} onChange={event=>{const color=event.target.value as typeof lockedColor;setLockedColor(color);setLockedTool(current=>current?{...current,color}:null);}} className="atlas-reader-theme-select">
+          <option value="yellow">Yellow</option><option value="green">Green</option><option value="blue">Blue</option><option value="pink">Pink</option>
+        </select>
+      </div>
+      <select aria-label="Reading theme" value={readingTheme} onChange={event=>setReadingTheme(event.target.value as typeof readingTheme)} className="atlas-reader-theme-select">
+        <option value="paper">Paper</option><option value="sepia">Sepia</option><option value="dark">Dark</option>
+      </select>
+      <button className="atlas-reader-tool" onClick={()=>void exportAnnotatedPdf()} disabled={exporting} title="Download a copy with PDF annotations"><Download size={14}/>{exporting?"Exporting…":"Export PDF"}</button>
       <button className={`atlas-reader-tool ${showSearch?"active":""}`} onClick={()=>setShowSearch(v=>!v)}><Search size={14}/> Search</button>
       <button className={`atlas-reader-tool ${currentBookmark?"active":""}`} onClick={()=>void addBookmark()} disabled={saving} title="Bookmark current page"><Bookmark size={14}/> Bookmark</button>
       <button className="atlas-reader-tool" onClick={()=>setSidebarOpen(v=>!v)} aria-label={sidebarOpen?"Hide sidebar":"Show sidebar"}>{sidebarOpen?<PanelLeftClose size={14}/>:<PanelLeftOpen size={14}/>}</button>
     </div>
     {showSearch&&<><form className="atlas-pdf-search" onSubmit={searchPdf}><Search size={15}/><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search words or phrases in this PDF…"/><button disabled={searching||!query.trim()}>{searching?"Searching…":"Find"}</button><button type="button" onClick={()=>{setShowSearch(false);setMatches([]);}} aria-label="Close search"><X size={15}/></button></form>{matches.length>0&&<div className="atlas-pdf-search-results" aria-live="polite">{matches.map((match,index)=><button key={`${match.page}-${index}`} onClick={()=>goToPage(match.page)}><strong>Page {match.page}</strong>{match.snippet}</button>)}</div>}{!searching&&query.trim()&&matches.length===0&&<div className="atlas-pdf-search-results"><span className="atlas-reader-empty">No matches found. Press Find to search the document.</span></div>}</>}
+    {selectionAnchor&&selectedText&&!lockedTool&&<div className="atlas-pdf-selection-toolbar" style={{left:`clamp(170px, ${selectionAnchor.left+selectionAnchor.width/2}px, calc(100vw - 170px))`,top:`max(12px, ${selectionAnchor.top-52}px)`}} role="toolbar" aria-label="Annotate selected text">
+      <span>Mark</span>
+      {(["yellow","green","blue","pink"] as const).map(color=><button key={color} type="button" className={`atlas-pdf-color-swatch atlas-pdf-swatch-${color}`} title={`Highlight ${color}`} aria-label={`Highlight in ${color}`} disabled={saving} onMouseDown={event=>event.preventDefault()} onClick={()=>void saveAnnotation("highlight",color,"")}/>)}
+      <i/>
+      <button type="button" onMouseDown={event=>event.preventDefault()} onClick={()=>void saveAnnotation("underline","yellow","")} disabled={saving} title="Underline selection">U</button>
+      <button type="button" onMouseDown={event=>event.preventDefault()} onClick={()=>void saveAnnotation("strikeout","pink","")} disabled={saving} title="Strike through selection"><s>S</s></button>
+      <button type="button" onMouseDown={event=>event.preventDefault()} onClick={()=>{setCommentMode(true);setActivePanel("annotations");setSidebarOpen(true);}} disabled={saving} title="Add a comment"><StickyNote size={14}/></button>
+      <button type="button" onMouseDown={event=>event.preventDefault()} onClick={()=>{setSelectedText("");setSelectedRects([]);setSelectionAnchor(null);}} aria-label="Dismiss selection toolbar"><X size={13}/></button>
+    </div>}
     <div className={`atlas-reader-body ${sidebarOpen?"":"sidebar-hidden"}`}>
       <main className="atlas-pdf-stage">
         <div className="atlas-pdf-scroll" ref={scrollRef}>
-          {loading?<div className="atlas-explore-state"><LoaderCircle className="atlas-spin" size={20}/>Preparing your reader…</div>:pdf?<div className="atlas-pdf-pages">{pageNumbers.map(number=><div key={number} ref={node=>{if(node)pageRefs.current.set(number,node);else pageRefs.current.delete(number);}}><PdfPage pdf={pdf} pageNumber={number} scale={scale} searchTerm={query} annotations={annotations} onSelect={(p,text,rects)=>{setSelectedPage(p);setSelectedText(text);setSelectedRects(rects);setActivePanel("notes");}}/></div>)}</div>:<div className="atlas-explore-state">Unable to render this PDF.</div>}
+          {loading?<div className="atlas-explore-state"><LoaderCircle className="atlas-spin" size={20}/>Preparing your reader…</div>:pdf?<div className="atlas-pdf-pages">{pageNumbers.map(number=><div key={number} id={`atlas-pdf-page-${number}`} data-page={number} className="atlas-pdf-virtual-slot" ref={node=>{if(node)pageRefs.current.set(number,node);else pageRefs.current.delete(number);}}>{Math.abs(number-page)<=4?<PdfPage pdf={pdf} pageNumber={number} scale={scale} searchTerm={query} annotations={annotations} onSelect={(p,text,rects,anchor)=>{setSelectedPage(p);setSelectedText(text);setSelectedRects(rects);setSelectionAnchor(anchor);setCommentMode(false);setSelectionRevision(value=>value+1);}}/>:<div className="atlas-pdf-virtual-placeholder" style={{height:Math.max(500,Math.round(990*scale))}} aria-hidden="true"/>}</div>)}</div>:<div className="atlas-explore-state">Unable to render this PDF.</div>}
         </div>
         <div className="atlas-reader-status"><span>PAGE {page} OF {pageCount}</span><span>{Math.round(page/pageCount*100)}% THROUGH</span></div>
       </main>
@@ -294,18 +412,28 @@ export default function PdfReaderWorkspace(props:Props) {
         <div className="atlas-reader-tabs">
           <button className={activePanel==="thumbnails"?"active":""} onClick={()=>setActivePanel("thumbnails")}><Grid2X2 size={14}/> Pages</button>
           <button className={activePanel==="outline"?"active":""} onClick={()=>setActivePanel("outline")}><List size={14}/> Outline</button>
-          <button className={activePanel==="notes"?"active":""} onClick={()=>setActivePanel("notes")}><StickyNote size={14}/> Notes <span>{annotations.length}</span></button>
+          <button className={activePanel==="annotations"?"active":""} onClick={()=>setActivePanel("annotations")}><StickyNote size={14}/> Marks <span>{annotations.length}</span></button>
           <button className={activePanel==="bookmarks"?"active":""} onClick={()=>setActivePanel("bookmarks")}><Bookmark size={14}/> Saved <span>{bookmarks.length}</span></button>
         </div>
         {activePanel==="thumbnails"&&<div className="atlas-pdf-sidebar-scroll">{pageNumbers.map(number=><button key={number} className={`atlas-pdf-thumb ${page===number?"active":""}`} onClick={()=>goToPage(number)}><PdfThumbnail pdf={pdf} page={number}/><span>{number}</span></button>)}</div>}
         {activePanel==="outline"&&<div className="atlas-pdf-sidebar-scroll">{outline.length?outline.map((item,index)=><button key={index} className="atlas-pdf-outline-item" style={{paddingLeft:12+item.depth*13}} disabled={!item.page} onClick={()=>item.page&&goToPage(item.page)}><span>{item.title}</span>{item.page&&<small>{item.page}</small>}</button>):<p className="atlas-reader-empty">This document does not contain a navigable outline.</p>}</div>}
-        {activePanel==="notes"&&<div className="atlas-pdf-sidebar-scroll">
-          <form className="atlas-reader-note-form" onSubmit={saveAnnotation}><p className="eyebrow">ANNOTATE YOUR READING</p><span>{selectedText? `Selected passage · Page ${selectedPage}`:`Page ${page}`}</span>{selectedText&&<blockquote className="atlas-pdf-selection-preview">{selectedText}</blockquote>}<label>Your note<textarea rows={4} required value={note} onChange={e=>setNote(e.target.value)} placeholder="What stood out? What do you want to investigate?"/></label><button className="atlas-button atlas-primary atlas-full" disabled={saving||!note.trim()}>{saving?"Saving…":selectedRects.length?"Save highlight & note":"Save page note"}<Check size={14}/></button></form>
-          <div className="atlas-reader-list-heading">YOUR ANNOTATIONS</div>
-          {annotations.length?annotations.map(item=><article className="atlas-reader-note" key={item.id}><button className="atlas-reader-note-page" onClick={()=>goToPage(item.page_number)}>PAGE {item.page_number} <ArrowUpRight size={11}/></button>{item.selected_text&&<blockquote>{item.selected_text}</blockquote>}<p>{item.note}</p><button className="atlas-reader-note-delete" onClick={()=>void deleteAnnotation(item.id)} aria-label="Delete annotation"><Trash2 size={12}/></button></article>):<p className="atlas-reader-empty">Select text on a page to highlight it, then add a note. Page notes work too.</p>}
+        {activePanel==="annotations"&&<div className="atlas-pdf-sidebar-scroll">
+          {selectedText&&commentMode&&<form className="atlas-reader-note-form" onSubmit={event=>{event.preventDefault();void saveAnnotation("highlight","yellow",note.trim());}}><p className="eyebrow">SELECTED PASSAGE · PAGE {selectedPage}</p><blockquote className="atlas-pdf-selection-preview">{selectedText}</blockquote><label>Comment <small>OPTIONAL · ATTACHED TO THIS MARK</small><textarea rows={3} value={note} onChange={e=>setNote(e.target.value)} placeholder="Add context to this highlight…"/></label><div className="atlas-reader-annotation-form-actions"><button type="submit" className="atlas-button atlas-primary atlas-full" disabled={saving||!selectedRects.length}>{saving?"Saving…":"Save highlight & comment"}<Check size={14}/></button><button type="button" onClick={()=>{setSelectedText("");setSelectedRects([]);setSelectionAnchor(null);setNote("");}} className="atlas-reader-clear-selection">Clear selection</button></div></form>}
+          <div className="atlas-reader-list-heading">ANNOTATIONS · {visibleAnnotations.length} OF {annotations.length}</div>
+          <input className="atlas-reader-annotation-search" aria-label="Search annotations" value={annotationSearch} onChange={event=>setAnnotationSearch(event.target.value)} placeholder="Find a passage or comment…"/>
+          <div className="atlas-reader-annotation-filters">
+            <select aria-label="Filter annotation type" value={annotationTypeFilter} onChange={event=>setAnnotationTypeFilter(event.target.value)}><option value="all">All marks</option><option value="highlight">Highlights</option><option value="underline">Underlines</option><option value="strikeout">Strike-throughs</option><option value="comment">Comments</option></select>
+            <select aria-label="Filter annotation colour" value={annotationColorFilter} onChange={event=>setAnnotationColorFilter(event.target.value)}><option value="all">All colours</option><option value="yellow">Yellow</option><option value="green">Green</option><option value="blue">Blue</option><option value="pink">Pink</option></select>
+          </div>
+          {visibleAnnotations.length?visibleAnnotations.map(item=><article className={`atlas-reader-note atlas-reader-mark-card atlas-pdf-color-${item.color}`} key={item.id}>
+            <button className="atlas-reader-note-page" onClick={()=>goToPage(item.page_number)}>{item.annotation_type.toUpperCase()} · PAGE {item.page_number} <ArrowUpRight size={11}/></button>
+            {item.selected_text&&<blockquote>{item.selected_text}</blockquote>}
+            {editingAnnotationId===item.id?<div className="atlas-reader-edit-comment"><textarea aria-label="Edit annotation comment" rows={3} value={editingAnnotationNote} onChange={event=>setEditingAnnotationNote(event.target.value)}/><div><button onClick={()=>void updateAnnotationComment(item.id)} disabled={saving}>Save</button><button onClick={()=>setEditingAnnotationId(null)}>Cancel</button></div></div>:item.note&&<p>{item.note}</p>}
+            <div className="atlas-reader-mark-actions">{item.note&&<button onClick={()=>{setEditingAnnotationId(item.id);setEditingAnnotationNote(item.note);}}>Edit comment</button>}<button className="atlas-reader-note-delete" onClick={()=>void deleteAnnotation(item.id)} aria-label="Delete annotation"><Trash2 size={12}/></button></div>
+          </article>):<p className="atlas-reader-empty">{annotations.length?"No annotations match these filters.":"Select a passage in the PDF to highlight it or attach a comment."}</p>}
         </div>}
         {activePanel==="bookmarks"&&<div className="atlas-pdf-sidebar-scroll"><div className="atlas-reader-list-heading">BOOKMARKED PAGES</div>{bookmarks.length?bookmarks.map(mark=><article className="atlas-reader-bookmark" key={mark.id}><button onClick={()=>goToPage(mark.page_number)}><Bookmark size={13}/><span><strong>{mark.label}</strong><small>Page {mark.page_number}</small></span><ArrowUpRight size={13}/></button><button className="atlas-reader-note-delete" onClick={()=>void deleteBookmark(mark.id)} aria-label="Remove bookmark"><Trash2 size={12}/></button></article>):<p className="atlas-reader-empty">Bookmark a page to find your way back to it.</p>}</div>}
-        <div className="atlas-reader-sidebar-foot"><BookOpen size={13}/> Notes and highlights stay with this document.</div>
+        <div className="atlas-reader-sidebar-foot"><BookOpen size={13}/> Annotations stay attached to this document.</div>
       </aside>}
     </div>
   </div>;

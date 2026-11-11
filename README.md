@@ -374,115 +374,45 @@ The examination system should integrate with Home and the calendar.
 
 ## 3. Explore
 
-**Purpose:** Provide an environment for independent learning beyond university coursework.
+**Purpose:** Provide a calm, dependable environment for reading and annotating PDFs.
 
-Explore is where students can follow curiosity without needing to justify every activity through examination preparation.
+Explore is deliberately narrow: the PDF being read is the centre of the experience. It is not a general research workspace or a second knowledge-management system.
 
-It should support both spontaneous discovery and structured exploration.
+### 3.0 Private PDF library
 
-### 3.0 PDF reading library
+Students can upload PDFs from their device or import them from public HTTP(S) links. Atlas stores each document in the student's account so it remains available with its reading position, bookmarks, and annotations.
 
-Explore includes a private PDF reading library for independent study.
+### 3.1 Reading experience
 
-Students can upload PDFs from their device or import them from public HTTP(S) links. Atlas stores the document in the student's account so it remains available with reading progress, bookmarks, and notes.
+The reader is powered by a bundled PDF.js renderer. It should make long-form reading feel effortless through:
 
-The reading workspace is powered by a bundled PDF.js renderer rather than the browser's built-in viewer. It provides smooth continuous scrolling, page thumbnails, PDF document outline, in-document text search, zoom, fit-to-width, fit-to-page, and a distraction-free focus mode. Atlas tracks the visible page while scrolling and persists reading progress and page bookmarks. Students can select text, save page-relative highlights, and attach notes to either a page or a selected passage.
+- Continuous vertical reading with stable, visible-page tracking.
+- Page thumbnails and the document's own outline/bookmarks.
+- Fast in-document search with clear result navigation.
+- Fit-width, fit-page, and precise manual zoom.
+- Keyboard navigation and a distraction-free focus mode.
+- Carefully tuned paper, sepia, and dark reading themes.
+- Durable reading progress so a document reopens where the student stopped.
 
-The initial reader supports PDFs up to 12 MB. Password-protected documents and scanned-document OCR are not supported. Highlights and notes are stored by Atlas as document annotations; they do not modify the underlying PDF file.
+### 3.2 PDF annotations
 
-### 3.1 Discovery
+Annotations belong to the document and to the passage or page they mark.
 
-The discovery interface should allow students to:
+The reader should support:
 
-- Search for topics and concepts.
-- Ask questions.
-- Discover related subjects.
-- Explore unfamiliar fields.
-- Follow suggested learning paths.
-- Navigate from one idea to another.
+- Text highlights in a small, intentional colour palette.
+- Underline and strike-through markup.
+- Optional comments anchored to selected passages.
+- A navigable annotation list that jumps back to the original page and passage.
+- Reliable persistence and a downloadable copy with standard PDF annotations.
 
-Discovery should not be restricted to the student's enrolled subjects.
+There is no standalone notes area in Explore. A comment exists only as part of an annotation on the PDF. Atlas stores annotation overlays separately and never silently modifies the original upload.
 
-For example, a student studying machine learning might independently explore:
+### 3.3 Explicit non-goals
 
-- Cognitive science.
-- Neuroscience.
-- Information theory.
-- Philosophy of intelligence.
-- Robotics.
-- Computational linguistics.
+Explore does not include topic workspaces, discovery sessions, standalone notes, whiteboards, knowledge graphs, web article capture, social features, AI chat, or automatic knowledge organization. Its job is to make reading and marking up a PDF exceptionally good.
 
-### 3.2 Exploration workspace
-
-An exploration session represents a focused learning journey.
-
-A session may contain:
-
-- A central question or topic.
-- Notes and observations.
-- Subtopics discovered along the way.
-- Follow-up questions.
-- Related concepts.
-- External resources.
-- AI-assisted explanations.
-- Saved discoveries.
-
-Students should be able to return to previous exploration sessions and continue where they left off.
-
-### 3.3 AI-assisted exploration
-
-AI should help students understand unfamiliar ideas, investigate questions, and explore related concepts.
-
-Potential capabilities include:
-
-- Explaining complex concepts at different levels.
-- Breaking down unfamiliar terminology.
-- Providing examples and analogies.
-- Generating follow-up questions.
-- Comparing related concepts.
-- Suggesting related topics.
-- Helping structure an exploration session.
-
-AI responses should be contextual.
-
-For example, when exploring a concept already covered in a university subject, Atlas should eventually be able to reference the student's existing notes and academic context.
-
-### 3.4 Learning paths
-
-A future feature should allow students to create or follow learning paths.
-
-A learning path is a sequence of related concepts that builds understanding progressively.
-
-For example:
-
-```text
-Understanding Large Language Models
-│
-├── Linear Algebra Foundations
-├── Probability and Statistics
-├── Neural Networks
-├── Backpropagation
-├── Attention Mechanisms
-├── Transformers
-└── Large Language Model Training
-```
-
-Learning paths should be editable rather than rigid courses.
-
-Students should be free to skip, rearrange, or expand topics.
-
-### 3.5 Connecting exploration to academics
-
-Explore should not be disconnected from university learning.
-
-Students should be able to:
-
-- Save an explored concept to My Universe.
-- Associate discoveries with academic subjects.
-- Link an exploration session to an existing concept.
-- Add external discoveries to their personal knowledge collection.
-
-This is one of the most important connections in Atlas.
+The initial reader supports PDFs up to 12 MB. Password-protected documents and scanned-document OCR are not supported.
 
 ---
 
@@ -572,17 +502,7 @@ Connections should be created and managed by the student, with AI-assisted sugge
 
 ### 4.5 Knowledge graph
 
-A future visual knowledge graph should allow students to explore their personal knowledge network.
-
-Potential capabilities:
-
-- Visualise concepts and their relationships.
-- Filter by subject or topic.
-- Identify clusters of related knowledge.
-- Navigate between connected ideas.
-- Discover relationships between academic and independently explored concepts.
-
-The knowledge graph should be useful for exploration, not merely decorative.
+Visual knowledge graphs are explicitly out of scope. Personal items should remain accessible through focused lists and search rather than a graph canvas.
 
 ---
 
@@ -1218,7 +1138,7 @@ The product vision is broader than the current implementation. The following tab
 | Syllabus versioning | Planned |
 | Revision recommendation engine | Planned |
 | Prerequisite awareness | Future |
-| Explore discovery interface | Planned |
+| Refined PDF reading and annotation experience | In progress |
 | Exploration sessions | Planned |
 | AI Gateway | Planned |
 | External AI provider handoff | Planned |
@@ -1227,7 +1147,7 @@ The product vision is broader than the current implementation. The following tab
 | Personal notes system | Planned |
 | Saved concepts and resources | Planned |
 | Knowledge connections | Planned |
-| Visual knowledge graph | Future |
+| Visual knowledge graph | Out of scope |
 | AI-assisted knowledge connections | Future |
 | Data export and backup | Future |
 
@@ -1279,21 +1199,20 @@ The development roadmap prioritises a useful academic foundation before introduc
 - Introduce prerequisite relationships.
 - Improve academic progress visualisation.
 
-## Phase 5 — Explore
+## Phase 5 — Explore PDF reader
 
-- Build the discovery interface.
-- Implement exploration sessions.
-- Add contextual learning prompts.
-- Support saved discoveries.
-- Introduce connections between academic subjects and independent exploration.
+- Refine the private PDF library and reading surface.
+- Improve rendering performance for long documents.
+- Add selection-first, colour-coded PDF annotations and anchored comments.\n- Add a locked highlighter/underline mode for repeated marking.
+- Build a navigable annotation review panel.
+- Export annotations into a copy of the PDF.
+- Complete keyboard, touch, accessibility, and reading-theme refinement.
 
 ## Phase 6 — My Universe
 
 - Build the personal knowledge repository.
 - Implement notes and saved items.
 - Introduce personal questions.
-- Implement knowledge connections.
-- Build the knowledge graph interface.
 
 ## Phase 7 — AI Gateway
 

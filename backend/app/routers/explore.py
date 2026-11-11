@@ -6,7 +6,8 @@ from urllib.parse import urlparse
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import Response
-from pypdf import PdfReader
+from pypdf import PdfReader, PdfWriter
+from pypdf.generic import ArrayObject, DictionaryObject, FloatObject, NameObject, NumberObject, TextStringObject
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from io import BytesIO
@@ -217,7 +218,7 @@ def add_annotation(document_id: int, data: AnnotationCreate, db: Session = Depen
     document = owned_document(db, document_id, user.id)
     if data.page_number > document.page_count:
         raise HTTPException(422, "Page number is outside this document.")
-    annotation = ExploreAnnotation(document_id=document_id, page_number=data.page_number, selected_text=data.selected_text, highlight_rects=[rect.model_dump() for rect in data.highlight_rects], note=data.note.strip())
+    annotation = ExploreAnnotation(document_id=document_id, page_number=data.page_number, selected_text=data.selected_text, highlight_rects=[rect.model_dump() for rect in data.highlight_rects], note=data.note.strip(), annotation_type=data.annotation_type, color=data.color)
     db.add(annotation)
     db.commit()
     db.refresh(annotation)
@@ -231,6 +232,8 @@ def update_annotation(document_id: int, annotation_id: int, data: AnnotationUpda
     if annotation is None:
         raise HTTPException(404, "Annotation not found")
     for key, value in data.model_dump(exclude_unset=True).items():
+        if key in {"annotation_type", "color"} and value is None:
+            continue
         if key == "highlight_rects" and value is not None:
             value = [rect.model_dump() if hasattr(rect, "model_dump") else rect for rect in value]
         setattr(annotation, key, value.strip() if isinstance(value, str) else value)
@@ -238,6 +241,71 @@ def update_annotation(document_id: int, annotation_id: int, data: AnnotationUpda
     db.refresh(annotation)
     return annotation
 
+
+
+@router.get("/documents/{document_id}/export")
+def export_annotated_document(document_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Return a separate PDF copy with Atlas marks embedded as standard PDF annotations."""
+    document = owned_document(db, document_id, user.id)
+    try:
+        reader = PdfReader(BytesIO(document.pdf_data), strict=False)
+        writer = PdfWriter()
+        writer.clone_document_from_reader(reader)
+        palette = {
+            "yellow": (0.96, 0.78, 0.24),
+            "green": (0.34, 0.68, 0.42),
+            "blue": (0.32, 0.58, 0.82),
+            "pink": (0.82, 0.40, 0.60),
+        }
+        subtype = {"highlight": "/Highlight", "underline": "/Underline", "strikeout": "/StrikeOut"}
+        marks = db.scalars(select(ExploreAnnotation).where(ExploreAnnotation.document_id == document_id))
+        for mark in marks:
+            if not mark.highlight_rects or mark.annotation_type not in subtype:
+                continue
+            page_index = mark.page_number - 1
+            if page_index < 0 or page_index >= len(writer.pages):
+                continue
+            page = writer.pages[page_index]
+            box = page.mediabox
+            page_width = float(box.width)
+            page_height = float(box.height)
+            page_left = float(box.left)
+            page_bottom = float(box.bottom)
+            for rect in mark.highlight_rects:
+                x1 = float(rect["x"]) * page_width + page_left
+                y2 = page_height - float(rect["y"]) * page_height + page_bottom
+                x2 = x1 + float(rect["width"]) * page_width
+                y1 = y2 - float(rect["height"]) * page_height
+                color = palette.get(mark.color, palette["yellow"])
+                annotation = DictionaryObject({
+                    NameObject("/Type"): NameObject("/Annot"),
+                    NameObject("/Subtype"): NameObject(subtype[mark.annotation_type]),
+                    NameObject("/Rect"): ArrayObject([FloatObject(x1), FloatObject(y1), FloatObject(x2), FloatObject(y2)]),
+                    NameObject("/QuadPoints"): ArrayObject([
+                        FloatObject(x1), FloatObject(y1), FloatObject(x2), FloatObject(y1),
+                        FloatObject(x1), FloatObject(y2), FloatObject(x2), FloatObject(y2),
+                    ]),
+                    NameObject("/C"): ArrayObject([FloatObject(channel) for channel in color]),
+                    NameObject("/CA"): FloatObject(0.38),
+                    NameObject("/F"): NumberObject(4),
+                    NameObject("/Contents"): TextStringObject(mark.note or mark.selected_text or ""),
+                    NameObject("/T"): TextStringObject("Atlas"),
+                    NameObject("/Subj"): TextStringObject("Atlas " + mark.annotation_type),
+                })
+                writer.add_annotation(page_index, annotation)
+        output = BytesIO()
+        writer.write(output)
+        filename = (document.filename.rsplit(".", 1)[0] or "document") + "-annotated.pdf"
+        safe_filename = re.sub(r"[^A-Za-z0-9._-]", "-", filename)
+        return Response(
+            content=output.getvalue(),
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'attachment; filename="' + safe_filename + '"'},
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(500, "Atlas could not export this annotated PDF.") from exc
 
 @router.delete("/documents/{document_id}/annotations/{annotation_id}", status_code=204)
 def delete_annotation(document_id: int, annotation_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):

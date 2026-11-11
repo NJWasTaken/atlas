@@ -1,5 +1,5 @@
 from io import BytesIO
-from pypdf import PdfWriter
+from pypdf import PdfReader, PdfWriter
 
 from tests.conftest import register, auth_headers
 
@@ -38,11 +38,22 @@ def test_bookmarks_and_annotations_are_document_scoped(client):
     bookmark = client.post(f"/api/v1/explore/documents/{document_id}/bookmarks", headers=headers, json={"page_number": 1, "label": "Important"})
     assert bookmark.status_code == 201
     assert client.post(f"/api/v1/explore/documents/{document_id}/bookmarks", headers=headers, json={"page_number": 1, "label": "Updated"}).json()["label"] == "Updated"
-    annotation = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "selected_text": "A useful passage", "note": "Revisit this", "highlight_rects": [{"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.03}]})
+    annotation = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "selected_text": "A useful passage", "note": "Revisit this", "annotation_type": "underline", "color": "blue", "highlight_rects": [{"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.03}]})
     assert annotation.status_code == 201
     saved = client.get(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers).json()[0]
     assert saved["selected_text"] == "A useful passage"
+    assert saved["annotation_type"] == "underline"
+    assert saved["color"] == "blue"
     assert saved["highlight_rects"] == [{"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.03}]
+    mark_only = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "selected_text": "A second passage", "highlight_rects": [{"x": 0.2, "y": 0.4, "width": 0.3, "height": 0.02}]})
+    assert mark_only.status_code == 201
+    assert mark_only.json()["note"] == ""
+    assert mark_only.json()["annotation_type"] == "highlight"
+    assert mark_only.json()["color"] == "yellow"
+    page_only_note = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "note": "Standalone page note"})
+    assert page_only_note.status_code == 422
+    invalid_style = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "selected_text": "Invalid style", "annotation_type": "circle", "color": "orange", "highlight_rects": [{"x": 0.2, "y": 0.4, "width": 0.3, "height": 0.02}]})
+    assert invalid_style.status_code == 422
     invalid_rect = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "note": "Invalid", "highlight_rects": [{"x": 1.2, "y": 0.2, "width": 0.4, "height": 0.03}]})
     assert invalid_rect.status_code == 422
     other = register(client, "other-reader@example.com")
@@ -65,3 +76,42 @@ def test_url_import_rejects_non_http_and_private_targets(client):
     unsupported = client.post("/api/v1/explore/documents/import-url", headers=headers, json={"url": "file:///etc/passwd"})
     assert unsupported.status_code == 400
     assert "public HTTP or HTTPS" in unsupported.json()["detail"]
+
+def test_export_embeds_standard_pdf_annotations_without_changing_original(client):
+    token = register(client, "pdf-export@example.com")
+    headers = auth_headers(token)
+    created = client.post(
+        "/api/v1/explore/documents",
+        headers=headers,
+        files={"file": ("paper.pdf", sample_pdf(), "application/pdf")},
+    ).json()
+    document_id = created["id"]
+    saved = client.post(
+        f"/api/v1/explore/documents/{document_id}/annotations",
+        headers=headers,
+        json={
+            "page_number": 1,
+            "selected_text": "A highlighted passage",
+            "note": "Review this claim",
+            "annotation_type": "highlight",
+            "color": "green",
+            "highlight_rects": [{"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.03}],
+        },
+    )
+    assert saved.status_code == 201
+
+    exported = client.get(f"/api/v1/explore/documents/{document_id}/export", headers=headers)
+    assert exported.status_code == 200
+    assert exported.headers["content-type"].startswith("application/pdf")
+    assert exported.headers["content-disposition"].endswith('filename="paper-annotated.pdf"')
+    exported_reader = PdfReader(BytesIO(exported.content))
+    annots = exported_reader.pages[0].get("/Annots")
+    assert annots is not None and len(annots) == 1
+    annotation = annots[0].get_object()
+    assert annotation["/Subtype"] == "/Highlight"
+    assert annotation["/Contents"] == "Review this claim"
+
+    original = client.get(f"/api/v1/explore/documents/{document_id}/file", headers=headers)
+    original_reader = PdfReader(BytesIO(original.content))
+    assert original_reader.pages[0].get("/Annots") is None
+

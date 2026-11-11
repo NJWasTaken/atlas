@@ -52,25 +52,45 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Add a Playwright regression test for a transient subject-list API failure followed by a successful retry.
 - [x] Complete the first cross-screen pass for destructive-action confirmation, modal save/error handling, pending-state protection, calendar mutation feedback, and term-filter empty states. Remaining full accessibility/responsive work is tracked under Release readiness.
 
-## Explore
+## Explore — PDF reader only
 
-- [x] Add a private PDF reading library with device upload and public-URL import, per-user ownership, document metadata, and durable reading position.
-- [x] Replace the browser-native PDF iframe with a bundled PDF.js reading workspace: continuous scrolling, thumbnails, outline, in-document search, zoom/fit, bookmarks, progress, text selection/highlights, page-linked notes, and focus mode.
-- [x] Persist per-document page bookmarks and page-linked notes, including an optional quoted passage.
-- [x] Add PDF validation, a 12 MB size limit, encrypted-PDF rejection, URL host checks, ownership checks, migration coverage, and API/browser regression tests.
-- [x] Add direct text selection and persist normalized page-relative highlight rectangles with page-linked annotations and notes.
-- [ ] Build the discovery interface and exploration-session model/API.
-- [ ] Support saving discoveries and questions for later.
-- [ ] Add contextual prompts and learning paths.
-- [ ] Connect independent exploration to subjects, topics, and concepts.
-- [ ] Keep direct AI integrations optional; allow external AI handoff as an initial alternative.
+**Product direction:** Explore is a focused PDF reading room. It is not a general research workspace or knowledge-management surface. No topic workspaces, standalone notes, whiteboards, knowledge graphs, web research capture, or AI layer. The PDF is the primary object; annotations are anchored to selected passages and remain attached to that document.
+
+- [x] Private PDF library with device upload and public-URL import, per-user ownership, document metadata, and durable reading position.
+- [x] Bundled PDF.js reader with continuous scrolling, page navigation, thumbnails, document outline, text search, zoom/fit, bookmarks, and focus mode.
+- [x] Persist page bookmarks and page-relative text-selection highlights/annotations per document.
+- [x] Validate PDFs, enforce the 12 MB limit, reject encrypted files, validate public import hosts, and cover ownership and persistence with tests.
+- [x] First reader shell refinement — give the PDF canvas more room, calm the toolbar/sidebar, improve focus-mode framing, and add a responsive annotation surface while retaining the celestial theme.
+- [x] Add reader keyboard shortcuts: Ctrl/Cmd+F for search, arrow/PageUp/PageDown navigation, +/- zoom, and Escape to clear the active selection.
+- [ ] Reading ergonomics — verify fit-width/fit-page/manual zoom, page indicator, smooth navigation, robust responsive layout, and persistent reading position across real documents.
+- [x] Rendering quality/performance first pass — mount full PDF canvas/text layers only for the current page and four pages either side; retain lightweight scroll slots for the rest.
+- [ ] Evaluate a maintained virtualized PDF.js layer (Lector) against the current custom renderer; test varied page sizes and very long documents.
+- [x] Selection-first annotations — floating toolbar for highlight, underline, strike-through, and anchored comment; four highlight colours; selected-text and page context.
+- [x] Add an annotation list with page-jump navigation and deletion; preserve legacy page-only notes as page-comment annotations during migration.
+- [x] Add locked highlighter/underline modes with a persistent colour choice for repeated marking.
+- [x] Annotation management first pass — search/filter by passage, type, and colour; inline editing of existing comments.
+- [ ] Refine mark type/colour editing and add dependable mutation retry/error recovery.
+- [ ] Add freehand ink/area markup only if it fits naturally into the reading flow and can be persisted accessibly.
+- [x] Export a separate PDF copy with standard highlight, underline, and strike-through annotations embedded; never modify the original upload.
+- [x] Add paper, sepia, and dark reading themes with the original PDF content preserved.
+- [ ] Tune contrast for varied source PDFs and add per-document theme persistence.
+- [ ] Complete keyboard, screen-reader, touch, and mobile interaction testing for the reader.
+
+**Explicit non-goals:** standalone notes, whiteboards, topic workspaces, knowledge graphs, web article research, social/sharing features, AI chat, and automatic knowledge organization.
+
+### Design references
+
+- [Zotero PDF Reader](https://www.zotero.org/support/pdf_reader) — selection popovers, fast colour selection, locked highlighter/underline modes, annotation lists, and page-jump navigation. Borrow the reading/annotation loop, not its standalone note editor.
+- [Lector](https://github.com/anaralabs/lector) — React/PDF.js primitives and virtualized page rendering; evaluate as a possible replacement for the current custom page layer after checking PDF.js version compatibility.
+- [PDF.js](https://github.com/mozilla/pdf.js) — keep this as the rendering foundation rather than implementing a PDF engine.
+- [Okular](https://okular.kde.org/) — practical annotation tools, document navigation, and keyboard-oriented workflows.
+- [Stirling PDF](https://docs.stirlingpdf.com/Functionality/Read-and-Annotate/) — annotation review and standards-friendly PDF export patterns.
+- [Folio](https://github.com/owenpkent/folio) — reading-first ergonomics, focus, and accessibility ideas; treat as an evolving reference rather than a proven production baseline.
 
 ## My Universe
 
 - [ ] Implement personal notes and saved resources/concepts.
 - [ ] Add personal questions and retrieval/search.
-- [ ] Implement user-created knowledge connections.
-- [ ] Build a visual knowledge graph after the underlying knowledge entities and links are stable.
 - [ ] Explore AI-assisted connections only after the user-controlled model is established.
 
 ## AI Gateway

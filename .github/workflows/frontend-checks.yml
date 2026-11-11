@@ -17,7 +17,7 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -39,7 +39,7 @@ jobs:
       - name: Install temporary browser-test tooling
         run: npm install --no-save --package-lock=false @playwright/test@1.56.1
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
       - name: Run browser flow tests
         env:
           CI: true
