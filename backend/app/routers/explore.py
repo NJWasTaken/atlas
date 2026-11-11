@@ -231,6 +231,8 @@ def update_annotation(document_id: int, annotation_id: int, data: AnnotationUpda
     if annotation is None:
         raise HTTPException(404, "Annotation not found")
     for key, value in data.model_dump(exclude_unset=True).items():
+        if key in {"annotation_type", "color"} and value is None:
+            continue
         if key == "highlight_rects" and value is not None:
             value = [rect.model_dump() if hasattr(rect, "model_dump") else rect for rect in value]
         setattr(annotation, key, value.strip() if isinstance(value, str) else value)
