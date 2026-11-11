@@ -353,7 +353,10 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   const bookmarks = [];
   const annotations = [];
   let nextId = 40;
-  await page.route("**/api/v1/explore/**", async route => {
+  let failAnnotationCreateOnce = true;
+  let failAnnotationUpdateOnce = true;
+  let failAnnotationDeleteOnce = true;
+  await page.route("**/api/v1/explore/**, async route => {
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname.replace("/api/v1", "");
@@ -383,13 +386,22 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
     if(marksPath&&method==="POST"){const mark={id:nextId++,...body};bookmarks.push(mark);return created(mark);}
     const notesPath=path.match(/^\/explore\/documents\/(\d+)\/annotations$/);
     if(notesPath&&method==="GET")return json(annotations);
-    if(notesPath&&method==="POST"){const note={id:nextId++,...body,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};annotations.unshift(note);return created(note);}
+    if(notesPath&&method==="POST"){
+      if(failAnnotationCreateOnce){failAnnotationCreateOnce=false;return route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({detail:"Annotation service temporarily unavailable."})});}
+      const note={id:nextId++,...body,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};annotations.unshift(note);return created(note);
+    }
     const updateNote=path.match(/\/annotations\/(\d+)$/);
-    if(updateNote&&method==="PATCH"){const note=annotations.find(x=>x.id===Number(updateNote[1]));Object.assign(note,body,{updated_at:new Date().toISOString()});return json(note);}
+    if(updateNote&&method==="PATCH"){
+      if(failAnnotationUpdateOnce){failAnnotationUpdateOnce=false;return route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({detail:"Annotation update temporarily unavailable."})});}
+      const note=annotations.find(x=>x.id===Number(updateNote[1]));Object.assign(note,body,{updated_at:new Date().toISOString()});return json(note);
+    }
     const removeBookmark=path.match(/\/bookmarks\/(\d+)$/);
     if(removeBookmark&&method==="DELETE"){const index=bookmarks.findIndex(x=>x.id===Number(removeBookmark[1]));if(index>=0)bookmarks.splice(index,1);return empty();}
     const removeNote=path.match(/\/annotations\/(\d+)$/);
-    if(removeNote&&method==="DELETE"){const index=annotations.findIndex(x=>x.id===Number(removeNote[1]));if(index>=0)annotations.splice(index,1);return empty();}
+    if(removeNote&&method==="DELETE"){
+      if(failAnnotationDeleteOnce){failAnnotationDeleteOnce=false;return route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({detail:"Annotation delete temporarily unavailable."})});}
+      const index=annotations.findIndex(x=>x.id===Number(removeNote[1]));if(index>=0)annotations.splice(index,1);return empty();
+    }
     return route.fulfill({status:404,contentType:"application/json",body:JSON.stringify({detail:"Unmocked Explore request: "+method+" "+path})});
   });
   page.on("console", message => { if(message.type()==="error") console.log("BROWSER CONSOLE:",message.text()); });
@@ -410,6 +422,8 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByRole("button",{name:/Marks/}).click();
   await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
   await page.getByLabel("Highlight in green").click();
+  await expect(page.locator(".atlas-reader-mutation-retry")).toContainText("temporarily unavailable");
+  await page.getByRole("button",{name:"Retry annotation change"}).click();
   await expect(page.locator(".atlas-pdf-mark")).toHaveCount(1);
   await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
   await page.getByTitle("Add a comment").click();
@@ -421,6 +435,8 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByLabel("Edit annotation type").selectOption("underline");
   await page.getByLabel("Edit annotation colour").selectOption("pink");
   await page.getByRole("button",{name:"Save changes"}).click();
+  await expect(page.locator(".atlas-reader-mutation-retry")).toContainText("update temporarily unavailable");
+  await page.getByRole("button",{name:"Retry annotation change"}).click();
   await expect(page.getByText("Revisit this argument in the next reading.")).toBeVisible();
   await expect(page.locator(".atlas-pdf-mark-underline.atlas-pdf-color-pink")).toHaveCount(1);
   await page.getByLabel("Filter annotation colour").selectOption("green");
@@ -443,6 +459,10 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByRole("button",{name:/Export PDF/}).click();
   const download=await exportPromise;
   expect(download.suggestedFilename()).toBe("Research-paper-annotated.pdf");
+  await page.getByRole("button",{name:"Delete annotation"}).click();
+  await expect(page.locator(".atlas-reader-mutation-retry")).toContainText("delete temporarily unavailable");
+  await page.getByRole("button",{name:"Retry annotation change"}).click();
+  await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(1);
   await page.getByRole("button",{name:/Bookmark/}).click();
   await page.getByRole("button",{name:/Saved/}).click();
   await expect(page.locator(".atlas-reader-bookmark").filter({hasText:"Page 3"})).toBeVisible();
