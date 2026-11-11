@@ -14,7 +14,7 @@ type DocumentItem = {
   size_bytes:number; last_page:number; last_opened_at:string|null; created_at:string;
 };
 type BookmarkItem = {id:number;page_number:number;label:string};
-type AnnotationItem = {id:number;page_number:number;selected_text:string|null;highlight_rects:{x:number;y:number;width:number;height:number}[]|null;note:string;annotation_type:"highlight"|"underline"|"strikeout";color:"yellow"|"green"|"blue"|"pink";created_at:string;updated_at:string};
+type AnnotationItem = {id:number;page_number:number;selected_text:string|null;highlight_rects:{x:number;y:number;width:number;height:number}[]|null;note:string;annotation_type:"highlight"|"underline"|"strikeout"|"comment";color:"yellow"|"green"|"blue"|"pink";created_at:string;updated_at:string};
 
 function formatBytes(bytes:number) {
   if(bytes < 1024*1024) return `${Math.max(1,Math.round(bytes/1024))} KB`;
