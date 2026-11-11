@@ -54,7 +54,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 ## Explore — PDF reader only
 
-**Product direction:** Explore is a focused PDF reading room. It is not a general research workspace or knowledge-management surface. No topic workspaces, standalone notes, whiteboards, knowledge graphs, web research capture, or AI layer. The PDF is the primary object; annotations are anchored to pages or selected passages and remain attached to that document.
+**Product direction:** Explore is a focused PDF reading room. It is not a general research workspace or knowledge-management surface. No topic workspaces, standalone notes, whiteboards, knowledge graphs, web research capture, or AI layer. The PDF is the primary object; annotations are anchored to selected passages and remain attached to that document.
 
 - [x] Private PDF library with device upload and public-URL import, per-user ownership, document metadata, and durable reading position.
 - [x] Bundled PDF.js reader with continuous scrolling, page navigation, thumbnails, document outline, text search, zoom/fit, bookmarks, and focus mode.
