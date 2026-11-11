@@ -1111,7 +1111,7 @@ The development roadmap prioritises a dependable academic foundation, a high-qua
 - Implement notes and saved items.
 - Introduce personal questions.
 
-## Phase 8 — Refinement
+## Phase 7 — Refinement
 
 - Improve search across the application.
 - Introduce data export and backup.
