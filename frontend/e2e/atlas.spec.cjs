@@ -425,9 +425,9 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await expect.poll(async()=>Number((await page.locator(".atlas-reader-zoom span").textContent()).replace("%",""))).toBe(zoomBefore);
   await page.locator('[data-page="3"]').scrollIntoViewIfNeeded();
   await expect(page.getByLabel("Current page")).toHaveValue("3");
-  await page.getByRole("button",{name:/Outline/}).click();
+  await page.getByRole("tab",{name:/Outline/}).click();
   await expect(page.getByText("This document does not contain a navigable outline.")).toBeVisible();
-  await page.getByRole("button",{name:/Marks/}).click();
+  await page.getByRole("tab",{name:/Marks/}).click();
   await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
   await page.getByLabel("Highlight in green").click();
   await expect(page.locator(".atlas-reader-mutation-retry")).toContainText("temporarily unavailable");
@@ -472,9 +472,9 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByRole("button",{name:"Retry annotation change"}).click();
   await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(2);
   await page.getByRole("button",{name:/Bookmark/}).click();
-  await page.getByRole("button",{name:/Saved/}).click();
+  await page.getByRole("tab",{name:/Saved/}).click();
   await expect(page.locator(".atlas-reader-bookmark").filter({hasText:"Page 3"})).toBeVisible();
-  await page.getByRole("button",{name:/Pages/}).click();
+  await page.getByRole("tab",{name:/Pages/}).click();
   await page.getByRole("button",{name:"Search"}).click();
   await page.getByPlaceholder("Search words or phrases in this PDF…").fill("searchable text");
   await page.getByRole("button",{name:"Find"}).click();
@@ -522,7 +522,7 @@ test("PDF reader navigates a long mixed-size document with an outline on mobile"
   await signIn(page);
   await page.getByRole("button",{name:"Explore"}).click();
   await page.locator(".atlas-upload-button input").setInputFiles({name:"long-report.pdf",mimeType:"application/pdf",buffer:Buffer.from("%PDF-1.4")});
-  await expect(page.locator(".atlas-reader")).toBeVisible();
+  await expect(page.locator(".atlas-reader.theme-paper")).toBeVisible();
   await expect(page.getByLabel("Current page")).toHaveValue("96",{timeout:20000});
   await page.getByRole("button",{name:/Outline/}).click();
   await expect(page.getByRole("button",{name:/Chapter One/})).toBeVisible();
