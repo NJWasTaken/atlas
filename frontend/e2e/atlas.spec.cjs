@@ -476,3 +476,9 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByRole("button",{name:"Library"}).click();
   await expect(page.getByText("Page 3 of 8")).toBeVisible();
 });
+
+
+test("PDF fixture supports long mixed-size documents", async () => {
+  const pdf = createPdfFixture({pageCount:120,includeOutline:true});
+  expect(pdf.toString("binary").match(/\/Type \/Page /g)).toHaveLength(120);
+});
