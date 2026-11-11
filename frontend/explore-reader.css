@@ -182,7 +182,7 @@
  .atlas-reader-body{grid-template-columns:minmax(0,1fr)}
  .atlas-pdf-stage{height:68vh}
  .atlas-reader-sidebar{max-height:42vh;border-top:1px solid rgba(166,187,211,.13)}
- .atlas-pdf-selection-toolbar{max-width:calc(100vw - 20px);gap:4px;padding:5px}
+ .atlas-pdf-selection-toolbar{left:50%!important;max-width:calc(100vw - 20px);gap:4px;padding:5px}
  .atlas-pdf-selection-toolbar>span{display:none}
 }
 @media(max-width:560px){
