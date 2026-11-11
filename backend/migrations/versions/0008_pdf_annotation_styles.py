@@ -17,6 +17,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.add_column("explore_annotations", sa.Column("annotation_type", sa.String(length=20), nullable=False, server_default="highlight"))
     op.add_column("explore_annotations", sa.Column("color", sa.String(length=20), nullable=False, server_default="yellow"))
+    op.execute(sa.text("UPDATE explore_annotations SET annotation_type = 'comment' WHERE selected_text IS NULL AND highlight_rects IS NULL"))
 
 
 def downgrade() -> None:
