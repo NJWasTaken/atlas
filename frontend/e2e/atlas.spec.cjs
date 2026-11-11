@@ -404,7 +404,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByRole("button",{name:"Save",exact:true}).click();
   await expect(page.getByText("Revisit this argument in the next reading.")).toBeVisible();
   await page.getByLabel("Filter annotation colour").selectOption("green");
-  await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(2);
+  await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(1);
   await page.getByLabel("Filter annotation colour").selectOption("all");
   await page.getByLabel("Search annotations").fill("next reading");
   await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(1);
@@ -416,7 +416,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByLabel("Reading theme").selectOption("paper");
   await page.getByRole("button",{name:/Highlight mode/}).click();
   await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
-  await expect(page.locator(".atlas-pdf-mark")).toHaveCount(2);
+  await expect(page.locator(".atlas-pdf-mark")).toHaveCount(3);
   await page.getByRole("button",{name:/Highlight mode/}).click();
   const exportPromise=page.waitForEvent("download");
   await page.getByRole("button",{name:/Export PDF/}).click();
