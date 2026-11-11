@@ -224,9 +224,9 @@
 .atlas-pdf-virtual-slot .atlas-pdf-page-shell{margin-bottom:30px}
 .atlas-reader.theme-paper .atlas-pdf-scroll{background:#172536}
 .atlas-reader.theme-sepia .atlas-pdf-scroll{background:radial-gradient(ellipse at 50% 8%,rgba(155,123,82,.16),transparent 55%),#342b22}
-.atlas-reader.theme-sepia .atlas-pdf-page{filter:sepia(.12) saturate(.92) brightness(.99)}
+.atlas-reader.theme-sepia .atlas-pdf-page{filter:none}
 .atlas-reader.theme-dark .atlas-pdf-scroll{background:radial-gradient(ellipse at 50% 8%,rgba(78,95,118,.18),transparent 55%),#090f18}
-.atlas-reader.theme-dark .atlas-pdf-page{filter:brightness(.82) contrast(.92)}
+.atlas-reader.theme-dark .atlas-pdf-page{filter:none}
 .atlas-reader.theme-sepia .atlas-pdf-page-label{color:#c2a984}
 .atlas-reader.theme-dark .atlas-pdf-page-label{color:#8292a6}
 .atlas-reader.theme-sepia .atlas-pdf-virtual-placeholder{background:rgba(225,198,151,.035)}
@@ -248,3 +248,37 @@
 .atlas-reader-annotation-edit-fields select{min-width:0;width:100%;height:31px;padding:0 7px;border:1px solid rgba(166,187,211,.2);border-radius:6px;background:#102238;color:#dce3ea;font-size:9px}
 .atlas-reader-edit-comment>label{display:grid;gap:5px;color:#aab5c2;font-size:9px}
 @media(max-width:560px){.atlas-reader-annotation-edit-fields{grid-template-columns:1fr}}
+
+
+/* Reader quality pass: preserve source-page contrast and make controls touch/focus friendly. */
+.atlas-reader-mutation-retry{display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid rgba(226,163,104,.28);border-bottom:1px solid rgba(226,163,104,.28);background:rgba(110,56,32,.2);color:#f0d8c6;font-size:11px}
+.atlas-reader-mutation-retry span{flex:1;min-width:0}
+.atlas-reader-mutation-retry button{min-height:36px;padding:0 11px;border:1px solid rgba(235,190,151,.32);border-radius:6px;color:#f8e8dc;font-size:10px}
+.atlas-reader-mutation-retry button:hover{background:rgba(235,190,151,.12)}
+.atlas-reader :is(button,input,select,textarea,[tabindex="0"]):focus-visible{outline:2px solid #e3bd7d;outline-offset:3px}
+.atlas-reader.theme-sepia .atlas-pdf-scroll{background:radial-gradient(ellipse at 50% 8%,rgba(155,123,82,.13),transparent 55%),#30271f}
+.atlas-reader.theme-dark .atlas-pdf-scroll{background:radial-gradient(ellipse at 50% 8%,rgba(78,95,118,.16),transparent 55%),#080e17}
+.atlas-reader.theme-paper .atlas-pdf-scroll{background:radial-gradient(ellipse at 50% 8%,rgba(67,88,115,.2),transparent 55%),#172536}
+.atlas-reader .atlas-pdf-page{filter:none!important}
+.atlas-reader .atlas-pdf-page canvas{max-width:none}
+.atlas-reader-tabs [role="tab"]:focus-visible{position:relative;z-index:2}
+.atlas-pdf-scroll{overscroll-behavior:contain;touch-action:pan-x pan-y pinch-zoom}
+.atlas-reader-toolbar button,.atlas-reader-tabs button,.atlas-pdf-selection-toolbar button{touch-action:manipulation}
+@media(hover:none) and (pointer:coarse){
+ .atlas-reader-tool,.atlas-reader-page-control button,.atlas-reader-zoom button,.atlas-reader-tabs button{min-height:42px}
+ .atlas-reader-page-control button,.atlas-reader-zoom button{min-width:42px}
+ .atlas-reader-tabs button{padding:7px 3px}
+ .atlas-reader-mark-actions>button,.atlas-reader-edit-comment button{min-height:40px;padding:8px 11px}
+ .atlas-pdf-selection-toolbar{position:fixed;left:50%!important;top:auto!important;bottom:max(12px,env(safe-area-inset-bottom))!important;max-width:calc(100vw - 20px);flex-wrap:wrap;justify-content:center;white-space:normal}
+ .atlas-pdf-selection-toolbar>button{min-width:40px;min-height:40px}
+}
+@media(max-width:560px){
+ .atlas-reader-mutation-retry{align-items:flex-start;flex-wrap:wrap}
+ .atlas-reader-mutation-retry span{flex-basis:100%}
+ .atlas-reader-toolbar{max-height:36vh;overflow-y:auto;align-content:flex-start}
+ .atlas-reader-theme-select{min-height:38px}
+ .atlas-reader .atlas-pdf-scroll{overscroll-behavior-y:contain}
+}
+@media(prefers-reduced-motion:reduce){
+ .atlas-reader *{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
