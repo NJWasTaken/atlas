@@ -11,7 +11,7 @@ import { api } from "../../lib/api";
 type PdfDocument = any;
 type Mark = { id:number; page_number:number; label:string };
 type Rect = { x:number; y:number; width:number; height:number };
-type Annotation = { id:number; page_number:number; selected_text:string|null; note:string; highlight_rects:Rect[]|null; annotation_type:"highlight"|"underline"|"strikeout"; color:"yellow"|"green"|"blue"|"pink"; created_at:string; updated_at:string };
+type Annotation = { id:number; page_number:number; selected_text:string|null; note:string; highlight_rects:Rect[]|null; annotation_type:"highlight"|"underline"|"strikeout"|"comment"; color:"yellow"|"green"|"blue"|"pink"; created_at:string; updated_at:string };
 type OutlineItem = { title:string; page:number|null; depth:number };
 type Props = {
   documentId:number; title:string; pageCount:number; pdfUrl:string; initialPage:number;
