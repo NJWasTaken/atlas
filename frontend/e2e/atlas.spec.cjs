@@ -410,9 +410,9 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(1);
   await page.getByLabel("Search annotations").fill("");
   await page.getByLabel("Reading theme").selectOption("sepia");
-  await expect(page.locator(".atlas-reader")).toHaveClass(/theme-sepia/);
+  await expect(page.locator(".atlas-reader.theme-sepia")).toHaveCount(1);
   await page.getByLabel("Reading theme").selectOption("dark");
-  await expect(page.locator(".atlas-reader")).toHaveClass(/theme-dark/);
+  await expect(page.locator(".atlas-reader.theme-dark")).toHaveCount(1);
   await page.getByLabel("Reading theme").selectOption("paper");
   await page.getByRole("button",{name:/locked highlight mode/i}).click();
   await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
