@@ -52,18 +52,25 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Add a Playwright regression test for a transient subject-list API failure followed by a successful retry.
 - [x] Complete the first cross-screen pass for destructive-action confirmation, modal save/error handling, pending-state protection, calendar mutation feedback, and term-filter empty states. Remaining full accessibility/responsive work is tracked under Release readiness.
 
-## Explore
+## Explore — PDF reader only
 
-- [x] Add a private PDF reading library with device upload and public-URL import, per-user ownership, document metadata, and durable reading position.
-- [x] Replace the browser-native PDF iframe with a bundled PDF.js reading workspace: continuous scrolling, thumbnails, outline, in-document search, zoom/fit, bookmarks, progress, text selection/highlights, page-linked notes, and focus mode.
-- [x] Persist per-document page bookmarks and page-linked notes, including an optional quoted passage.
-- [x] Add PDF validation, a 12 MB size limit, encrypted-PDF rejection, URL host checks, ownership checks, migration coverage, and API/browser regression tests.
-- [x] Add direct text selection and persist normalized page-relative highlight rectangles with page-linked annotations and notes.
-- [ ] Build the discovery interface and exploration-session model/API.
-- [ ] Support saving discoveries and questions for later.
-- [ ] Add contextual prompts and learning paths.
-- [ ] Connect independent exploration to subjects, topics, and concepts.
-- [ ] Keep direct AI integrations optional; allow external AI handoff as an initial alternative.
+**Product direction:** Explore is a focused PDF reading room. It is not a general research workspace or knowledge-management surface. No topic workspaces, standalone notes, whiteboards, knowledge graphs, web research capture, or AI layer. The PDF is the primary object; annotations are anchored to pages or selected passages and remain attached to that document.
+
+- [x] Private PDF library with device upload and public-URL import, per-user ownership, document metadata, and durable reading position.
+- [x] Bundled PDF.js reader with continuous scrolling, page navigation, thumbnails, document outline, text search, zoom/fit, bookmarks, and focus mode.
+- [x] Persist page bookmarks and page-relative text-selection highlights/annotations per document.
+- [x] Validate PDFs, enforce the 12 MB limit, reject encrypted files, validate public import hosts, and cover ownership and persistence with tests.
+- [ ] Reader shell refinement — make the document the visual centre, simplify chrome, improve library cards/recent reading, and preserve the celestial theme without distracting from the page.
+- [ ] Reading ergonomics — reliable fit-width/fit-page/manual zoom, page indicator, keyboard shortcuts, smooth navigation, robust responsive layout, and persistent reading position.
+- [ ] Rendering quality/performance — evaluate a maintained virtualized PDF.js layer (Lector) against the current custom renderer; support long documents without mounting every page at once.
+- [ ] Selection-first annotations — floating toolbar for highlight, underline, strike-through, and anchored comment; multiple highlight colours; clear selected-text and page context.
+- [ ] Annotation management — searchable/filterable annotation list, jump-to-source navigation, edit/delete, visible mark states, and dependable autosave/error recovery.
+- [ ] Add freehand ink/area markup only if it fits naturally into the reading flow and can be persisted accessibly.
+- [ ] Export a copy with annotations embedded as standard PDF annotations; never silently modify the original upload.
+- [ ] Reading themes — carefully tuned paper, sepia, and dark chrome/page modes with readable contrast and reduced-motion support.
+- [ ] Complete keyboard, screen-reader, touch, and mobile interaction testing for the reader.
+
+**Explicit non-goals:** standalone notes, whiteboards, topic workspaces, knowledge graphs, web article research, social/sharing features, AI chat, and automatic knowledge organization.
 
 ## My Universe
 
