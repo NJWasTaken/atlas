@@ -38,10 +38,12 @@ def test_bookmarks_and_annotations_are_document_scoped(client):
     bookmark = client.post(f"/api/v1/explore/documents/{document_id}/bookmarks", headers=headers, json={"page_number": 1, "label": "Important"})
     assert bookmark.status_code == 201
     assert client.post(f"/api/v1/explore/documents/{document_id}/bookmarks", headers=headers, json={"page_number": 1, "label": "Updated"}).json()["label"] == "Updated"
-    annotation = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "selected_text": "A useful passage", "note": "Revisit this", "highlight_rects": [{"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.03}]})
+    annotation = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "selected_text": "A useful passage", "note": "Revisit this", "annotation_type": "underline", "color": "blue", "highlight_rects": [{"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.03}]})
     assert annotation.status_code == 201
     saved = client.get(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers).json()[0]
     assert saved["selected_text"] == "A useful passage"
+    assert saved["annotation_type"] == "underline"
+    assert saved["color"] == "blue"
     assert saved["highlight_rects"] == [{"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.03}]
     invalid_rect = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "note": "Invalid", "highlight_rects": [{"x": 1.2, "y": 0.2, "width": 0.4, "height": 0.03}]})
     assert invalid_rect.status_code == 422
