@@ -60,10 +60,10 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Bundled PDF.js reader with continuous scrolling, page navigation, thumbnails, document outline, text search, zoom/fit, bookmarks, and focus mode.
 - [x] Persist page bookmarks and page-relative text-selection highlights/annotations per document.
 - [x] Validate PDFs, enforce the 12 MB limit, reject encrypted files, validate public import hosts, and cover ownership and persistence with tests.
-- [ ] Reader shell refinement — make the document the visual centre, simplify chrome, improve library cards/recent reading, and preserve the celestial theme without distracting from the page.
+- [x] First reader shell refinement — give the PDF canvas more room, calm the toolbar/sidebar, improve focus-mode framing, and add a responsive annotation surface while retaining the celestial theme.
 - [ ] Reading ergonomics — reliable fit-width/fit-page/manual zoom, page indicator, keyboard shortcuts, smooth navigation, robust responsive layout, and persistent reading position.
 - [ ] Rendering quality/performance — evaluate a maintained virtualized PDF.js layer (Lector) against the current custom renderer; support long documents without mounting every page at once.
-- [ ] Selection-first annotations — floating toolbar for highlight, underline, strike-through, and anchored comment; multiple highlight colours; clear selected-text and page context.
+- [x] Selection-first annotations — floating toolbar for highlight, underline, strike-through, and anchored comment; four highlight colours; selected-text and page context.
 - [ ] Annotation management — searchable/filterable annotation list, jump-to-source navigation, edit/delete, visible mark states, and dependable autosave/error recovery.
 - [ ] Add freehand ink/area markup only if it fits naturally into the reading flow and can be persisted accessibly.
 - [ ] Export a copy with annotations embedded as standard PDF annotations; never silently modify the original upload.
