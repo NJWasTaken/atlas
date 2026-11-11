@@ -1213,7 +1213,6 @@ The development roadmap prioritises a useful academic foundation before introduc
 - Build the personal knowledge repository.
 - Implement notes and saved items.
 - Introduce personal questions.
-- Implement knowledge connections.
 
 ## Phase 7 — AI Gateway
 
