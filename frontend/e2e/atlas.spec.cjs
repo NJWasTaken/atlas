@@ -3,7 +3,8 @@ function createPdfFixture() {
   objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
   objects[2] = "<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R 6 0 R 7 0 R 8 0 R 9 0 R 10 0 R] /Count 8 >>";
   for (let i=0;i<8;i++) {
-    objects[3+i] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 11 0 R >> >> /Contents ${12+i} 0 R >>`;
+    const mediaBox = i % 2 === 1 ? "0 0 792 612" : "0 0 612 792";
+    objects[3+i] = `<< /Type /Page /Parent 2 0 R /MediaBox [${mediaBox}] /Resources << /Font << /F1 11 0 R >> >> /Contents ${12+i} 0 R >>`;
     const text = `BT /F1 18 Tf 50 740 Td (Page ${i+1} searchable text for Atlas reader tests) Tj ET`;
     objects[12+i] = `<< /Length ${text.length} >>\nstream\n${text}\nendstream`;
   }
@@ -388,6 +389,9 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await expect(page.locator(".atlas-pdf-page").first()).toBeVisible({timeout:15000}).catch(async error => { const alerts=await page.locator(".atlas-explore-alert").allTextContents(); const states=await page.locator(".atlas-explore-state").allTextContents(); throw new Error(`PDF reader did not load. Alerts: ${alerts.join(" | ")}. States: ${states.join(" | ")}. ${error.message}`); });
   await expect.poll(async()=>page.locator(".atlas-pdf-canvas").first().evaluate((canvas)=>canvas.width)).toBeGreaterThan(0);
   await expect(page.locator("iframe")).toHaveCount(0);
+  await page.getByRole("button",{name:"Fit page"}).click();
+  await expect(page.locator(".atlas-reader-zoom span")).toContainText("%");
+  await page.getByRole("button",{name:"Fit width"}).click();
   await page.locator('[data-page="3"]').scrollIntoViewIfNeeded();
   await expect(page.getByLabel("Current page")).toHaveValue("3");
   await page.getByRole("button",{name:/Marks/}).click();
