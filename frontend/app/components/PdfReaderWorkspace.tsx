@@ -222,11 +222,17 @@ export default function PdfReaderWorkspace(props:Props) {
         if(nearest!==page){setPage(nearest);onProgressChange(nearest);}
       });
     };
-    const dismissSelection=()=>setSelectionAnchor(null);
+    const repositionSelection=()=>{
+      const selection=window.getSelection();
+      if(!selection||selection.isCollapsed||!selection.rangeCount){setSelectionAnchor(null);return;}
+      const rect=selection.getRangeAt(0).getBoundingClientRect();
+      if(rect.bottom<0||rect.top>window.innerHeight){setSelectionAnchor(null);return;}
+      setSelectionAnchor({left:rect.left,top:rect.top,width:rect.width,height:rect.height});
+    };
     root.addEventListener("scroll",update,{passive:true});
-    root.addEventListener("scroll",dismissSelection,{passive:true});
+    root.addEventListener("scroll",repositionSelection,{passive:true});
     update();
-    return()=>{root.removeEventListener("scroll",update);root.removeEventListener("scroll",dismissSelection);cancelAnimationFrame(frame);};
+    return()=>{root.removeEventListener("scroll",update);root.removeEventListener("scroll",repositionSelection);cancelAnimationFrame(frame);};
   },[pdf,scale,page,onProgressChange]);
 
   const goToPage=useCallback((next:number)=>{
