@@ -482,3 +482,56 @@ test("PDF fixture supports long mixed-size documents", async () => {
   const pdf = createPdfFixture({pageCount:120,includeOutline:true});
   expect(pdf.toString("binary").match(/\/Type \/Page /g)).toHaveLength(120);
 });
+test("PDF reader navigates a long mixed-size document with an outline on mobile", async ({ page }) => {
+  await page.setViewportSize({width:390,height:844});
+  await page.emulateMedia({reducedMotion:"reduce"});
+  installApiMock(page);
+  let doc = null;
+  let nextId = 120;
+  await page.route("**/api/v1/explore/**", async route => {
+    const request=route.request();
+    const path=new URL(request.url()).pathname.replace("/api/v1","");
+    const method=request.method();
+    let body={};
+    if(method!=="GET"&&method!=="DELETE"){try{body=request.postDataJSON?.()??{};}catch{body={};}}
+    const json=data=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(data)});
+    const created=data=>route.fulfill({status:201,contentType:"application/json",body:JSON.stringify(data)});
+    if(path==="/explore/documents"&&method==="POST"){
+      doc={id:nextId++,title:"Long mixed-size report",filename:"long-report.pdf",source_url:null,page_count:120,size_bytes:2048,last_page:96,last_opened_at:null,created_at:new Date().toISOString()};
+      return created(doc);
+    }
+    if(path==="/explore/documents"&&method==="GET")return json(doc?[doc]:[]);
+    if(path.endsWith("/file"))return route.fulfill({status:200,contentType:"application/pdf",body:createPdfFixture({pageCount:120,includeOutline:true})});
+    if(/^\/explore\/documents\/\d+$/.test(path)&&method==="GET")return json(doc);
+    if(/^\/explore\/documents\/\d+$/.test(path)&&method==="PATCH"){doc={...doc,...body};return json(doc);}
+    if(path.endsWith("/bookmarks")&&method==="GET")return json([]);
+    if(path.endsWith("/annotations")&&method==="GET")return json([]);
+    return route.fulfill({status:404,contentType:"application/json",body:JSON.stringify({detail:"Unmocked long-PDF request: "+method+" "+path})});
+  });
+  await signIn(page);
+  await page.getByRole("button",{name:"Explore"}).click();
+  await page.locator(".atlas-upload-button input").setInputFiles({name:"long-report.pdf",mimeType:"application/pdf",buffer:Buffer.from("%PDF-1.4")});
+  await expect(page.locator(".atlas-reader")).toBeVisible();
+  await expect(page.getByLabel("Current page")).toHaveValue("96",{timeout:20000});
+  await page.getByRole("button",{name:/Outline/}).click();
+  await expect(page.getByRole("button",{name:/Chapter One/})).toBeVisible();
+  await page.getByRole("button",{name:/Chapter One/}).click();
+  await expect(page.getByLabel("Current page")).toHaveValue("1");
+  await page.getByLabel("Current page").fill("115");
+  await page.getByLabel("Current page").press("Enter");
+  await expect(page.getByLabel("Current page")).toHaveValue("115");
+  await expect(page.locator('[data-page="115"] .atlas-pdf-canvas')).toBeVisible();
+  const portraitRatio=await page.locator('[data-page="115"] .atlas-pdf-canvas').evaluate(canvas=>canvas.width/canvas.height);
+  expect(portraitRatio).toBeLessThan(1);
+  await page.getByLabel("Current page").fill("116");
+  await page.getByLabel("Current page").press("Enter");
+  await expect(page.locator('[data-page="116"] .atlas-pdf-canvas')).toBeVisible();
+  const landscapeRatio=await page.locator('[data-page="116"] .atlas-pdf-canvas').evaluate(canvas=>canvas.width/canvas.height);
+  expect(landscapeRatio).toBeGreaterThan(1);
+  await expect.poll(()=>doc?.last_page).toBe(116);
+  await expect(page.locator(".atlas-pdf-page")).toHaveCount(9);
+  await expect(page.locator(".atlas-reader-tabs [role=tab"][aria-selected="true"])).toHaveCount(1);
+  await expect(page.locator(".atlas-reader-tabs button").first()).toHaveCSS("min-height","42px");
+  await expect(page.locator(".atlas-pdf-scroll")).toHaveAttribute("aria-label","PDF pages");
+});
+
