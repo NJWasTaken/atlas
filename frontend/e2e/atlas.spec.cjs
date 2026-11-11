@@ -356,7 +356,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   let failAnnotationCreateOnce = true;
   let failAnnotationUpdateOnce = true;
   let failAnnotationDeleteOnce = true;
-  await page.route("**/api/v1/explore/**, async route => {
+  await page.route("**/api/v1/explore/**", async route => {
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname.replace("/api/v1", "");
