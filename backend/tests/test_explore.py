@@ -50,6 +50,8 @@ def test_bookmarks_and_annotations_are_document_scoped(client):
     assert mark_only.json()["note"] == ""
     assert mark_only.json()["annotation_type"] == "highlight"
     assert mark_only.json()["color"] == "yellow"
+    page_only_note = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "note": "Standalone page note"})
+    assert page_only_note.status_code == 422
     invalid_style = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "selected_text": "Invalid style", "annotation_type": "circle", "color": "orange", "highlight_rects": [{"x": 0.2, "y": 0.4, "width": 0.3, "height": 0.02}]})
     assert invalid_style.status_code == 422
     invalid_rect = client.post(f"/api/v1/explore/documents/{document_id}/annotations", headers=headers, json={"page_number": 1, "note": "Invalid", "highlight_rects": [{"x": 1.2, "y": 0.2, "width": 0.4, "height": 0.03}]})
