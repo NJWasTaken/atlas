@@ -360,6 +360,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
     }
     const docPath=path.match(/^\/explore\/documents\/(\d+)(?:\/(file))?$/);
     if(docPath&&docPath[2]==="file")return route.fulfill({status:200,contentType:"application/pdf",body:createPdfFixture()});
+    if(/^\/explore\/documents\/\d+\/export$/.test(path)&&method==="GET")return route.fulfill({status:200,contentType:"application/pdf",headers:{"content-disposition":'attachment; filename="paper-annotated.pdf"'},body:createPdfFixture()});
     if(docPath&&method==="GET")return json({...docs.find(d=>d.id===Number(docPath[1])),last_opened_at:new Date().toISOString()});
     if(docPath&&method==="PATCH"){const doc=docs.find(d=>d.id===Number(docPath[1]));Object.assign(doc,body);return json(doc);}
     if(docPath&&method==="DELETE"){const id=Number(docPath[1]);docs.splice(docs.findIndex(d=>d.id===id),1);return empty();}
@@ -369,6 +370,8 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
     const notesPath=path.match(/^\/explore\/documents\/(\d+)\/annotations$/);
     if(notesPath&&method==="GET")return json(annotations);
     if(notesPath&&method==="POST"){const note={id:nextId++,...body,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};annotations.unshift(note);return created(note);}
+    const updateNote=path.match(/\/annotations\/(\d+)$/);
+    if(updateNote&&method==="PATCH"){const note=annotations.find(x=>x.id===Number(updateNote[1]));Object.assign(note,body,{updated_at:new Date().toISOString()});return json(note);}
     const removeBookmark=path.match(/\/bookmarks\/(\d+)$/);
     if(removeBookmark&&method==="DELETE"){const index=bookmarks.findIndex(x=>x.id===Number(removeBookmark[1]));if(index>=0)bookmarks.splice(index,1);return empty();}
     const removeNote=path.match(/\/annotations\/(\d+)$/);
@@ -396,6 +399,29 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByLabel("Comment").fill("Compare this result with the lecture discussion.");
   await page.getByRole("button",{name:"Save highlight & comment"}).click();
   await expect(page.getByText("Compare this result with the lecture discussion.")).toBeVisible();
+  await page.getByRole("button",{name:"Edit comment"}).click();
+  await page.getByLabel("Edit annotation comment").fill("Revisit this argument in the next reading.");
+  await page.getByRole("button",{name:"Save",exact:true}).click();
+  await expect(page.getByText("Revisit this argument in the next reading.")).toBeVisible();
+  await page.getByLabel("Filter annotation colour").selectOption("green");
+  await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(2);
+  await page.getByLabel("Filter annotation colour").selectOption("all");
+  await page.getByLabel("Search annotations").fill("next reading");
+  await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(1);
+  await page.getByLabel("Search annotations").fill("");
+  await page.getByLabel("Reading theme").selectOption("sepia");
+  await expect(page.locator(".atlas-reader")).toHaveClass(/theme-sepia/);
+  await page.getByLabel("Reading theme").selectOption("dark");
+  await expect(page.locator(".atlas-reader")).toHaveClass(/theme-dark/);
+  await page.getByLabel("Reading theme").selectOption("paper");
+  await page.getByRole("button",{name:/Highlight mode/}).click();
+  await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
+  await expect(page.locator(".atlas-pdf-mark")).toHaveCount(2);
+  await page.getByRole("button",{name:/Highlight mode/}).click();
+  const exportPromise=page.waitForEvent("download");
+  await page.getByRole("button",{name:/Export PDF/}).click();
+  const download=await exportPromise;
+  expect(download.suggestedFilename()).toBe("paper-annotated.pdf");
   await page.getByRole("button",{name:/Bookmark/}).click();
   await page.getByRole("button",{name:/Saved/}).click();
   await expect(page.locator(".atlas-reader-bookmark").filter({hasText:"Page 3"})).toBeVisible();
