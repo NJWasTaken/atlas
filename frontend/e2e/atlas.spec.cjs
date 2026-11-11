@@ -13,7 +13,7 @@ function createPdfFixture({pageCount=8,includeOutline=false}={}) {
   for (let i=0;i<pageCount;i++) {
     const mediaBox = i % 3 === 1 ? "0 0 792 612" : i % 3 === 2 ? "0 0 612 1008" : "0 0 612 792";
     objects[firstPageId+i] = `<< /Type /Page /Parent 2 0 R /MediaBox [${mediaBox}] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${firstContentId+i} 0 R >>`;
-    const text = `BT /F1 18 Tf 50 740 Td (Page ${i+1} searchable text for Atlas reader tests) Tj ET`;
+    const text = `BT /F1 18 Tf 50 540 Td (Page ${i+1} searchable text for Atlas reader tests) Tj ET`;
     objects[firstContentId+i] = `<< /Length ${text.length} >>\nstream\n${text}\nendstream`;
   }
   objects[fontId] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
@@ -419,6 +419,8 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByRole("button",{name:"Fit width"}).click();
   await page.locator('[data-page="3"]').scrollIntoViewIfNeeded();
   await expect(page.getByLabel("Current page")).toHaveValue("3");
+  await page.getByRole("button",{name:/Outline/}).click();
+  await expect(page.getByText("This document does not contain a navigable outline.")).toBeVisible();
   await page.getByRole("button",{name:/Marks/}).click();
   await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
   await page.getByLabel("Highlight in green").click();
@@ -430,7 +432,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByLabel("Comment").fill("Compare this result with the lecture discussion.");
   await page.getByRole("button",{name:"Save highlight & comment"}).click();
   await expect(page.getByText("Compare this result with the lecture discussion.")).toBeVisible();
-  await page.getByRole("button",{name:"Edit annotation"}).click();
+  await page.locator(".atlas-reader-mark-card").first().getByRole("button",{name:"Edit annotation"}).click();
   await page.getByLabel("Edit annotation comment").fill("Revisit this argument in the next reading.");
   await page.getByLabel("Edit annotation type").selectOption("underline");
   await page.getByLabel("Edit annotation colour").selectOption("pink");
@@ -459,10 +461,10 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByRole("button",{name:/Export PDF/}).click();
   const download=await exportPromise;
   expect(download.suggestedFilename()).toBe("Research-paper-annotated.pdf");
-  await page.getByRole("button",{name:"Delete annotation"}).click();
+  await page.locator(".atlas-reader-mark-card").first().getByRole("button",{name:"Delete annotation"}).click();
   await expect(page.locator(".atlas-reader-mutation-retry")).toContainText("delete temporarily unavailable");
   await page.getByRole("button",{name:"Retry annotation change"}).click();
-  await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(1);
+  await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(2);
   await page.getByRole("button",{name:/Bookmark/}).click();
   await page.getByRole("button",{name:/Saved/}).click();
   await expect(page.locator(".atlas-reader-bookmark").filter({hasText:"Page 3"})).toBeVisible();
