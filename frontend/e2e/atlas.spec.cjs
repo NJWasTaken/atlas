@@ -423,8 +423,11 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await expect.poll(async()=>Number((await page.locator(".atlas-reader-zoom span").textContent()).replace("%",""))).toBe(zoomBefore+10);
   await page.keyboard.press("-");
   await expect.poll(async()=>Number((await page.locator(".atlas-reader-zoom span").textContent()).replace("%",""))).toBe(zoomBefore);
-  await page.locator('[data-page="3"]').scrollIntoViewIfNeeded();
+  await page.getByLabel("Current page").fill("3");
+  await page.getByLabel("Current page").press("Enter");
   await expect(page.getByLabel("Current page")).toHaveValue("3");
+  await expect.poll(()=>page.locator('[data-page="3"] .atlas-pdf-canvas').evaluate(canvas=>canvas.width)).toBeGreaterThan(0);
+  await expect.poll(()=>page.locator('[data-page="3"] .atlas-pdf-text-layer span').count()).toBeGreaterThan(0);
   await page.getByRole("tab",{name:/Outline/}).click();
   await expect(page.getByText("This document does not contain a navigable outline.")).toBeVisible();
   await page.getByRole("tab",{name:/Marks/}).click();
