@@ -1,6 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import Annotated
+from typing import Annotated, Literal
 
 
 class DocumentOut(BaseModel):
@@ -62,21 +62,22 @@ class AnnotationCreate(BaseModel):
     page_number: Annotated[int, Field(ge=1)]
     selected_text: str | None = Field(default=None, max_length=12000)
     highlight_rects: list[HighlightRect] = Field(default_factory=list, max_length=500)
-    note: str = Field(min_length=1, max_length=12000)
+    note: str = Field(default="", max_length=12000)
+    annotation_type: Literal["highlight", "underline", "strikeout"] = "highlight"
+    color: Literal["yellow", "green", "blue", "pink"] = "yellow"
 
     @field_validator("note")
     @classmethod
     def clean_note(cls, value: str) -> str:
-        value = value.strip()
-        if not value:
-            raise ValueError("A note cannot be blank")
-        return value
+        return value.strip()
 
 
 class AnnotationUpdate(BaseModel):
     selected_text: str | None = Field(default=None, max_length=12000)
     highlight_rects: list[HighlightRect] | None = Field(default=None, max_length=500)
-    note: str | None = Field(default=None, min_length=1, max_length=12000)
+    note: str | None = Field(default=None, max_length=12000)
+    annotation_type: Literal["highlight", "underline", "strikeout"] | None = None
+    color: Literal["yellow", "green", "blue", "pink"] | None = None
 
 
 class AnnotationOut(BaseModel):
@@ -85,6 +86,8 @@ class AnnotationOut(BaseModel):
     selected_text: str | None
     highlight_rects: list[dict[str, float]] | None = None
     note: str
+    annotation_type: str
+    color: str
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
