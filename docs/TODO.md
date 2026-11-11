@@ -76,8 +76,6 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 - [ ] Implement personal notes and saved resources/concepts.
 - [ ] Add personal questions and retrieval/search.
-- [ ] Implement user-created knowledge connections.
-- [ ] Build a visual knowledge graph after the underlying knowledge entities and links are stable.
 - [ ] Explore AI-assisted connections only after the user-controlled model is established.
 
 ## AI Gateway
