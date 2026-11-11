@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ArrowUpRight, BookOpen, Compass, GraduationCap, Library, LogOut, Orbit, Plus, X, ChevronRight, MoonStar } from "lucide-react";
+import { ArrowUpRight, BookOpen, GraduationCap, Library, LogOut, Orbit, Plus, X, ChevronRight, MoonStar } from "lucide-react";
 import { api, clearToken, getToken, setToken } from "../lib/api";
 import DashboardCalendar from "./components/DashboardCalendar";
 import AcademicsWorkspace from "./components/AcademicsWorkspace";
@@ -17,13 +17,13 @@ type AuthMode = "login" | "register";
 const nav = [
   { label: "Overview", icon: Orbit },
   { label: "Academics", icon: GraduationCap },
-  { label: "Explore", icon: Compass },
+  { label: "Explore", icon: BookOpen },
   { label: "My Universe", icon: Library },
 ];
 const copy: Record<string, { eyebrow: string; title: string; description: string }> = {
   Overview: { eyebrow: "YOUR SPACE", title: "Leave a little room to wonder.", description: "A clear view of what you are learning, what is coming up, and what deserves a second look." },
   Academics: { eyebrow: "YOUR STUDIES", title: "The foundations.", description: "Keep your subjects, syllabi and learning progress in one quiet place." },
-  Explore: { eyebrow: "BEYOND THE SYLLABUS", title: "Follow a question.", description: "Curiosity rarely follows a straight line. That's the interesting part." },
+  Explore: { eyebrow: "THE READING ROOM", title: "Read deeply.", description: "A quiet space for PDFs, thoughtful annotations, and the passages worth returning to." },
   "My Universe": { eyebrow: "YOUR KNOWLEDGE", title: "Things worth keeping.", description: "A growing collection of ideas, notes and connections that are yours." },
 };
 
