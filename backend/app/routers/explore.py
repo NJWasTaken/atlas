@@ -282,8 +282,8 @@ def export_annotated_document(document_id: int, db: Session = Depends(get_db), u
                     NameObject("/Subtype"): NameObject(subtype[mark.annotation_type]),
                     NameObject("/Rect"): ArrayObject([FloatObject(x1), FloatObject(y1), FloatObject(x2), FloatObject(y2)]),
                     NameObject("/QuadPoints"): ArrayObject([
-                        FloatObject(x1), FloatObject(y2), FloatObject(x2), FloatObject(y2),
                         FloatObject(x1), FloatObject(y1), FloatObject(x2), FloatObject(y1),
+                        FloatObject(x1), FloatObject(y2), FloatObject(x2), FloatObject(y2),
                     ]),
                     NameObject("/C"): ArrayObject([FloatObject(channel) for channel in color]),
                     NameObject("/CA"): FloatObject(0.38),
