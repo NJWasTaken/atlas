@@ -346,7 +346,7 @@ export default function PdfReaderWorkspace(props:Props) {
   async function persistAnnotation(payload:AnnotationPayload){
     setSaving(true);setAnnotationRetry(null);
     try{
-      const item=await api<Annotation>(\`/explore/documents/\${documentId}/annotations\`,{method:"POST",body:JSON.stringify(payload)});
+      const item=await api<Annotation>(`/explore/documents/${documentId}/annotations`,{method:"POST",body:JSON.stringify(payload)});
       onAnnotationsChange([item,...annotations]);
       setNote("");setSelectedText("");setSelectedRects([]);setSelectionAnchor(null);setCommentMode(false);window.getSelection()?.removeAllRanges();
       setActivePanel("annotations");
@@ -374,7 +374,7 @@ export default function PdfReaderWorkspace(props:Props) {
   async function persistAnnotationUpdate(id:number,payload:{note:string;annotation_type:"highlight"|"underline"|"strikeout";color:"yellow"|"green"|"blue"|"pink"}){
     setSaving(true);setAnnotationRetry(null);
     try{
-      const updated=await api<Annotation>(\`/explore/documents/\${documentId}/annotations/\${id}\`,{method:"PATCH",body:JSON.stringify(payload)});
+      const updated=await api<Annotation>(`/explore/documents/${documentId}/annotations/${id}`,{method:"PATCH",body:JSON.stringify(payload)});
       onAnnotationsChange(annotations.map(item=>item.id===id?updated:item));
       setEditingAnnotationId(null);setEditingAnnotationNote("");
     }catch(error){
@@ -409,7 +409,7 @@ export default function PdfReaderWorkspace(props:Props) {
   }
   async function persistAnnotationDelete(id:number){
     setSaving(true);setAnnotationRetry(null);
-    try{await api<void>(\`/explore/documents/\${documentId}/annotations/\${id}\`,{method:"DELETE"});onAnnotationsChange(annotations.filter(item=>item.id!==id));}
+    try{await api<void>(`/explore/documents/${documentId}/annotations/${id}`,{method:"DELETE"});onAnnotationsChange(annotations.filter(item=>item.id!==id));}
     catch(error){
       const message=error instanceof Error?error.message:"Could not remove annotation.";
       setAnnotationRetry({message,run:()=>persistAnnotationDelete(id)});
