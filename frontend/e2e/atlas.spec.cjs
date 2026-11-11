@@ -417,7 +417,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByRole("button",{name:/locked highlight mode/i}).click();
   await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
   await expect(page.locator(".atlas-pdf-mark")).toHaveCount(3);
-  await page.getByRole("button",{name:/Highlight mode/}).click();
+  await page.getByRole("button",{name:/locked highlight mode/i}).click();
   const exportPromise=page.waitForEvent("download");
   await page.getByRole("button",{name:/Export PDF/}).click();
   const download=await exportPromise;
