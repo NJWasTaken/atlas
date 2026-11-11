@@ -1,21 +1,34 @@
-function createPdfFixture() {
+function createPdfFixture({pageCount=8,includeOutline=false}={}) {
   const objects = [];
-  objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
-  objects[2] = "<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R 6 0 R 7 0 R 8 0 R 9 0 R 10 0 R] /Count 8 >>";
-  for (let i=0;i<8;i++) {
-    const mediaBox = i % 2 === 1 ? "0 0 792 612" : "0 0 612 792";
-    objects[3+i] = `<< /Type /Page /Parent 2 0 R /MediaBox [${mediaBox}] /Resources << /Font << /F1 11 0 R >> >> /Contents ${12+i} 0 R >>`;
+  const firstPageId = 3;
+  const fontId = pageCount + 3;
+  const firstContentId = pageCount + 4;
+  const outlineRootId = firstContentId + pageCount;
+  const outlineItemId = outlineRootId + 1;
+  const kids = Array.from({length:pageCount},(_,i)=>`${firstPageId+i} 0 R`).join(" ");
+  objects[1] = includeOutline
+    ? `<< /Type /Catalog /Pages 2 0 R /Outlines ${outlineRootId} 0 R /PageMode /UseOutlines >>`
+    : "<< /Type /Catalog /Pages 2 0 R >>";
+  objects[2] = `<< /Type /Pages /Kids [${kids}] /Count ${pageCount} >>`;
+  for (let i=0;i<pageCount;i++) {
+    const mediaBox = i % 3 === 1 ? "0 0 792 612" : i % 3 === 2 ? "0 0 612 1008" : "0 0 612 792";
+    objects[firstPageId+i] = `<< /Type /Page /Parent 2 0 R /MediaBox [${mediaBox}] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${firstContentId+i} 0 R >>`;
     const text = `BT /F1 18 Tf 50 740 Td (Page ${i+1} searchable text for Atlas reader tests) Tj ET`;
-    objects[12+i] = `<< /Length ${text.length} >>\nstream\n${text}\nendstream`;
+    objects[firstContentId+i] = `<< /Length ${text.length} >>\nstream\n${text}\nendstream`;
   }
-  objects[11] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  objects[fontId] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  if(includeOutline){
+    objects[outlineRootId] = `<< /Type /Outlines /First ${outlineItemId} 0 R /Last ${outlineItemId} 0 R /Count 1 >>`;
+    objects[outlineItemId] = `<< /Title (Chapter One) /Parent ${outlineRootId} 0 R /Dest [${firstPageId} 0 R /Fit] >>`;
+  }
   let pdf = "%PDF-1.4\n";
+  const lastObjectId = includeOutline ? outlineItemId : fontId;
   const offsets = [0];
-  for (let i=1;i<objects.length;i++) { offsets[i]=Buffer.byteLength(pdf,"binary"); pdf += `${i} 0 obj\n${objects[i]}\nendobj\n`; }
+  for (let i=1;i<=lastObjectId;i++) { offsets[i]=Buffer.byteLength(pdf,"binary"); pdf += `${i} 0 obj\n${objects[i]}\nendobj\n`; }
   const xref = Buffer.byteLength(pdf,"binary");
-  pdf += `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
-  for (let i=1;i<objects.length;i++) pdf += `${String(offsets[i]).padStart(10,"0")} 00000 n \n`;
-  pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  pdf += `xref\n0 ${lastObjectId+1}\n0000000000 65535 f \n`;
+  for (let i=1;i<=lastObjectId;i++) pdf += `${String(offsets[i]).padStart(10,"0")} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${lastObjectId+1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
   return Buffer.from(pdf,"binary");
 }
 
