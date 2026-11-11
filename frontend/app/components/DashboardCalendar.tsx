@@ -160,6 +160,7 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
         setNotes(old=>{const next={...old};delete next[selected];return next;});
       }
       setSaved(true);
+      setEditing(false);
       setNotice(draft.trim() ? "Day note saved." : "Day note deleted.");
     } catch(e) { setMutationError(e instanceof Error ? e.message : "Could not save note"); }
     finally { setSaving(false); }
