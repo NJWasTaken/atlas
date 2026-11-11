@@ -417,6 +417,12 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByRole("button",{name:"Fit page"}).click();
   await expect(page.locator(".atlas-reader-zoom span")).toContainText("%");
   await page.getByRole("button",{name:"Fit width"}).click();
+  const zoomBefore=Number((await page.locator(".atlas-reader-zoom span").textContent()).replace("%",""));
+  await page.locator(".atlas-pdf-scroll").focus();
+  await page.keyboard.press("+");
+  await expect.poll(async()=>Number((await page.locator(".atlas-reader-zoom span").textContent()).replace("%",""))).toBe(zoomBefore+10);
+  await page.keyboard.press("-");
+  await expect.poll(async()=>Number((await page.locator(".atlas-reader-zoom span").textContent()).replace("%",""))).toBe(zoomBefore);
   await page.locator('[data-page="3"]').scrollIntoViewIfNeeded();
   await expect(page.getByLabel("Current page")).toHaveValue("3");
   await page.getByRole("button",{name:/Outline/}).click();
@@ -473,6 +479,10 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByPlaceholder("Search words or phrases in this PDF…").fill("searchable text");
   await page.getByRole("button",{name:"Find"}).click();
   await expect(page.locator(".atlas-pdf-search-results")).toContainText("Page 1");
+  await page.getByRole("button",{name:"Library"}).click();
+  await expect(page.getByText("Page 3 of 8")).toBeVisible();
+  await page.getByRole("button",{name:/Research paper/}).click();
+  await expect(page.locator(".atlas-reader.theme-dark")).toHaveCount(1);
   await page.getByRole("button",{name:"Library"}).click();
   await expect(page.getByText("Page 3 of 8")).toBeVisible();
 });
