@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft, ArrowUpRight, Bookmark, BookOpen, Check, ChevronLeft, ChevronRight,
-  FilePlus2, FileText, FolderOpen, Link2, LoaderCircle, Maximize2, Minus, Plus,
-  Search, StickyNote, Trash2, Upload, X,
+  ArrowUpRight, FileText, FolderOpen, Link2, LoaderCircle, Search, Trash2, Upload, X,
 } from "lucide-react";
 import { api, apiBlob } from "../../lib/api";
 import PdfReaderWorkspace from "./PdfReaderWorkspace";
@@ -28,14 +26,8 @@ export default function ExploreWorkspace() {
   const [selected,setSelected] = useState<DocumentItem|null>(null);
   const [pdfUrl,setPdfUrl] = useState("");
   const [page,setPage] = useState(1);
-  const [pageDraft,setPageDraft] = useState("1");
-  const [zoom,setZoom] = useState("page-width");
   const [bookmarks,setBookmarks] = useState<BookmarkItem[]>([]);
   const [annotations,setAnnotations] = useState<AnnotationItem[]>([]);
-  const [panel,setPanel] = useState<"notes"|"bookmarks">("notes");
-  const [noteText,setNoteText] = useState("");
-  const [selectedText,setSelectedText] = useState("");
-  const [saving,setSaving] = useState(false);
   const [uploading,setUploading] = useState(false);
   const [showImport,setShowImport] = useState(false);
   const [remoteUrl,setRemoteUrl] = useState("");
@@ -54,17 +46,17 @@ export default function ExploreWorkspace() {
 
   const openDocument = useCallback(async (item:DocumentItem) => {
     setError("");
-    setSelected(item); setPage(item.last_page); setPageDraft(String(item.last_page));
+    setSelected(item); setPage(item.last_page);
     setPdfUrl(""); setBookmarks([]); setAnnotations([]);
     try {
-      const [detail,blob,marks,notes] = await Promise.all([
+      const [detail,blob,marks,annotations] = await Promise.all([
         api<DocumentItem>(`/explore/documents/${item.id}`),
         apiBlob(`/explore/documents/${item.id}/file`),
         api<BookmarkItem[]>(`/explore/documents/${item.id}/bookmarks`),
         api<AnnotationItem[]>(`/explore/documents/${item.id}/annotations`),
       ]);
-      setSelected(detail); setPage(detail.last_page); setPageDraft(String(detail.last_page));
-      setBookmarks(marks); setAnnotations(notes); setPdfUrl(URL.createObjectURL(blob));
+      setSelected(detail); setPage(detail.last_page);
+      setBookmarks(marks); setAnnotations(annotations); setPdfUrl(URL.createObjectURL(blob));
       setDocuments(current=>current.map(doc=>doc.id===detail.id?detail:doc));
     } catch(e) { setError(e instanceof Error?e.message:"Could not open this PDF."); setSelected(null); }
   },[]);
@@ -81,7 +73,6 @@ export default function ExploreWorkspace() {
   },[page,selected]);
 
   const filtered = useMemo(()=>documents.filter(doc=>`${doc.title} ${doc.filename}`.toLowerCase().includes(librarySearch.toLowerCase())),[documents,librarySearch]);
-  const viewerUrl = pdfUrl ? `${pdfUrl}#page=${page}&zoom=${zoom}&toolbar=1&navpanes=1` : "";
 
   async function uploadFile(file?:File) {
     if(!file) return;
@@ -101,34 +92,6 @@ export default function ExploreWorkspace() {
     } catch(e) {setError(e instanceof Error?e.message:"Could not import this PDF.");}
     finally {setUploading(false);}
   }
-  async function addBookmark() {
-    if(!selected) return;
-    setSaving(true);
-    try {
-      const item=await api<BookmarkItem>(`/explore/documents/${selected.id}/bookmarks`,{method:"POST",body:JSON.stringify({page_number:page,label:`Page ${page}`})});
-      setBookmarks(current=>[...current.filter(mark=>mark.page_number!==page),item].sort((a,b)=>a.page_number-b.page_number));
-    } catch(e) {setError(e instanceof Error?e.message:"Could not save bookmark.");}
-    finally {setSaving(false);}
-  }
-  async function saveNote(e:React.FormEvent) {
-    e.preventDefault();if(!selected||!noteText.trim())return;
-    setSaving(true);
-    try {
-      const item=await api<AnnotationItem>(`/explore/documents/${selected.id}/annotations`,{method:"POST",body:JSON.stringify({page_number:page,selected_text:selectedText.trim()||null,note:noteText.trim()})});
-      setAnnotations(current=>[item,...current]);setNoteText("");setSelectedText("");setPanel("notes");
-    } catch(e) {setError(e instanceof Error?e.message:"Could not save this note.");}
-    finally {setSaving(false);}
-  }
-  async function removeBookmark(id:number) {
-    if(!selected)return;
-    try {await api<void>(`/explore/documents/${selected.id}/bookmarks/${id}`,{method:"DELETE"});setBookmarks(current=>current.filter(item=>item.id!==id));}
-    catch(e){setError(e instanceof Error?e.message:"Could not remove bookmark.");}
-  }
-  async function removeNote(id:number) {
-    if(!selected)return;
-    try {await api<void>(`/explore/documents/${selected.id}/annotations/${id}`,{method:"DELETE"});setAnnotations(current=>current.filter(item=>item.id!==id));}
-    catch(e){setError(e instanceof Error?e.message:"Could not remove note.");}
-  }
   async function closeReader() {
     if(selected) {
       try {
@@ -139,13 +102,13 @@ export default function ExploreWorkspace() {
     setSelected(null);setPdfUrl("");setError("");
   }
   async function deleteDocument(item:DocumentItem) {
-    if(!window.confirm(`Remove "${item.title}" and its reading notes?`))return;
+    if(!window.confirm(`Remove "${item.title}" and its annotations?`))return;
     try {await api<void>(`/explore/documents/${item.id}`,{method:"DELETE"});setDocuments(current=>current.filter(doc=>doc.id!==item.id));if(selected?.id===item.id){setSelected(null);setPdfUrl("");}}
     catch(e){setError(e instanceof Error?e.message:"Could not remove this document.");}
   }
   const goToPage = useCallback((value:number) => {
     const next=Math.min(Math.max(1,value),selected?.page_count??1);
-    setPage(next);setPageDraft(String(next));
+    setPage(next);
   },[selected?.page_count]);
 
   return (
@@ -153,7 +116,7 @@ export default function ExploreWorkspace() {
       {!selected ? (
         <>
           <div className="atlas-explore-intro">
-            <div><p className="eyebrow">THE READING ROOM</p><h2>Make room for <em>curiosity.</em></h2><p>A quiet place for papers, books and ideas worth following.</p></div>
+            <div><p className="eyebrow">THE READING ROOM</p><h2>Make room for <em>deep reading.</em></h2><p>A calm space for research papers, course readings, and passages worth marking.</p></div>
             <div className="atlas-explore-actions">
               <label className="atlas-button atlas-primary atlas-upload-button"><Upload size={15}/>{uploading?"Adding PDF…":"Upload PDF"}<input type="file" accept="application/pdf,.pdf" disabled={uploading} onChange={e=>{void uploadFile(e.target.files?.[0]);e.currentTarget.value="";}}/></label>
               <button className="atlas-button atlas-secondary" onClick={()=>setShowImport(true)}><Link2 size={15}/> Import from URL</button>
@@ -161,7 +124,7 @@ export default function ExploreWorkspace() {
           </div>
           {error&&<div className="atlas-explore-alert" role="alert">{error}<button onClick={()=>setError("")} aria-label="Dismiss"><X size={14}/></button></div>}
           <div className="atlas-library-toolbar"><div><p className="eyebrow">YOUR COLLECTION</p><h3>Reading library <span>{documents.length.toString().padStart(2,"0")}</span></h3></div><label className="atlas-library-search"><Search size={15}/><input value={librarySearch} onChange={e=>setLibrarySearch(e.target.value)} placeholder="Find a document…"/></label></div>
-          {loading?<div className="atlas-explore-state"><LoaderCircle className="atlas-spin" size={19}/><span>Gathering your library…</span></div>:filtered.length===0?<div className="atlas-library-empty"><div><FolderOpen size={24}/></div><h3>{documents.length?"No matching documents.":"Your reading room is waiting."}</h3><p>{documents.length?"Try another title or filename.":"Upload a PDF or import one from a public link. Your reading progress, bookmarks and notes will stay here."}</p></div>:<div className="atlas-document-grid">{filtered.map(doc=><article className="atlas-document-card" key={doc.id}>
+          {loading?<div className="atlas-explore-state"><LoaderCircle className="atlas-spin" size={19}/><span>Gathering your library…</span></div>:filtered.length===0?<div className="atlas-library-empty"><div><FolderOpen size={24}/></div><h3>{documents.length?"No matching documents.":"Your reading room is waiting."}</h3><p>{documents.length?"Try another title or filename.":"Upload a PDF or import one from a public link. Your reading progress, bookmarks and annotations will stay here."}</p></div>:<div className="atlas-document-grid">{filtered.map(doc=><article className="atlas-document-card" key={doc.id}>
             <button className="atlas-document-open" onClick={()=>void openDocument(doc)}><div className="atlas-document-cover"><FileText size={31}/><span>PDF</span><i>{doc.page_count} PAGES</i></div><div className="atlas-document-meta"><strong>{doc.title}</strong><small>{doc.filename}</small><span>{formatBytes(doc.size_bytes)} · {doc.last_page>1?`Page ${doc.last_page} of ${doc.page_count}`:`${doc.page_count} pages`}</span><div className="atlas-reading-progress"><i style={{width:`${Math.min(100,doc.last_page/doc.page_count*100)}%`}}/></div></div></button>
             <button className="atlas-document-remove" onClick={()=>void deleteDocument(doc)} aria-label={`Remove ${doc.title}`}><Trash2 size={14}/></button>
           </article>)}</div>}
