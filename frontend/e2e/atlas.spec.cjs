@@ -524,7 +524,7 @@ test("PDF reader navigates a long mixed-size document with an outline on mobile"
   await page.locator(".atlas-upload-button input").setInputFiles({name:"long-report.pdf",mimeType:"application/pdf",buffer:Buffer.from("%PDF-1.4")});
   await expect(page.locator(".atlas-reader.theme-paper")).toBeVisible();
   await expect(page.getByLabel("Current page")).toHaveValue("96",{timeout:20000});
-  await page.getByRole("button",{name:/Outline/}).click();
+  await page.getByRole("tab",{name:/Outline/}).click();
   await expect(page.getByRole("button",{name:/Chapter One/})).toBeVisible();
   await page.getByRole("button",{name:/Chapter One/}).click();
   await expect(page.getByLabel("Current page")).toHaveValue("1");
