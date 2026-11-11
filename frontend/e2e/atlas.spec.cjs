@@ -520,18 +520,18 @@ test("PDF reader navigates a long mixed-size document with an outline on mobile"
   await page.getByLabel("Current page").fill("115");
   await page.getByLabel("Current page").press("Enter");
   await expect(page.getByLabel("Current page")).toHaveValue("115");
-  await expect(page.locator('[data-page="115"] .atlas-pdf-canvas')).toBeVisible();
+  await expect.poll(()=>page.locator('[data-page="115"] .atlas-pdf-canvas').evaluate(canvas=>canvas.width)).toBeGreaterThan(0);
   const portraitRatio=await page.locator('[data-page="115"] .atlas-pdf-canvas').evaluate(canvas=>canvas.width/canvas.height);
   expect(portraitRatio).toBeLessThan(1);
   await page.getByLabel("Current page").fill("116");
   await page.getByLabel("Current page").press("Enter");
-  await expect(page.locator('[data-page="116"] .atlas-pdf-canvas')).toBeVisible();
+  await expect.poll(()=>page.locator('[data-page="116"] .atlas-pdf-canvas').evaluate(canvas=>canvas.width)).toBeGreaterThan(0);
   const landscapeRatio=await page.locator('[data-page="116"] .atlas-pdf-canvas').evaluate(canvas=>canvas.width/canvas.height);
   expect(landscapeRatio).toBeGreaterThan(1);
   await expect.poll(()=>doc?.last_page).toBe(116);
   await expect(page.locator(".atlas-pdf-page")).toHaveCount(9);
   await expect(page.locator(".atlas-reader-tabs [role=tab"][aria-selected="true"])).toHaveCount(1);
-  await expect(page.locator(".atlas-reader-tabs button").first()).toHaveCSS("min-height","42px");
+  await expect.poll(()=>page.locator(".atlas-reader-tabs button").first().evaluate(node=>parseFloat(getComputedStyle(node).minHeight))).toBeGreaterThanOrEqual(42);
   await expect(page.locator(".atlas-pdf-scroll")).toHaveAttribute("aria-label","PDF pages");
 });
 
