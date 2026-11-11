@@ -68,7 +68,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Selection-first annotations — floating toolbar for highlight, underline, strike-through, and anchored comment; four highlight colours; selected-text and page context.
 - [x] Add an annotation list with page-jump navigation and deletion; preserve legacy page-only notes as page-comment annotations during migration.
 - [x] Add locked highlighter/underline modes with a persistent colour choice for repeated marking.
-- [ ] Annotation management refinement — search/filter by passage, type, and colour; edit existing comments/marks; and add dependable autosave/error recovery.
+- [x] Annotation management first pass — search/filter by passage, type, and colour; inline editing of existing comments.\n- [ ] Refine mark type/colour editing and add dependable mutation retry/error recovery.
 - [ ] Add freehand ink/area markup only if it fits naturally into the reading flow and can be persisted accessibly.
 - [x] Export a separate PDF copy with standard highlight, underline, and strike-through annotations embedded; never modify the original upload.
 - [x] Add paper, sepia, and dark reading themes with the original PDF content preserved.
