@@ -160,8 +160,10 @@ export default function PdfReaderWorkspace(props:Props) {
   const [editingAnnotationColor,setEditingAnnotationColor]=useState<"yellow"|"green"|"blue"|"pink">("yellow");
   const [readingTheme,setReadingTheme]=useState<"paper"|"sepia"|"dark">(()=>{
     if(typeof window==="undefined")return "paper";
-    const saved=window.localStorage.getItem(`atlas:pdf-theme:${documentId}`);
-    return saved==="sepia"||saved==="dark"?saved:"paper";
+    try{
+      const saved=window.localStorage.getItem(`atlas:pdf-theme:${documentId}`);
+      return saved==="sepia"||saved==="dark"?saved:"paper";
+    }catch{return "paper";}
   });
   const [exporting,setExporting]=useState(false);
   const [saving,setSaving]=useState(false);
