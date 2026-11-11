@@ -1203,7 +1203,7 @@ The development roadmap prioritises a useful academic foundation before introduc
 
 - Refine the private PDF library and reading surface.
 - Improve rendering performance for long documents.
-- Add selection-first, colour-coded PDF annotations and anchored comments.
+- Add selection-first, colour-coded PDF annotations and anchored comments.\n- Add a locked highlighter/underline mode for repeated marking.
 - Build a navigable annotation review panel.
 - Export annotations into a copy of the PDF.
 - Complete keyboard, touch, accessibility, and reading-theme refinement.
