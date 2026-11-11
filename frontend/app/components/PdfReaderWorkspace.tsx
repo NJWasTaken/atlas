@@ -297,7 +297,7 @@ export default function PdfReaderWorkspace(props:Props) {
     <div className={`atlas-reader-body ${sidebarOpen?"":"sidebar-hidden"}`}>
       <main className="atlas-pdf-stage">
         <div className="atlas-pdf-scroll" ref={scrollRef}>
-          {loading?<div className="atlas-explore-state"><LoaderCircle className="atlas-spin" size={20}/>Preparing your reader…</div>:pdf?<div className="atlas-pdf-pages">{pageNumbers.map(number=><div key={number} ref={node=>{if(node)pageRefs.current.set(number,node);else pageRefs.current.delete(number);}}><PdfPage pdf={pdf} pageNumber={number} scale={scale} searchTerm={query} annotations={annotations} onSelect={(p,text,rects)=>{setSelectedPage(p);setSelectedText(text);setSelectedRects(rects);setActivePanel("annotations");}}/></div>)}</div>:<div className="atlas-explore-state">Unable to render this PDF.</div>}
+          {loading?<div className="atlas-explore-state"><LoaderCircle className="atlas-spin" size={20}/>Preparing your reader…</div>:pdf?<div className="atlas-pdf-pages">{pageNumbers.map(number=><div key={number} ref={node=>{if(node)pageRefs.current.set(number,node);else pageRefs.current.delete(number);}}><PdfPage pdf={pdf} pageNumber={number} scale={scale} searchTerm={query} annotations={annotations} onSelect={(p,text,rects,anchor)=>{setSelectedPage(p);setSelectedText(text);setSelectedRects(rects);setSelectionAnchor(anchor);setCommentMode(false);}}/></div>)}</div>:<div className="atlas-explore-state">Unable to render this PDF.</div>}
         </div>
         <div className="atlas-reader-status"><span>PAGE {page} OF {pageCount}</span><span>{Math.round(page/pageCount*100)}% THROUGH</span></div>
       </main>
