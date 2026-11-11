@@ -23,7 +23,6 @@ The long-term goal is to create a digital space where students can manage their 
   - [Explore](#3-explore)
   - [My Universe](#4-my-universe)
   - [Settings](#5-settings)
-- [AI Gateway](#ai-gateway)
 - [Key User Journeys](#key-user-journeys)
 - [System Architecture](#system-architecture)
 - [Technology Stack](#technology-stack)
@@ -51,9 +50,8 @@ Atlas is intended to serve as:
 - A learning tracker focused on understanding rather than merely completed tasks.
 - An exploration environment for discovering topics outside formal coursework.
 - A personal knowledge space for collecting notes, concepts, questions, and ideas.
-- An AI-assisted interface that helps students learn without locking them into a particular AI provider.
 
-The application is not intended to replace university learning platforms, note-taking applications, or AI chatbots individually. Its purpose is to provide a cohesive environment that connects these activities.
+The application complements university learning platforms and note-taking applications by bringing academic planning, reading, and personal knowledge into one cohesive workspace.
 
 ## What Atlas is not
 
@@ -61,7 +59,6 @@ Atlas is not intended to become:
 
 - Another generic to-do list with an academic theme.
 - A platform that measures learning exclusively through streaks or hours spent studying.
-- An AI chatbot wrapped around a university syllabus.
 - A rigid study planner that dictates how a student must learn.
 - A grade prediction system that presents fabricated precision as academic readiness.
 
@@ -102,7 +99,6 @@ It should help organise information and provide useful suggestions without becom
 - Academic confidence takes priority over gamification.
 - Grades and examination preparation remain important, but should not define the entire learning experience.
 - Students retain control over their learning progress and organisation.
-- AI should assist learning rather than become a mandatory dependency.
 - Information should be explainable, editable, and easy to retrieve.
 - The interface should remain calm and readable even when displaying large amounts of information.
 
@@ -410,7 +406,7 @@ There is no standalone notes area in Explore. A comment exists only as part of a
 
 ### 3.3 Explicit non-goals
 
-Explore does not include topic workspaces, discovery sessions, standalone notes, whiteboards, knowledge graphs, web article capture, social features, AI chat, or automatic knowledge organization. Its job is to make reading and marking up a PDF exceptionally good.
+Explore does not include topic workspaces, discovery sessions, standalone notes, whiteboards, knowledge graphs, web article capture, social features, or automatic knowledge organization. Its job is to make reading and marking up a PDF exceptionally good.
 
 The initial reader supports PDFs up to 12 MB. Password-protected documents and scanned-document OCR are not supported.
 
@@ -498,7 +494,7 @@ Gradient Descent
       └── Builds upon → Calculus
 ```
 
-Connections should be created and managed by the student, with AI-assisted suggestions available as an optional enhancement.
+Connections should be created and managed explicitly by the student.
 
 ### 4.5 Knowledge graph
 
@@ -530,12 +526,6 @@ Visual knowledge graphs are explicitly out of scope. Personal items should remai
 - Interface density.
 - Typography preferences.
 
-**AI providers**
-- Configure supported AI providers.
-- Manage provider preferences.
-- Add API credentials where applicable.
-- Select a preferred provider.
-- Configure model preferences.
 
 **Data management**
 - Export personal information.
@@ -544,78 +534,6 @@ Visual knowledge graphs are explicitly out of scope. Personal items should remai
 - Future backup and restore functionality.
 
 ---
-
-# AI Gateway
-
-The AI Gateway is a cross-application capability rather than a standalone chatbot module.
-
-Its purpose is to provide a common interface between Atlas and external AI providers.
-
-Atlas should not require users to depend on a single AI provider.
-
-### Design goals
-
-- Support multiple AI providers.
-- Keep provider integration separate from application logic.
-- Allow provider selection.
-- Support contextual prompts.
-- Avoid mandatory paid API dependencies.
-- Allow the application to function without AI integrations.
-
-### Provider abstraction
-
-The intended architecture is:
-
-```text
-             Atlas
-               │
-          AI Gateway
-               │
-       Provider Interface
-               │
-       ┌───────┼────────┐
-       │       │        │
-     OpenAI  Anthropic  Gemini
-       │       │        │
-       └───────┼────────┘
-               │
-        Other Providers
-```
-
-Each provider should implement a common interface so that application features do not need to know the details of individual APIs.
-
-### Contextual prompts
-
-The AI Gateway should eventually be able to construct prompts using relevant application context.
-
-Depending on the user's request, this may include:
-
-- Current subject.
-- Relevant syllabus topics.
-- Selected concept.
-- Existing notes.
-- Exploration history.
-- Saved knowledge.
-- User-defined learning preferences.
-
-Only relevant context should be included.
-
-### Avoiding mandatory API costs
-
-A major design consideration is avoiding mandatory paid API keys.
-
-Atlas should support an experience where students can use their preferred external AI applications when direct API access is unavailable or undesirable.
-
-A possible approach is an AI handoff workflow:
-
-1. Atlas constructs a contextual prompt.
-2. The student chooses an external AI provider.
-3. Atlas opens the selected provider with the prompt where supported.
-4. The student continues the interaction externally.
-
-Direct API integrations can be added as optional capabilities.
-
-The application must remain useful without them.
 
 ---
 
@@ -703,7 +621,7 @@ This approach keeps the initial development and deployment manageable while pres
                       │
         ┌─────────────┼─────────────┐
         │             │             │
-   Authentication  AI Gateway   File Processing
+   Authentication  Application services   File Processing
         │             │             │
         └─────────────┼─────────────┘
                       │
@@ -732,7 +650,6 @@ The backend is responsible for:
 - Concept progress.
 - Examination management.
 - Personal knowledge management.
-- AI provider integrations.
 - File processing.
 
 ### Database
@@ -949,12 +866,6 @@ Suggested fields:
 - `relationship_type`
 - `created_at`
 
-### AIProviderConfiguration
-
-Stores user-specific AI provider preferences and configuration metadata.
-
-Sensitive credentials should be handled securely and never exposed through ordinary API responses.
-
 ---
 
 # API Design
@@ -1026,12 +937,6 @@ The following describes the intended API surface.
 - Manage questions.
 - Create and manage knowledge connections.
 
-**AI Gateway**
-- Retrieve supported providers.
-- Manage provider preferences.
-- Generate contextual prompts.
-- Perform provider handoffs.
-- Execute direct AI requests when configured.
 
 All user-owned resources must be checked against the authenticated user. Knowing a resource ID must never be sufficient to access another user's data.
 
@@ -1088,13 +993,9 @@ The following principles should guide development:
 
 1. Users should only be able to access their own private resources.
 2. Authentication credentials must be securely hashed.
-3. API credentials for external AI providers must not be exposed to the frontend unnecessarily.
-4. Personal notes and learning records should not be sent to AI providers without an intentional feature requiring that context.
-5. Context sent to AI providers should be limited to what is relevant.
-6. Users should retain control over their stored information.
-7. Destructive actions should have appropriate safeguards.
-8. AI-generated content should be distinguishable from user-authored information.
-9. Academic readiness should be based on recorded data rather than fabricated estimates.
+3. Users should retain control over their stored information.
+4. Destructive actions should have appropriate safeguards.
+5. Academic readiness should be based on recorded data rather than fabricated estimates.
 
 Privacy and security should be considered at the design stage rather than added as an afterthought.
 
@@ -1140,15 +1041,11 @@ The product vision is broader than the current implementation. The following tab
 | Prerequisite awareness | Future |
 | Refined PDF reading and annotation experience | In progress |
 | Exploration sessions | Planned |
-| AI Gateway | Planned |
-| External AI provider handoff | Planned |
-| Direct AI API integrations | Planned |
 | My Universe | Planned |
 | Personal notes system | Planned |
 | Saved concepts and resources | Planned |
 | Knowledge connections | Planned |
 | Visual knowledge graph | Out of scope |
-| AI-assisted knowledge connections | Future |
 | Data export and backup | Future |
 
 *This is a project-level status snapshot, not a claim that every partially implemented feature has been fully tested or production-hardened. Verify the current repository before treating an item as complete.*
@@ -1157,7 +1054,7 @@ The product vision is broader than the current implementation. The following tab
 
 # Roadmap
 
-The development roadmap prioritises a useful academic foundation before introducing more advanced discovery and AI capabilities.
+The development roadmap prioritises a dependable academic foundation, a high-quality PDF reading experience, and personal knowledge management.
 
 ## Phase 1 — Foundation
 
@@ -1213,14 +1110,6 @@ The development roadmap prioritises a useful academic foundation before introduc
 - Build the personal knowledge repository.
 - Implement notes and saved items.
 - Introduce personal questions.
-
-## Phase 7 — AI Gateway
-
-- Establish a provider abstraction.
-- Implement contextual prompt construction.
-- Support external AI handoffs.
-- Add optional direct provider integrations.
-- Introduce AI-assisted discovery and knowledge organisation.
 
 ## Phase 8 — Refinement
 
@@ -1399,7 +1288,6 @@ When implementing a new feature:
 ### Architectural guidelines
 
 - Prefer modularity over unnecessary microservices.
-- Avoid tightly coupling frontend components to individual AI providers.
 - Keep academic progress data explicit and explainable.
 - Preserve user control over generated or extracted information.
 - Avoid introducing mandatory paid dependencies.
