@@ -528,6 +528,9 @@ test("PDF reader navigates a long mixed-size document with an outline on mobile"
   await expect(page.getByRole("button",{name:/Chapter One/})).toBeVisible();
   await page.getByRole("button",{name:/Chapter One/}).click();
   await expect(page.getByLabel("Current page")).toHaveValue("1");
+  await page.getByRole("tab",{name:/Outline/}).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("tab",{name:/Marks/})).toHaveAttribute("aria-selected","true");
   await page.getByLabel("Current page").fill("115");
   await page.getByLabel("Current page").press("Enter");
   await expect(page.getByLabel("Current page")).toHaveValue("115");
