@@ -7,6 +7,11 @@ on:
         description: "Release version (without the v prefix, e.g. 0.2.0)"
         required: true
         type: string
+      source_ref:
+        description: "Branch or commit to package (must be contained in main)"
+        required: true
+        default: "main"
+        type: string
       release_notes:
         description: "Manually written release notes"
         required: true
@@ -23,6 +28,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: atlas-desktop-release-${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref }}
+  cancel-in-progress: false
+
 jobs:
   validate-manual-release:
     if: github.event_name == 'workflow_dispatch'
@@ -32,6 +41,7 @@ jobs:
     outputs:
       version: ${{ steps.validate.outputs.version }}
       tag: ${{ steps.validate.outputs.tag }}
+      source_sha: ${{ steps.validate.outputs.source_sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,36 +55,66 @@ jobs:
         env:
           ATLAS_RELEASE_VERSION: ${{ inputs.version }}
           ATLAS_RELEASE_NOTES: ${{ inputs.release_notes }}
+          ATLAS_RELEASE_REF: ${{ inputs.source_ref }}
+        shell: bash
         run: |
           npm run test:release
           npm run release:validate
+
+          git fetch origin main:refs/remotes/origin/main --no-tags
+          SOURCE_SHA="$(git rev-parse --verify "${ATLAS_RELEASE_REF}^{commit}")"
+          if ! git merge-base --is-ancestor "$SOURCE_SHA" origin/main; then
+            echo "The selected source ref must point to a commit contained in main."
+            exit 1
+          fi
+
           if git ls-remote --exit-code --tags origin "refs/tags/v${ATLAS_RELEASE_VERSION}" >/dev/null 2>&1; then
             echo "Release tag v${ATLAS_RELEASE_VERSION} already exists."
             exit 1
           fi
-          echo "Release tag v${ATLAS_RELEASE_VERSION} is available."
+
+          echo "version=${ATLAS_RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${ATLAS_RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          echo "Validated v${ATLAS_RELEASE_VERSION} from $SOURCE_SHA."
 
   build:
-    if: github.event_name == 'push'
+    needs: validate-manual-release
+    if: >-
+      always() &&
+      (github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' &&
+      needs.validate-manual-release.result == 'success'))
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-2022
             platform: win
+            arch: x64
             target: nsis
             data_separator: ";"
-          - os: macos-14
+          - os: macos-15-intel
             platform: mac
+            arch: x64
+            target: dmg
+            data_separator: ":"
+          - os: macos-15
+            platform: mac
+            arch: arm64
             target: dmg
             data_separator: ":"
           - os: ubuntu-24.04
             platform: linux
+            arch: x64
             target: "AppImage deb"
             data_separator: ":"
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out selected release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && needs.validate-manual-release.outputs.source_sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -106,18 +146,18 @@ jobs:
         working-directory: desktop
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ATLAS_RELEASE_VERSION: ${{ github.event_name == 'workflow_dispatch' && needs.validate-manual-release.outputs.version || github.ref_name }}
         run: |
           npm install --no-audit --no-fund
-          npm version --no-git-tag-version --allow-same-version "${GITHUB_REF_NAME#v}"
-          npx electron-builder --${{ matrix.platform }} ${{ matrix.target }} --publish never
+          npm version --no-git-tag-version --allow-same-version "$ATLAS_RELEASE_VERSION"
+          npx electron-builder --${{ matrix.platform }} ${{ matrix.target }} --${{ matrix.arch }} --publish never
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: atlas-${{ matrix.platform }}
+          name: atlas-${{ matrix.platform }}-${{ matrix.arch }}
           path: desktop/dist/*
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 7
 
   publish:
     if: github.event_name == 'push'
