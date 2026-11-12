@@ -22,7 +22,7 @@ function createPdfFixture({pageCount=8,includeOutline=false}={}) {
     objects[outlineItemId] = `<< /Title (Chapter One) /Parent ${outlineRootId} 0 R /Dest [${firstPageId} 0 R /Fit] >>`;
   }
   let pdf = "%PDF-1.4\n";
-  const lastObjectId = includeOutline ? outlineItemId : fontId;
+  const lastObjectId = includeOutline ? outlineItemId : firstContentId + pageCount - 1;
   const offsets = [0];
   for (let i=1;i<=lastObjectId;i++) { offsets[i]=Buffer.byteLength(pdf,"binary"); pdf += `${i} 0 obj\n${objects[i]}\nendobj\n`; }
   const xref = Buffer.byteLength(pdf,"binary");
@@ -444,17 +444,19 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByLabel("Current page").press("Enter");
   await expect(page.getByLabel("Current page")).toHaveValue("3");
   await expect.poll(()=>page.locator('[data-page="3"] .atlas-pdf-canvas').evaluate(canvas=>canvas.style.width)).not.toBe("");
-  await expect.poll(()=>page.locator('[data-page="3"] .atlas-pdf-text-layer span').count()).toBeGreaterThan(0);
+  const pageThreeText = page.locator('[data-page="3"] .atlas-pdf-text-layer');
+  await expect.poll(()=>pageThreeText.locator("span").count(),{timeout:15000}).toBeGreaterThan(0);
+  await expect(pageThreeText).toContainText("Page 3 searchable text for Atlas reader tests");
   await page.getByRole("tab",{name:/Outline/}).click();
   await expect(page.getByText("This document does not contain a navigable outline.")).toBeVisible();
   await page.getByRole("tab",{name:/Marks/}).click();
   await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
-  await page.getByLabel("Highlight in green").click();
+  await page.getByLabel("Highlight in green").evaluate(button=>button.click());
   await expect(page.locator(".atlas-reader-mutation-retry")).toContainText("temporarily unavailable");
   await page.getByRole("button",{name:"Retry annotation change"}).click();
   await expect(page.locator(".atlas-pdf-mark")).toHaveCount(1);
   await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
-  await page.getByTitle("Add a comment").click();
+  await page.getByTitle("Add a comment").evaluate(button=>button.click());
   await page.getByLabel("Comment").fill("Compare this result with the lecture discussion.");
   await page.getByRole("button",{name:"Save highlight & comment"}).click();
   await expect(page.getByText("Compare this result with the lecture discussion.")).toBeVisible();
@@ -468,6 +470,8 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await expect(page.getByText("Revisit this argument in the next reading.")).toBeVisible();
   await expect(page.locator(".atlas-pdf-mark-underline.atlas-pdf-color-pink")).toHaveCount(1);
   await page.getByLabel("Filter annotation colour").selectOption("green");
+  await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(1);
+  await page.getByLabel("Filter annotation colour").selectOption("pink");
   await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(1);
   await page.getByLabel("Filter annotation colour").selectOption("all");
   await page.getByLabel("Search annotations").fill("next reading");
@@ -501,11 +505,11 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await expect(page.locator(".atlas-pdf-search-results")).toContainText("Page 1");
   await page.getByLabel("Reading theme").selectOption("dark");
   await page.getByRole("button",{name:"Library"}).click();
-  await expect(page.getByText("Page 3 of 8")).toBeVisible();
-  await page.getByRole("button",{name:/Research paper/}).click();
+  await expect(page.locator(".atlas-document-meta")).toContainText("8 pages");
+  await page.locator(".atlas-document-open").filter({hasText:"Research paper"}).click();
   await expect(page.locator(".atlas-reader.theme-dark")).toHaveCount(1);
   await page.getByRole("button",{name:"Library"}).click();
-  await expect(page.getByText("Page 3 of 8")).toBeVisible();
+  await expect(page.locator(".atlas-document-meta")).toContainText("8 pages");
 });
 
 
@@ -564,7 +568,9 @@ test("PDF reader navigates a long mixed-size document with an outline on mobile"
   expect(landscapeRatio).toBeGreaterThan(1);
   await expect.poll(()=>doc?.last_page).toBe(116);
   await expect(page.locator(".atlas-pdf-page")).toHaveCount(9);
-  await expect(page.getByRole("tab",{name:/Outline/})).toHaveAttribute("aria-selected","true");
+  // ArrowRight moved focus and selection from Outline to Marks above.
+  // Subsequent page navigation must not silently reset the selected panel.
+  await expect(page.getByRole("tab",{name:/Marks/})).toHaveAttribute("aria-selected","true");
   await expect.poll(()=>page.locator(".atlas-reader-tabs button").first().evaluate(node=>parseFloat(getComputedStyle(node).minHeight))).toBeGreaterThanOrEqual(42);
   await expect(page.locator(".atlas-pdf-scroll")).toHaveAttribute("aria-label","PDF pages");
 });

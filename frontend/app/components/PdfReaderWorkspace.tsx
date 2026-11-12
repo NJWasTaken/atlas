@@ -17,7 +17,7 @@ type AnnotationPayload = { page_number:number; selected_text:string; note:string
 type Props = {
   documentId:number; title:string; pageCount:number; pdfUrl:string; initialPage:number;
   bookmarks:Mark[]; annotations:Annotation[]; readerMode:boolean;
-  onExit:()=>void; onToggleFocus:()=>void; onProgressChange:(page:number)=>void;
+  onExit:(lastPage:number)=>void; onToggleFocus:()=>void; onProgressChange:(page:number)=>void;
   onBookmarksChange:(items:Mark[])=>void; onAnnotationsChange:(items:Annotation[])=>void;
   onError:(message:string)=>void;
 };
@@ -46,10 +46,11 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
         canvas.style.width=`${viewport.width}px`;canvas.style.height=`${viewport.height}px`;
         const context=canvas.getContext("2d");
         if(!context)return;
-        renderTask=page.render({canvasContext:context,viewport,transform:ratio!==1?[ratio,0,0,ratio,0,0]:null});
-        await renderTask.promise;
-        if(cancelled)return;
+        // Build the selectable text layer before starting canvas rasterisation.
+        // PDF.js can serialize work on a page; keeping extraction first avoids
+        // leaving the text layer empty while a long-running render task is active.
         const text=await page.getTextContent();
+        if(cancelled)return;
         const layer=hostNode.querySelector(".atlas-pdf-text-layer") as HTMLDivElement|null;
         if(layer){
           layer.replaceChildren();
@@ -71,11 +72,14 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
             layer.appendChild(span);
           }
         }
+        renderTask=page.render({canvasContext:context,viewport,transform:ratio!==1?[ratio,0,0,ratio,0,0]:null});
+        await renderTask.promise;
+        if(cancelled)return;
         setDimensions({width:viewport.width,height:viewport.height});
       } catch(error){if(!cancelled)console.error("PDF page render failed",error);}
     },{root:hostNode.closest(".atlas-pdf-scroll"),rootMargin:"900px 0px",threshold:0});
     observer.observe(hostNode);
-    return ()=>{cancelled=true;observer.disconnect();try{renderTask?.cancel();}catch{};try{page?.cleanup();}catch{}};
+    return ()=>{cancelled=true;observer.disconnect();try{renderTask?.cancel();}catch{}};
   },[pdf,pageNumber,scale]);
 
   useEffect(()=>{
@@ -305,8 +309,9 @@ export default function PdfReaderWorkspace(props:Props) {
       const root=scrollRef.current;const node=pageRefs.current.get(target);
       if(!root||!node)return;
       const top=node.getBoundingClientRect().top-root.getBoundingClientRect().top+root.scrollTop;
-      const reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      root.scrollTo({top,behavior:reducedMotion?"auto":"smooth"});
+      // Page-number navigation is a precise reading-position change, not a decorative scroll.
+      // Jump immediately so the visibility observer cannot persist an intermediate page.
+      root.scrollTo({top,behavior:"auto"});
     });
   },[pageCount,onProgressChange]);
   useEffect(()=>{if(pdf&&initialPage>1){const timer=window.setTimeout(()=>goToPage(initialPage),180);return()=>clearTimeout(timer);}},[pdf,initialPage,goToPage]);
@@ -441,7 +446,7 @@ export default function PdfReaderWorkspace(props:Props) {
 
   return <div className={`atlas-reader theme-${readingTheme} ${readerMode?"is-focus":""}`}>
     <header className="atlas-reader-header">
-      <button className="atlas-reader-back" onClick={onExit}><ArrowLeft size={15}/> Library</button>
+      <button className="atlas-reader-back" onClick={()=>onExit(page)}><ArrowLeft size={15}/> Library</button>
       <div className="atlas-reader-document-title"><FileText size={16}/><span>{title}</span><small>PDF</small></div>
       <button className="atlas-reader-mode" onClick={onToggleFocus}><Maximize2 size={14}/>{readerMode?"Exit focus":"Focus mode"}</button>
     </header>
@@ -468,7 +473,7 @@ export default function PdfReaderWorkspace(props:Props) {
     </div>
     {annotationRetry&&<div className="atlas-reader-mutation-retry" role="alert"><span>{annotationRetry.message}</span><button type="button" onClick={()=>void annotationRetry.run()} disabled={saving}>Retry annotation change</button><button type="button" onClick={()=>setAnnotationRetry(null)} disabled={saving} aria-label="Dismiss annotation error"><X size={13}/></button></div>}
     {showSearch&&<><form className="atlas-pdf-search" onSubmit={searchPdf}><Search size={15}/><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search words or phrases in this PDF…"/><button disabled={searching||!query.trim()}>{searching?"Searching…":"Find"}</button><button type="button" onClick={()=>{setShowSearch(false);setMatches([]);}} aria-label="Close search"><X size={15}/></button></form>{matches.length>0&&<div className="atlas-pdf-search-results" aria-live="polite">{matches.map((match,index)=><button key={`${match.page}-${index}`} onClick={()=>goToPage(match.page)}><strong>Page {match.page}</strong>{match.snippet}</button>)}</div>}{!searching&&query.trim()&&matches.length===0&&<div className="atlas-pdf-search-results"><span className="atlas-reader-empty">No matches found. Press Find to search the document.</span></div>}</>}
-    {selectionAnchor&&selectedText&&!lockedTool&&<div className="atlas-pdf-selection-toolbar" style={{left:`clamp(170px, ${selectionAnchor.left+selectionAnchor.width/2}px, calc(100vw - 170px))`,top:`max(12px, ${selectionAnchor.top-52}px)`}} role="toolbar" aria-label="Annotate selected text">
+    {selectionAnchor&&selectedText&&!lockedTool&&<div className="atlas-pdf-selection-toolbar" onPointerDown={event=>{if((event.target as HTMLElement).closest("button"))event.preventDefault();}} style={{left:`clamp(170px, ${selectionAnchor.left+selectionAnchor.width/2}px, calc(100vw - 170px))`,top:`max(12px, ${selectionAnchor.top-52}px)`}} role="toolbar" aria-label="Annotate selected text">
       <span>Mark</span>
       {(["yellow","green","blue","pink"] as const).map(color=><button key={color} type="button" className={`atlas-pdf-color-swatch atlas-pdf-swatch-${color}`} title={`Highlight ${color}`} aria-label={`Highlight in ${color}`} disabled={saving} onMouseDown={event=>event.preventDefault()} onClick={()=>void saveAnnotation("highlight",color,"")}/>)}
       <i/>
