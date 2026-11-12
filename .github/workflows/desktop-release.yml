@@ -61,8 +61,12 @@ jobs:
           npm run test:release
           npm run release:validate
 
-          git fetch origin main:refs/remotes/origin/main --no-tags
-          SOURCE_SHA="$(git rev-parse --verify --end-of-options "${ATLAS_RELEASE_REF}^{commit}")"
+          git fetch origin "+refs/heads/*:refs/remotes/origin/*" --no-tags
+          if git show-ref --verify --quiet "refs/remotes/origin/${ATLAS_RELEASE_REF}"; then
+            SOURCE_SHA="$(git rev-parse "refs/remotes/origin/${ATLAS_RELEASE_REF}^{commit}")"
+          else
+            SOURCE_SHA="$(git rev-parse --verify --end-of-options "${ATLAS_RELEASE_REF}^{commit}")"
+          fi
           if ! git merge-base --is-ancestor "$SOURCE_SHA" origin/main; then
             echo "The selected source ref must point to a commit contained in main."
             exit 1
