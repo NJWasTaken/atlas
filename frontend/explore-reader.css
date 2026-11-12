@@ -282,3 +282,33 @@
 @media(prefers-reduced-motion:reduce){
  .atlas-reader *{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+
+/* Keep long-document navigation inside the reader viewport. */
+@media (min-width: 821px) {
+  .atlas-reader {
+    height: min(82vh, 980px);
+    min-height: min(680px, 82vh);
+  }
+
+  .atlas-reader-body {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .atlas-reader-sidebar {
+    display: flex;
+    min-height: 0;
+    max-height: none;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .atlas-reader-sidebar > .atlas-pdf-sidebar-scroll {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
