@@ -30,8 +30,14 @@ RANDOM_QUOTE_CATEGORIES = (
 )
 
 
-def fallback_quote(randomize: bool) -> QuoteOutput:
-    return random.choice(FALLBACK_QUOTES) if randomize else FALLBACK_QUOTES[0]
+def fallback_quote(randomize: bool, exclude: str | None = None) -> QuoteOutput:
+    if not randomize:
+        return FALLBACK_QUOTES[0]
+    choices = [quote for quote in FALLBACK_QUOTES if quote.quote != exclude]
+    return random.choice(choices or list(FALLBACK_QUOTES))
+
+
+_last_random_quote: str | None = None
 
 
 def fetch_from_provider(endpoint: str) -> QuoteOutput:
@@ -66,22 +72,43 @@ def fetch_from_provider(endpoint: str) -> QuoteOutput:
 
 
 def fetch_quote(endpoint: str) -> QuoteOutput:
+    global _last_random_quote
     now = time.monotonic()
     cached = _quote_cache.get(endpoint)
-    # A random quote is an explicit user request for a fresh result. Keep the
-    # last successful response only as an outage fallback, never as a cache hit.
-    if endpoint != "randomquotes" and cached and cached[0] > now:
+    is_random = endpoint == "randomquotes"
+
+    # Daily quotes are stable for the day; an explicit random request should
+    # always try the provider instead of treating its short cache as a hit.
+    if not is_random and cached and cached[0] > now:
         return cached[1]
+
     try:
         quote = fetch_from_provider(endpoint)
+        if is_random and quote.quote == _last_random_quote:
+            # API Ninjas can return the same result for different categories.
+            # Make a couple of fresh attempts before falling back to our own set.
+            for _ in range(2):
+                candidate = fetch_from_provider(endpoint)
+                if candidate.quote != _last_random_quote:
+                    quote = candidate
+                    break
+            else:
+                quote = fallback_quote(True, exclude=_last_random_quote)
         _quote_cache[endpoint] = (now + QUOTE_CACHE_TTLS.get(endpoint, 60), quote)
+        if is_random:
+            _last_random_quote = quote.quote
         return quote
     except HTTPException:
+        if is_random:
+            # A stale random quote defeats the user's request for another one.
+            quote = fallback_quote(True, exclude=_last_random_quote)
+            _last_random_quote = quote.quote
+            return quote
         if cached:
             logger.info("Serving a stale cached quote for %s after provider failure", endpoint)
             return cached[1]
         # Keep the dashboard useful even when no provider key has been configured.
-        return fallback_quote(endpoint == "randomquotes")
+        return fallback_quote(False)
 
 
 @router.get("/daily", response_model=QuoteOutput)
