@@ -10,8 +10,9 @@ module.exports = defineConfig({
     headless: true,
   },
   webServer: {
-    command: "npm run start -- --hostname 127.0.0.1",
+    command: "node .next/standalone/server.js",
     url: "http://127.0.0.1:3000",
+    env: { HOSTNAME: "127.0.0.1", PORT: "3000" },
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },
