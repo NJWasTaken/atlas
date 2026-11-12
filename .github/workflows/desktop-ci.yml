@@ -1,0 +1,65 @@
+name: Desktop CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "desktop/**"
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/desktop-ci.yml"
+      - ".github/workflows/frontend-checks.yml"
+      - ".github/workflows/backend-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "desktop/**"
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/desktop-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  package-linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build Next.js standalone server
+        working-directory: frontend
+        run: |
+          npm ci
+          NEXT_PUBLIC_API_URL=http://127.0.0.1:43121/api/v1 npm run build
+          mkdir -p .next/standalone/.next
+          cp -R .next/static .next/standalone/.next/static
+          if [ -d public ]; then cp -R public .next/standalone/public; fi
+      - name: Build FastAPI sidecar
+        run: |
+          python -m pip install -r backend/requirements-desktop.txt
+          pyinstaller --clean --onefile --name atlas-api --paths backend \
+            --add-data "backend/migrations:migrations" \
+            --add-data "backend/alembic.ini:." \
+            --collect-all alembic --collect-all sqlalchemy \
+            backend/desktop_entry.py
+          mkdir -p desktop/runtime
+          cp dist/atlas-api desktop/runtime/atlas-api
+          cp -R frontend/.next/standalone desktop/runtime/frontend
+      - name: Package Electron application
+        working-directory: desktop
+        run: |
+          npm install --no-audit --no-fund
+          npx electron-builder --linux AppImage --publish never
+      - name: Upload desktop smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-linux-desktop-smoke
+          path: desktop/dist/*
+          if-no-files-found: error
+          retention-days: 7

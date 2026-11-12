@@ -1,0 +1,68 @@
+name: Desktop release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            platform: win
+            target: nsis
+          - os: macos-14
+            platform: mac
+            target: dmg
+          - os: ubuntu-24.04
+            platform: linux
+            target: AppImage,deb
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build Next.js standalone server
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm ci
+          NEXT_PUBLIC_API_URL=http://127.0.0.1:43121/api/v1 npm run build
+          mkdir -p .next/standalone/.next
+          cp -R .next/static .next/standalone/.next/static
+          if [ -d public ]; then cp -R public .next/standalone/public; fi
+      - name: Build FastAPI sidecar
+        shell: bash
+        run: |
+          python -m pip install -r backend/requirements-desktop.txt
+          pyinstaller --clean --onefile --name atlas-api --paths backend \
+            --add-data "backend/migrations:migrations" \
+            --add-data "backend/alembic.ini:." \
+            --collect-all alembic --collect-all sqlalchemy \
+            backend/desktop_entry.py
+          mkdir -p desktop/runtime
+          cp dist/atlas-api desktop/runtime/atlas-api${{ runner.os == 'Windows' && '.exe' || '' }}
+          cp -R frontend/.next/standalone desktop/runtime/frontend
+      - name: Package installer
+        working-directory: desktop
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm install --no-audit --no-fund
+          npx electron-builder --${{ matrix.platform }} ${{ matrix.target }} --publish never
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: desktop/dist/*
+          fail_on_unmatched_files: true

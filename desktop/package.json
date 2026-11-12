@@ -1,0 +1,53 @@
+{
+  "name": "atlas-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Atlas desktop application",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "package:dir": "electron-builder --dir",
+    "package": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^39.2.7",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.noeljose.atlas",
+    "productName": "Atlas",
+    "asar": true,
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "runtime",
+        "to": "runtime",
+        "filter": ["**/*"]
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "artifactName": "Atlas-${version}-${os}-${arch}.${ext}",
+    "win": {
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.education"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Education"
+    }
+  }
+}
