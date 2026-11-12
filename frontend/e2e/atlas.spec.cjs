@@ -22,7 +22,7 @@ function createPdfFixture({pageCount=8,includeOutline=false}={}) {
     objects[outlineItemId] = `<< /Title (Chapter One) /Parent ${outlineRootId} 0 R /Dest [${firstPageId} 0 R /Fit] >>`;
   }
   let pdf = "%PDF-1.4\n";
-  const lastObjectId = includeOutline ? outlineItemId : fontId;
+  const lastObjectId = includeOutline ? outlineItemId : firstContentId + pageCount - 1;
   const offsets = [0];
   for (let i=1;i<=lastObjectId;i++) { offsets[i]=Buffer.byteLength(pdf,"binary"); pdf += `${i} 0 obj\n${objects[i]}\nendobj\n`; }
   const xref = Buffer.byteLength(pdf,"binary");
