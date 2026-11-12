@@ -196,3 +196,27 @@ main{position:relative;z-index:1}h1,h2,h3{margin:0;font-family:'Cormorant Garamo
 .atlas-state-spinner{flex:0 0 15px;width:15px;height:15px;border:1px solid rgba(197,168,117,.25);border-top-color:var(--gold-hi);border-radius:50%;animation:atlas-spin .8s linear infinite}
 .atlas-state-card button:disabled{opacity:.55;cursor:wait}
 @media(max-width:480px){.atlas-state-card,.atlas-state-card.atlas-state-error{align-items:flex-start;flex-direction:column}}
+
+
+/* Dashboard calendar and quote interaction refinement */
+.atlas-calendar-section{margin-top:30px}
+.atlas-calendar-section .atlas-calendar-panel{box-shadow:0 22px 68px rgba(0,0,0,.16)}
+.atlas-calendar-section .atlas-calendar-heading h2{font-size:clamp(27px,3vw,34px)}
+.atlas-calendar-section .atlas-calendar-caption{max-width:440px}
+.atlas-calendar-monthline>span{transition:color .2s ease}
+.atlas-calendar-monthline>span i.has-sync-error{background:#d58d82;box-shadow:0 0 0 3px rgba(213,141,130,.1)}
+.atlas-quote-card{cursor:pointer;transition:transform .35s cubic-bezier(.2,.7,.2,1),border-color .35s ease,box-shadow .35s ease}
+.atlas-quote-card:active{transform:scale(.997)}
+.atlas-welcome-copy.quote-out{opacity:0;transform:translateY(-12px) scale(.985);filter:blur(5px)}
+.atlas-welcome-copy.quote-in{animation:atlas-quote-arrive 820ms cubic-bezier(.16,1,.3,1) both}
+.atlas-quote-card.is-changing .atlas-orbit-art{animation:atlas-orbit-arrive 900ms cubic-bezier(.16,1,.3,1) both}
+.atlas-orbit-art .orbit-ring{transition:transform .8s cubic-bezier(.16,1,.3,1),opacity .5s ease}
+.atlas-quote-card:hover .orbit-ring.one{transform:rotate(18deg) scale(1.035)}
+.atlas-quote-card:hover .orbit-ring.two{transform:rotate(-14deg) scale(1.06)}
+.atlas-quote-card:hover .orbit-core{box-shadow:0 0 44px rgba(223,194,139,.17),inset 0 0 24px rgba(223,194,139,.08)}
+@keyframes atlas-orbit-arrive{0%{opacity:.35;transform:translateX(18px) scale(.9)}55%{opacity:1;transform:translateX(-3px) scale(1.035)}100%{opacity:1;transform:translateX(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){
+  .atlas-quote-card,.atlas-welcome-copy,.atlas-quote-shimmer,.atlas-orbit-art,.atlas-orbit-art .orbit-ring{animation:none!important;transition:none!important}
+  .atlas-welcome-copy.quote-out{opacity:0;transform:none;filter:none}
+  .atlas-welcome-copy.quote-in{opacity:1;transform:none;filter:none}
+}
