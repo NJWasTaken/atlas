@@ -17,7 +17,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.add_column("explore_documents", sa.Column("storage_path", sa.String(length=80), nullable=True))
-    op.alter_column("explore_documents", "pdf_data", existing_type=sa.LargeBinary(), nullable=True)
+    with op.batch_alter_table("explore_documents") as batch_op:
+        batch_op.alter_column("pdf_data", existing_type=sa.LargeBinary(), nullable=True)
 
 
 def downgrade() -> None:
@@ -27,5 +28,6 @@ def downgrade() -> None:
     )).first()
     if has_files:
         raise RuntimeError("Cannot downgrade while filesystem-backed PDFs exist; migrate them into pdf_data first.")
-    op.alter_column("explore_documents", "pdf_data", existing_type=sa.LargeBinary(), nullable=False)
-    op.drop_column("explore_documents", "storage_path")
+    with op.batch_alter_table("explore_documents") as batch_op:
+        batch_op.alter_column("pdf_data", existing_type=sa.LargeBinary(), nullable=False)
+        batch_op.drop_column("storage_path")
