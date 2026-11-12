@@ -46,6 +46,7 @@ jobs:
           ATLAS_RELEASE_VERSION: ${{ inputs.version }}
           ATLAS_RELEASE_NOTES: ${{ inputs.release_notes }}
         run: |
+          npm run test:release
           npm run release:validate
           if git ls-remote --exit-code --tags origin "refs/tags/v${ATLAS_RELEASE_VERSION}" >/dev/null 2>&1; then
             echo "Release tag v${ATLAS_RELEASE_VERSION} already exists."
