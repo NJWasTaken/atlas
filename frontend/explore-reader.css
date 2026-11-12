@@ -284,14 +284,14 @@
 }
 
 
-/* Keep long-document navigation inside the normal reader viewport. */
+/* Keep long-document navigation inside the reader viewport. */
 @media (min-width: 821px) {
-  .atlas-reader:not(.is-focus) {
+  .atlas-reader {
     height: min(82vh, 980px);
     min-height: min(680px, 82vh);
   }
 
-  .atlas-reader:not(.is-focus) .atlas-reader-body {
+  .atlas-reader-body {
     min-height: 0;
     overflow: hidden;
   }
@@ -310,26 +310,5 @@
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
-  }
-
-  /* Focus mode fills the viewport; constrain only its navigation panel. */
-  .atlas-reader.is-focus {
-    height: auto;
-    min-height: 0;
-  }
-
-  .atlas-reader.is-focus .atlas-reader-body {
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .atlas-reader.is-focus .atlas-pdf-stage,
-  .atlas-reader.is-focus .atlas-pdf-scroll {
-    min-height: 0;
-  }
-
-  .atlas-reader.is-focus .atlas-reader-sidebar {
-    height: 100%;
-    max-height: 100%;
   }
 }
