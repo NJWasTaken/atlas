@@ -21,20 +21,16 @@ on:
         required: true
         default: false
         type: boolean
-  push:
-    tags:
-      - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: atlas-desktop-release-${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref }}
+  group: atlas-desktop-release-${{ inputs.version }}
   cancel-in-progress: false
 
 jobs:
   validate-manual-release:
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -60,7 +56,6 @@ jobs:
         run: |
           npm run test:release
           npm run release:validate
-
           git fetch origin "+refs/heads/*:refs/remotes/origin/*" --no-tags
           if git show-ref --verify --quiet "refs/remotes/origin/${ATLAS_RELEASE_REF}"; then
             SOURCE_SHA="$(git rev-parse "refs/remotes/origin/${ATLAS_RELEASE_REF}^{commit}")"
@@ -68,27 +63,17 @@ jobs:
             SOURCE_SHA="$(git rev-parse --verify --end-of-options "${ATLAS_RELEASE_REF}^{commit}")"
           fi
           if ! git merge-base --is-ancestor "$SOURCE_SHA" origin/main; then
-            echo "The selected source ref must point to a commit contained in main."
-            exit 1
+            echo "Selected source must be contained in main."; exit 1
           fi
-
           if git ls-remote --exit-code --tags origin "refs/tags/v${ATLAS_RELEASE_VERSION}" >/dev/null 2>&1; then
-            echo "Release tag v${ATLAS_RELEASE_VERSION} already exists."
-            exit 1
+            echo "Release tag v${ATLAS_RELEASE_VERSION} already exists."; exit 1
           fi
-
           echo "version=${ATLAS_RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=v${ATLAS_RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
           echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
-          echo "Validated v${ATLAS_RELEASE_VERSION} from $SOURCE_SHA."
 
   build:
     needs: validate-manual-release
-    if: >-
-      always() &&
-      (github.event_name == 'push' ||
-      (github.event_name == 'workflow_dispatch' &&
-      needs.validate-manual-release.result == 'success'))
     strategy:
       fail-fast: false
       matrix:
@@ -118,7 +103,7 @@ jobs:
       - name: Check out selected release source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && needs.validate-manual-release.outputs.source_sha || github.sha }}
+          ref: ${{ needs.validate-manual-release.outputs.source_sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -149,28 +134,20 @@ jobs:
       - name: Package installer
         id: package
         working-directory: desktop
-        shell: bash
         env:
-          MANUAL_RELEASE_VERSION: ${{ needs.validate-manual-release.outputs.version }}
+          RELEASE_VERSION: ${{ needs.validate-manual-release.outputs.version }}
         run: |
           npm install --no-audit --no-fund
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            RELEASE_VERSION="$MANUAL_RELEASE_VERSION"
-          else
-            RELEASE_VERSION="${GITHUB_REF_NAME#v}"
-          fi
           npm version --no-git-tag-version --allow-same-version "$RELEASE_VERSION"
           npx electron-builder --${{ matrix.platform }} ${{ matrix.target }} --${{ matrix.arch }} --publish never
-          echo "version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
       - name: Write build provenance
         working-directory: desktop
         env:
-          RELEASE_VERSION: ${{ steps.package.outputs.version }}
-          SOURCE_SHA: ${{ github.event_name == 'workflow_dispatch' && needs.validate-manual-release.outputs.source_sha || github.sha }}
+          RELEASE_VERSION: ${{ needs.validate-manual-release.outputs.version }}
+          SOURCE_SHA: ${{ needs.validate-manual-release.outputs.source_sha }}
         run: |
           printf 'Atlas version: %s\nSource commit: %s\nPlatform: %s\nArchitecture: %s\n' \
-            "$RELEASE_VERSION" "$SOURCE_SHA" "${{ matrix.platform }}" "${{ matrix.arch }}" \
-            > dist/build-info.txt
+            "$RELEASE_VERSION" "$SOURCE_SHA" "${{ matrix.platform }}" "${{ matrix.arch }}" > dist/build-info.txt
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
@@ -180,9 +157,10 @@ jobs:
           retention-days: 7
 
   publish:
-    if: github.event_name == 'push'
-    needs: build
+    needs: [validate-manual-release, build]
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - name: Download all platform installers
         uses: actions/download-artifact@v4
@@ -190,8 +168,18 @@ jobs:
           pattern: atlas-*
           path: release-assets
           merge-multiple: true
+      - name: Generate SHA-256 checksums
+        working-directory: release-assets
+        run: sha256sum * > SHA256SUMS.txt
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.validate-manual-release.outputs.tag }}
+          target_commitish: ${{ needs.validate-manual-release.outputs.source_sha }}
+          name: Atlas ${{ needs.validate-manual-release.outputs.tag }}
+          body: ${{ inputs.release_notes }}
+          prerelease: ${{ inputs.prerelease }}
+          draft: false
           files: release-assets/*
           fail_on_unmatched_files: true
+          make_latest: ${{ inputs.prerelease && 'false' || 'true' }}
