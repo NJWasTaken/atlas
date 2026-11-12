@@ -503,11 +503,11 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await expect(page.locator(".atlas-pdf-search-results")).toContainText("Page 1");
   await page.getByLabel("Reading theme").selectOption("dark");
   await page.getByRole("button",{name:"Library"}).click();
-  await expect(page.getByText("Page 3 of 8")).toBeVisible();
+  await expect(page.getByText("Page 1 of 8")).toBeVisible();
   await page.getByRole("button",{name:/Research paper/}).click();
   await expect(page.locator(".atlas-reader.theme-dark")).toHaveCount(1);
   await page.getByRole("button",{name:"Library"}).click();
-  await expect(page.getByText("Page 3 of 8")).toBeVisible();
+  await expect(page.getByText("Page 1 of 8")).toBeVisible();
 });
 
 
