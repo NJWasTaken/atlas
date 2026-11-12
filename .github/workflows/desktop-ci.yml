@@ -2,7 +2,7 @@ name: Desktop CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feature/large-pdf-local-storage]
     paths:
       - "desktop/**"
       - "backend/**"
@@ -74,6 +74,24 @@ jobs:
           mkdir -p desktop/runtime
           cp dist/atlas-api desktop/runtime/atlas-api
           cp -R frontend/.next/standalone desktop/runtime/frontend
+      - name: Smoke-test packaged API sidecar
+        env:
+          ATLAS_USER_DATA_DIR: /tmp/atlas-desktop-smoke
+          JWT_SECRET: atlas-desktop-smoke-secret-that-is-long-enough
+          ATLAS_API_PORT: "43121"
+          FRONTEND_ORIGIN: http://127.0.0.1:43122
+          CORS_ORIGINS: http://127.0.0.1:43122
+          ENVIRONMENT: development
+        run: |
+          desktop/runtime/atlas-api &
+          API_PID=$!
+          trap 'kill "$API_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:43121/health; then exit 0; fi
+            sleep 1
+          done
+          echo "Packaged Atlas API did not become healthy."
+          exit 1
       - name: Install Playwright and Chromium
         working-directory: frontend
         run: |

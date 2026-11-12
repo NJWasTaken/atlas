@@ -24,7 +24,8 @@ jobs:
             data_separator: ":"
           - os: ubuntu-24.04
             platform: linux
-            target: AppImage,deb
+            target: "AppImage deb"
+            data_separator: ":"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
