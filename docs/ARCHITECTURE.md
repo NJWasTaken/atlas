@@ -111,7 +111,7 @@ The syllabus importer accepts PDF uploads up to 12 MB and 100 pages, extracts se
 
 ### Quotations and visual layer
 
-Daily/random quote requests are proxied by the backend to API Ninjas when configured, keeping the provider key out of the browser. Curated fallbacks keep the Overview usable without the provider; daily quotes are cached for six hours and random quotes for one minute, with stale-cache fallback after provider failures. The global celestial background is rendered by `CelestialBackground.tsx`; the separate `QuoteRipple.tsx` component exists but is not part of the current page composition.
+Daily/random quote requests are proxied by the backend to API Ninjas when configured, keeping the provider key out of the browser. Curated fallbacks keep the Overview usable without the provider; daily quotes are cached for six hours, while random requests always fetch afresh and avoid immediately repeating the previous result. If the provider is unavailable, random requests use a different curated fallback rather than replaying a stale quote. The global celestial background is rendered by `CelestialBackground.tsx`; the separate `QuoteRipple.tsx` component exists but is not part of the current page composition.
 
 ## Configuration and local development
 

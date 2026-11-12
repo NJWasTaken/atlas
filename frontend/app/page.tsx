@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUpRight, BookOpen, GraduationCap, Library, LogOut, Orbit, Plus, X, ChevronRight, MoonStar } from "lucide-react";
 import { api, clearToken, getToken, setToken } from "../lib/api";
 import DashboardCalendar from "./components/DashboardCalendar";
@@ -74,26 +74,37 @@ export default function Home() {
       setSubjectsLoading(false);
     }
   }
+  const quoteRequestActive = useRef(false);
+  const quoteTransitionTimer = useRef<number | null>(null);
   const loadQuote = useCallback(async (random = false) => {
+    if (quoteRequestActive.current) return;
+    quoteRequestActive.current = true;
     setQuoteLoading(true);
     setQuoteError("");
-    if (random) {
-      setQuotePhase("out");
-      await new Promise(resolve => window.setTimeout(resolve, 190));
-    }
     try {
+      // Keep the current thought readable while the next one loads. Only begin
+      // the transition once we know there is a new quote to reveal.
       const next = await api<Quote>(`/quotes/${random ? "random" : "daily"}`);
-      setQuote(next);
       if (random) {
-        setQuotePhase("in");
-        window.setTimeout(() => setQuotePhase("idle"), 620);
+        setQuotePhase("out");
+        await new Promise(resolve => window.setTimeout(resolve, 220));
+      }
+      setQuote(next);
+      setQuotePhase(random ? "in" : "idle");
+      if (quoteTransitionTimer.current !== null) window.clearTimeout(quoteTransitionTimer.current);
+      if (random) {
+        quoteTransitionTimer.current = window.setTimeout(() => setQuotePhase("idle"), 420);
       }
     } catch (e) {
       setQuoteError(e instanceof Error ? e.message : "Could not load a quote");
       setQuotePhase("idle");
     } finally {
+      quoteRequestActive.current = false;
       setQuoteLoading(false);
     }
+  }, []);
+  useEffect(() => () => {
+    if (quoteTransitionTimer.current !== null) window.clearTimeout(quoteTransitionTimer.current);
   }, []);
   useEffect(() => {
     const saved = getToken();
@@ -232,7 +243,7 @@ export default function Home() {
 
           {active==="Overview"&&<>
             <section
-              className={`atlas-welcome atlas-quote-card${quoteLoading ? " is-changing" : ""}`}
+              className={`atlas-welcome atlas-quote-card${quotePhase !== "idle" ? " is-changing" : ""}`}
               role="button"
               tabIndex={0}
               aria-label="Show another quote"
@@ -247,7 +258,7 @@ export default function Home() {
             >
               <div className={`atlas-welcome-copy quote-${quotePhase}`}>
                 <p className="eyebrow">A NUGGET OF KNOWLEDGE, JUST FOR YOU</p>
-                <h2 className="atlas-quote-text" aria-live="polite">
+                <h2 className="atlas-quote-text" aria-live="polite" aria-atomic="true">
                   {quote ? `“${quote.quote}”` : quoteLoading ? "Finding today's thought…" : "Today's thought is waiting."}
                 </h2>
                 {quote && <p className="atlas-quote-author">— {quote.author}{quote.work ? `, ${quote.work}` : ""}</p>}
@@ -259,8 +270,9 @@ export default function Home() {
                 <div className="orbit-core"><Orbit size={32} strokeWidth={1}/></div>
                 <span className="orbit-star a">✦</span><span className="orbit-star b">·</span><span className="orbit-star c">✧</span>
               </div>
-              <div className="atlas-quote-shimmer" aria-hidden="true"/>
+              
             </section>
+            <section className="atlas-overview-section atlas-calendar-section"><DashboardCalendar onDataChange={loadOverview} /></section>
             <section className="atlas-overview-section">
               <div className="atlas-section-heading">
                 <div><p className="eyebrow">YOUR ACADEMIC SPACE</p><h2>Subjects on your map</h2></div>
@@ -284,7 +296,7 @@ export default function Home() {
                 </div>
               </section>
             </section>
-            <section className="atlas-overview-section atlas-calendar-section"><DashboardCalendar onDataChange={loadOverview} /></section>
+            
           </>}
 
           {active==="Academics"&&<section className="atlas-overview-section">

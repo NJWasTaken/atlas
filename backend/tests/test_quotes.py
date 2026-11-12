@@ -58,8 +58,9 @@ def test_random_quote_requests_bypass_cache(monkeypatch):
     quotes._quote_cache.clear()
 
 
-def test_random_quote_uses_last_successful_quote_when_provider_fails(monkeypatch):
+def test_random_quote_uses_a_different_fallback_when_provider_fails(monkeypatch):
     quotes._quote_cache.clear()
+    quotes._last_random_quote = None
     monkeypatch.setattr(
         quotes,
         "fetch_from_provider",
@@ -75,5 +76,24 @@ def test_random_quote_uses_last_successful_quote_when_provider_fails(monkeypatch
     second = quotes.fetch_quote("randomquotes")
 
     assert first.quote == "Last good quote"
-    assert second == first
+    assert second.quote != first.quote
+    assert second in quotes.FALLBACK_QUOTES
     quotes._quote_cache.clear()
+    quotes._last_random_quote = None
+
+
+def test_random_quote_avoids_repeating_provider_results(monkeypatch):
+    quotes._quote_cache.clear()
+    quotes._last_random_quote = "Same quote"
+    monkeypatch.setattr(
+        quotes,
+        "fetch_from_provider",
+        lambda _endpoint: quotes.QuoteOutput(quote="Same quote", author="Atlas"),
+    )
+
+    result = quotes.fetch_quote("randomquotes")
+
+    assert result.quote != "Same quote"
+    assert result in quotes.FALLBACK_QUOTES
+    quotes._quote_cache.clear()
+    quotes._last_random_quote = None

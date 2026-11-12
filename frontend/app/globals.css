@@ -196,3 +196,21 @@ main{position:relative;z-index:1}h1,h2,h3{margin:0;font-family:'Cormorant Garamo
 .atlas-state-spinner{flex:0 0 15px;width:15px;height:15px;border:1px solid rgba(197,168,117,.25);border-top-color:var(--gold-hi);border-radius:50%;animation:atlas-spin .8s linear infinite}
 .atlas-state-card button:disabled{opacity:.55;cursor:wait}
 @media(max-width:480px){.atlas-state-card,.atlas-state-card.atlas-state-error{align-items:flex-start;flex-direction:column}}
+
+
+/* Dashboard calendar and restrained quote transition */
+.atlas-calendar-section{margin-top:30px}
+.atlas-calendar-section .atlas-calendar-panel{box-shadow:0 22px 68px rgba(0,0,0,.16)}
+.atlas-calendar-section .atlas-calendar-heading h2{font-size:clamp(27px,3vw,34px)}
+.atlas-calendar-section .atlas-calendar-caption{max-width:440px}
+.atlas-calendar-monthline>span{transition:color .2s ease}
+.atlas-calendar-monthline>span i.has-sync-error{background:#d58d82;box-shadow:0 0 0 3px rgba(213,141,130,.1)}
+
+/* Animate only the quote copy. The card and orbital illustration stay fixed. */
+.atlas-quote-card{cursor:pointer;transition:border-color .35s ease,box-shadow .35s ease}
+.atlas-welcome-copy{filter:none;transition:opacity .2s ease,transform .28s cubic-bezier(.2,.7,.2,1)}
+.atlas-welcome-copy.quote-out{opacity:0;transform:translateY(7px);filter:none;animation:none}
+.atlas-welcome-copy.quote-in{opacity:1;transform:translateY(0);filter:none;animation:none}
+@media(prefers-reduced-motion:reduce){
+  .atlas-welcome-copy{transition:none!important}
+}

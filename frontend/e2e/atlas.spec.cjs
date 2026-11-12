@@ -105,7 +105,8 @@ function installApiMock(page, options = {}) {
         upcoming_exams:upcoming,
       });
     }
-    if (path === "/quotes/daily" || path === "/quotes/random") return json({ quote:"Curiosity is a compass.", author:"Atlas" });
+    if (path === "/quotes/daily") return json({ quote:"Curiosity is a compass.", author:"Atlas" });
+    if (path === "/quotes/random") return json({ quote:"A different thought, a new direction.", author:"Atlas" });
     if (path.endsWith("/exams") && method === "GET") return json(state.exams);
     if (path.endsWith("/exams") && method === "POST") { const exam={id:nextId++,...body}; state.exams.push(exam); return created(exam); }
     const examPath=path.match(/\/exams\/(\d+)\/?$/);
@@ -223,6 +224,22 @@ test("student can build a chapter and concept manually, then save a review", asy
   page.once("dialog", dialog => dialog.accept());
   await page.getByTitle("Delete concept").click();
   await expect(page.getByRole("status").filter({ hasText: "Concept and its progress deleted." })).toBeVisible();
+});
+
+test("daily quote changes with a clean text-only transition", async ({ page }) => {
+  installApiMock(page);
+  await signIn(page);
+  const card = page.locator(".atlas-quote-card");
+  const copy = card.locator(".atlas-welcome-copy");
+  const quote = page.locator(".atlas-quote-text");
+  await expect(quote).toContainText("Curiosity is a compass.");
+  await card.click();
+  await expect(copy).toHaveClass(/quote-out/);
+  await expect(quote).toContainText("A different thought, a new direction.");
+  await expect(copy).toHaveClass(/quote-in/);
+  await expect(copy).toHaveCSS("opacity", "1");
+  await expect(card.locator(".atlas-orbit-art")).toBeVisible();
+  await expect(card).toHaveCSS("transform", "matrix(1, 0, 0, 1, 0, 0)");
 });
 
 test("calendar offers a weekly view and saves a day note", async ({ page }) => {

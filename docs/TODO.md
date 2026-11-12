@@ -51,7 +51,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 - [x] Expand the Overview with aggregate concept readiness, recent concept activity, direct continue-learning shortcuts, revision suggestions, upcoming exam summaries, and optional subject term filtering.
 - [x] Add weekly calendar navigation/view and clarify that exams are academic events while day notes are personal date notes.
-- [x] Return curated quote fallbacks when the quote provider is unavailable or unconfigured; cache daily quotes for six hours and random quotes for one minute, with stale-cache fallback after provider failures.
+- [x] Return curated quote fallbacks when the quote provider is unavailable or unconfigured; cache daily quotes for six hours, fetch random quotes afresh, and avoid repeating the previous random result when the provider repeats or fails.
 - [x] Add a calendar retry affordance and loading semantics; keep calendar errors local to the calendar panel.
 - [x] Add explicit subject-list loading/error/retry states on Home, local Overview-summary loading/error feedback, Academics workspace loading/error/retry states, and an announced calendar sync state.
 - [x] Guard Academics workspace requests against out-of-order responses when switching subjects.
