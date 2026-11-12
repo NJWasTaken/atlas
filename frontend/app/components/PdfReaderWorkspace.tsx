@@ -46,10 +46,13 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
         canvas.style.width=`${viewport.width}px`;canvas.style.height=`${viewport.height}px`;
         const context=canvas.getContext("2d");
         if(!context)return;
+        // Text extraction is independent of rasterisation. Start both together and
+        // populate the selectable text layer as soon as PDF.js has the text, rather
+        // than making text selection wait for a potentially expensive canvas render.
+        const textPromise=page.getTextContent();
         renderTask=page.render({canvasContext:context,viewport,transform:ratio!==1?[ratio,0,0,ratio,0,0]:null});
-        await renderTask.promise;
+        const text=await textPromise;
         if(cancelled)return;
-        const text=await page.getTextContent();
         const layer=hostNode.querySelector(".atlas-pdf-text-layer") as HTMLDivElement|null;
         if(layer){
           layer.replaceChildren();
@@ -71,6 +74,8 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
             layer.appendChild(span);
           }
         }
+        await renderTask.promise;
+        if(cancelled)return;
         setDimensions({width:viewport.width,height:viewport.height});
       } catch(error){if(!cancelled)console.error("PDF page render failed",error);}
     },{root:hostNode.closest(".atlas-pdf-scroll"),rootMargin:"900px 0px",threshold:0});
