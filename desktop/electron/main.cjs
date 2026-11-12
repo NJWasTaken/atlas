@@ -95,6 +95,11 @@ function createWindow() {
     }
   });
 
+  // Keep the native OS title bar/window controls, but remove Electron's default
+  // File / Edit / View / Window / Help menu from the desktop experience.
+  mainWindow.setMenu(null);
+  mainWindow.setMenuBarVisibility(false);
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https:\/\//i.test(url)) shell.openExternal(url);
     return { action: "deny" };
