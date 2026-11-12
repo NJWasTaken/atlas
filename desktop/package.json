@@ -58,7 +58,18 @@
         "AppImage",
         "deb"
       ],
-      "category": "Education"
+      "category": "Education",
+      "maintainer": "Noel Jose",
+      "desktop": {
+        "Name": "Atlas",
+        "Comment": "Personal learning environment",
+        "Categories": "Education;"
+      }
     }
-  }
+  },
+  "author": {
+    "name": "Noel Jose",
+    "email": "noel@example.com"
+  },
+  "homepage": "https://github.com/NJWasTaken/atlas"
 }
