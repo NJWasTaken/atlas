@@ -369,13 +369,12 @@ async function selectPdfText(page, { expectToolbar = true } = {}) {
   await expect(span).toBeVisible();
   const box = await span.boundingBox();
   if (!box || box.width < 8 || box.height < 4) throw new Error("PDF text span has no usable selection bounds.");
-  const startX = box.x + Math.min(2, box.width / 4);
-  const endX = box.x + Math.max(4, box.width - 2);
+  const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
-  await page.mouse.move(startX, y);
-  await page.mouse.down();
-  await page.mouse.move(endX, y, { steps: 8 });
-  await page.mouse.up();
+  // Double-click selects a real word in Chromium and emits the same mouseup
+  // event used by the reader's document-level selection handler.
+  await page.mouse.dblclick(x, y);
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString().trim() ?? "")).not.toBe("");
   if (expectToolbar) await expect(page.locator(".atlas-pdf-selection-toolbar")).toBeVisible();
 }
 
