@@ -79,7 +79,7 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
       } catch(error){if(!cancelled)console.error("PDF page render failed",error);}
     },{root:hostNode.closest(".atlas-pdf-scroll"),rootMargin:"900px 0px",threshold:0});
     observer.observe(hostNode);
-    return ()=>{cancelled=true;observer.disconnect();try{renderTask?.cancel();}catch{};try{page?.cleanup();}catch{}};
+    return ()=>{cancelled=true;observer.disconnect();try{renderTask?.cancel();}catch{}};
   },[pdf,pageNumber,scale]);
 
   useEffect(()=>{
