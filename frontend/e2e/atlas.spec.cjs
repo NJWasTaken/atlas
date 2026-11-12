@@ -444,7 +444,9 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByLabel("Current page").press("Enter");
   await expect(page.getByLabel("Current page")).toHaveValue("3");
   await expect.poll(()=>page.locator('[data-page="3"] .atlas-pdf-canvas').evaluate(canvas=>canvas.style.width)).not.toBe("");
-  await expect.poll(()=>page.locator('[data-page="3"] .atlas-pdf-text-layer span').count()).toBeGreaterThan(0);
+  const pageThreeText = page.locator('[data-page="3"] .atlas-pdf-text-layer');
+  await expect.poll(()=>pageThreeText.locator("span").count(),{timeout:15000}).toBeGreaterThan(0);
+  await expect(pageThreeText).toContainText("Page 3 searchable text for Atlas reader tests");
   await page.getByRole("tab",{name:/Outline/}).click();
   await expect(page.getByText("This document does not contain a navigable outline.")).toBeVisible();
   await page.getByRole("tab",{name:/Marks/}).click();
@@ -564,7 +566,9 @@ test("PDF reader navigates a long mixed-size document with an outline on mobile"
   expect(landscapeRatio).toBeGreaterThan(1);
   await expect.poll(()=>doc?.last_page).toBe(116);
   await expect(page.locator(".atlas-pdf-page")).toHaveCount(9);
-  await expect(page.getByRole("tab",{name:/Outline/})).toHaveAttribute("aria-selected","true");
+  // ArrowRight moved focus and selection from Outline to Marks above.
+  // Subsequent page navigation must not silently reset the selected panel.
+  await expect(page.getByRole("tab",{name:/Marks/})).toHaveAttribute("aria-selected","true");
   await expect.poll(()=>page.locator(".atlas-reader-tabs button").first().evaluate(node=>parseFloat(getComputedStyle(node).minHeight))).toBeGreaterThanOrEqual(42);
   await expect(page.locator(".atlas-pdf-scroll")).toHaveAttribute("aria-label","PDF pages");
 });
