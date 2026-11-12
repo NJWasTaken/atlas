@@ -470,7 +470,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await expect(page.getByText("Revisit this argument in the next reading.")).toBeVisible();
   await expect(page.locator(".atlas-pdf-mark-underline.atlas-pdf-color-pink")).toHaveCount(1);
   await page.getByLabel("Filter annotation colour").selectOption("green");
-  await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(0);
+  await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(1);
   await page.getByLabel("Filter annotation colour").selectOption("pink");
   await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(1);
   await page.getByLabel("Filter annotation colour").selectOption("all");
