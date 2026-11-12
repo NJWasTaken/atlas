@@ -1,4 +1,5 @@
 import { appendFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 
 const SEMVER =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
@@ -37,7 +38,7 @@ function main() {
 
 if (
   process.argv[1] &&
-  import.meta.url === new URL("file://" + process.argv[1]).href
+  import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
   try {
     main();
