@@ -13,7 +13,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 This is the active implementation order. Reorder it only when new product constraints or release blockers justify doing so.
 
-1. [ ] **Desktop UX polish and roadmap accuracy** — remove Electron's default menu bar while retaining native window controls; gracefully stop bundled services on app exit and during Windows uninstall; configure platform icon/installer branding; verify install, relaunch, uninstall, and data persistence. (Current PR.)
+1. [ ] **Desktop UX polish and roadmap accuracy** — remove Electron's default menu bar while retaining native window controls; gracefully stop bundled services on app exit and during Windows uninstall; configure platform icon/installer branding; verify install, relaunch, uninstall, and data persistence. (Implementation in PR #24; end-to-end lifecycle validation remains.)
 2. [ ] **Efficient private PDF delivery** — add authenticated HTTP Range responses (206, Content-Range, Accept-Ranges, correct length/cache headers), switch PDF.js to URL-based loading, and test range boundaries, ownership, and browser behavior.
 3. [ ] **Large-document reader performance** — audit virtualization, lazy text extraction, canvas/text-layer lifecycle, cancellation, and memory cleanup; stress-test large and mixed-dimension PDFs while preserving annotations and reading behavior.
 4. [ ] **Local PDF storage operations** — handle disk-full/storage failures, document persistent storage configuration, and provide coordinated local PDF + database backup/restore guidance without a paid storage dependency.
