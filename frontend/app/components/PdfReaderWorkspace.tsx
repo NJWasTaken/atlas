@@ -17,7 +17,7 @@ type AnnotationPayload = { page_number:number; selected_text:string; note:string
 type Props = {
   documentId:number; title:string; pageCount:number; pdfUrl:string; initialPage:number;
   bookmarks:Mark[]; annotations:Annotation[]; readerMode:boolean;
-  onExit:()=>void; onToggleFocus:()=>void; onProgressChange:(page:number)=>void;
+  onExit:(lastPage:number)=>void; onToggleFocus:()=>void; onProgressChange:(page:number)=>void;
   onBookmarksChange:(items:Mark[])=>void; onAnnotationsChange:(items:Annotation[])=>void;
   onError:(message:string)=>void;
 };
@@ -445,7 +445,7 @@ export default function PdfReaderWorkspace(props:Props) {
 
   return <div className={`atlas-reader theme-${readingTheme} ${readerMode?"is-focus":""}`}>
     <header className="atlas-reader-header">
-      <button className="atlas-reader-back" onClick={onExit}><ArrowLeft size={15}/> Library</button>
+      <button className="atlas-reader-back" onClick={()=>onExit(page)}><ArrowLeft size={15}/> Library</button>
       <div className="atlas-reader-document-title"><FileText size={16}/><span>{title}</span><small>PDF</small></div>
       <button className="atlas-reader-mode" onClick={onToggleFocus}><Maximize2 size={14}/>{readerMode?"Exit focus":"Focus mode"}</button>
     </header>
