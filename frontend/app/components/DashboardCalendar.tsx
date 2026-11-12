@@ -72,7 +72,7 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
     let live = true;
     setLoading(true); setSyncError("");
     api<DayNote[]>(`/calendar?start=${from}&end=${to}`)
-      .then(rows => { if(live) setNotes(current => ({...current, ...Object.fromEntries(rows.map(r=>[r.day,r.note]))})); })
+      .then(rows => { if(live) setNotes(current => ({...Object.fromEntries(Object.entries(current).filter(([day]) => day < from || day > to)), ...Object.fromEntries(rows.map(r=>[r.day,r.note]))})); })
       .catch(e => { if(live) setSyncError(e instanceof Error ? e.message : "Calendar sync failed"); })
       .finally(() => { if(live) setLoading(false); });
     return () => { live = false; };
