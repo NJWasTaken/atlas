@@ -410,7 +410,7 @@ There is no standalone notes area in Explore. A comment exists only as part of a
 
 Explore does not include topic workspaces, discovery sessions, standalone notes, whiteboards, knowledge graphs, web article capture, social features, or automatic knowledge organization. Its job is to make reading and marking up a PDF exceptionally good.
 
-The initial reader supports PDFs up to 12 MB. Password-protected documents and scanned-document OCR are not supported.
+The initial reader supports PDFs up to 50 MB. New Explore PDFs are stored on the Atlas host's local filesystem; PostgreSQL stores metadata and annotations. Configure `ATLAS_PDF_STORAGE_DIR` to point to persistent disk and include that directory in backups. Existing database-backed PDFs remain readable. Password-protected documents and scanned-document OCR are not supported.
 
 ---
 

@@ -1,7 +1,13 @@
 from io import BytesIO
+import pytest
 from pypdf import PdfReader, PdfWriter
 
 from tests.conftest import register, auth_headers
+
+
+@pytest.fixture(autouse=True)
+def isolate_pdf_storage(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.routers.explore.PDF_STORAGE_DIR", tmp_path)
 
 
 def sample_pdf():
@@ -20,6 +26,10 @@ def test_upload_list_progress_and_delete_document(client):
     document = response.json()
     assert document["page_count"] == 1
     assert document["title"] == "notes"
+    from app.routers.explore import PDF_STORAGE_DIR
+    stored_files = list(PDF_STORAGE_DIR.glob("*.pdf"))
+    assert len(stored_files) == 1
+    assert stored_files[0].read_bytes().startswith(b"%PDF-")
     assert client.get(f"/api/v1/explore/documents/{document['id']}/file", headers=headers).content.startswith(b"%PDF-")
     assert client.patch(f"/api/v1/explore/documents/{document['id']}", headers=headers, json={"last_page": 2}).status_code == 422
     updated = client.patch(f"/api/v1/explore/documents/{document['id']}", headers=headers, json={"last_page": 1})

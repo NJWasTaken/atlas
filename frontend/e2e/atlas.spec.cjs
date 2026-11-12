@@ -364,6 +364,20 @@ test("calendar note deletion is confirmed and mutation errors do not offer a mis
 });
 
 
+async function selectPdfText(page, { expectToolbar = true } = {}) {
+  const span = page.locator('[data-page="3"] .atlas-pdf-text-layer span').first();
+  await expect(span).toBeVisible();
+  const box = await span.boundingBox();
+  if (!box || box.width < 8 || box.height < 4) throw new Error("PDF text span has no usable selection bounds.");
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  // Double-click selects a real word in Chromium and emits the same mouseup
+  // event used by the reader's document-level selection handler.
+  await page.mouse.dblclick(x, y);
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString().trim() ?? "")).not.toBe("");
+  if (expectToolbar) await expect(page.locator(".atlas-pdf-selection-toolbar")).toBeVisible();
+}
+
 test("Explore keeps a PDF in the library with reading progress, bookmarks and anchored annotations", async ({ page }) => {
   installApiMock(page);
   const docs = [];
@@ -450,13 +464,20 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByRole("tab",{name:/Outline/}).click();
   await expect(page.getByText("This document does not contain a navigable outline.")).toBeVisible();
   await page.getByRole("tab",{name:/Marks/}).click();
-  await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
-  await page.getByLabel("Highlight in green").evaluate(button=>button.click());
+  await selectPdfText(page);
+  const failedAnnotationCreate = page.waitForResponse(response =>
+    response.url().includes("/api/v1/explore/documents/") &&
+    response.url().endsWith("/annotations") &&
+    response.request().method() === "POST" &&
+    response.status() === 503
+  );
+  await page.getByLabel("Highlight in green").click();
+  await failedAnnotationCreate;
   await expect(page.locator(".atlas-reader-mutation-retry")).toContainText("temporarily unavailable");
   await page.getByRole("button",{name:"Retry annotation change"}).click();
   await expect(page.locator(".atlas-pdf-mark")).toHaveCount(1);
-  await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
-  await page.getByTitle("Add a comment").evaluate(button=>button.click());
+  await selectPdfText(page);
+  await page.getByTitle("Add a comment").click();
   await page.getByLabel("Comment").fill("Compare this result with the lecture discussion.");
   await page.getByRole("button",{name:"Save highlight & comment"}).click();
   await expect(page.getByText("Compare this result with the lecture discussion.")).toBeVisible();
@@ -484,7 +505,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await expect(page.locator(".atlas-reader.theme-dark")).toHaveCount(1);
   await page.getByLabel("Reading theme").selectOption("paper");
   await page.getByRole("button",{name:/locked highlight mode/i}).click();
-  await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
+  await selectPdfText(page, { expectToolbar: false });
   await expect(page.locator(".atlas-pdf-mark")).toHaveCount(3);
   await page.getByRole("button",{name:/locked highlight mode/i}).click();
   const exportPromise=page.waitForEvent("download");

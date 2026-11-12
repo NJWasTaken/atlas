@@ -113,6 +113,10 @@ The syllabus importer accepts PDF uploads up to 12 MB and 100 pages, extracts se
 
 Daily/random quote requests are proxied by the backend to API Ninjas when configured, keeping the provider key out of the browser. Curated fallbacks keep the Overview usable without the provider; daily quotes are cached for six hours, while random requests always fetch afresh and avoid immediately repeating the previous result. If the provider is unavailable, random requests use a different curated fallback rather than replaying a stale quote. The global celestial background is rendered by `CelestialBackground.tsx`; the separate `QuoteRipple.tsx` component exists but is not part of the current page composition.
 
+## Explore PDF storage
+
+New Explore library PDFs are stored on the backend host's local filesystem (default: `backend/data/pdfs`, configurable through `ATLAS_PDF_STORAGE_DIR`). PostgreSQL stores document metadata, reading position, bookmarks, and annotations. Existing documents with database-backed PDF bytes remain readable. The storage directory must be on persistent disk and included in local backups. No paid object-storage service is required. The current file endpoint still returns the complete PDF; authenticated byte-range delivery and PDF.js URL loading are tracked as the next substantial Explore change.
+
 ## Configuration and local development
 
 - Copy `.env.example` to `.env` and set local values. `.env` is intentionally ignored and must not be committed.
@@ -202,7 +206,7 @@ This list covers the tracked project source, documentation, and configuration fi
 | `app/routers/quotes.py` | Authenticated daily/random quote endpoints, per-endpoint TTL caching, curated fallbacks, and stale-cache recovery. |
 | `app/routers/academics.py` | Ownership-checked topic/concept/progress/review-history/readiness/exam and syllabus version/draft/confirm/restore endpoints. |
 | `app/routers/overview.py` | User-scoped recent learning activity, continue-learning candidates, revision suggestions, and upcoming exam summary. |
-| `app/explore_models.py` | Private PDF documents, page bookmarks, and page-linked annotations. |\n| `app/explore_schemas.py` | Validated PDF document, bookmark, and annotation request/response contracts. |\n| `app/routers/explore.py` | Private PDF upload/URL import, document listing and delivery, reading progress, bookmarks, and page-linked PDF annotations with ownership checks. |
+| `app/explore_models.py` | Private PDF documents, page bookmarks, and page-linked annotations. |\n| `app/explore_schemas.py` | Validated PDF document, bookmark, and annotation request/response contracts. |\n| `app/routers/explore.py` | Private PDF upload/URL import (50 MB limit), local-filesystem storage for new PDFs, legacy database-backed file compatibility, document listing/delivery, reading progress, bookmarks, and page-linked annotations with ownership checks. |
 
 ### `frontend/`
 
