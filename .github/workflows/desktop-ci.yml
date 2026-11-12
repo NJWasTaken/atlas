@@ -11,7 +11,7 @@ on:
       - ".github/workflows/frontend-checks.yml"
       - ".github/workflows/backend-tests.yml"
   push:
-    branches: [main]
+    branches: [main, feature/large-pdf-local-storage]
     paths:
       - "desktop/**"
       - "backend/**"
