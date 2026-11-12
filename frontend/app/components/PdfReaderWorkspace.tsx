@@ -135,6 +135,7 @@ export default function PdfReaderWorkspace(props:Props) {
   const [pdf,setPdf]=useState<PdfDocument|null>(null);
   const [loading,setLoading]=useState(true);
   const [page,setPage]=useState(initialPage);
+  const [pageInput,setPageInput]=useState(String(initialPage));
   const [zoom,setZoom]=useState<"width"|"page"|number>("width");
   const [scale,setScale]=useState(1);
   const [activePanel,setActivePanel]=useState<"thumbnails"|"outline"|"annotations"|"bookmarks">("thumbnails");
@@ -169,6 +170,7 @@ export default function PdfReaderWorkspace(props:Props) {
   const [sidebarOpen,setSidebarOpen]=useState(true);
   const scrollRef=useRef<HTMLDivElement>(null);
   const pageRefs=useRef<Map<number,HTMLDivElement>>(new Map());
+  const pendingNavigation=useRef<number|null>(null);
   const pdfRef=useRef<PdfDocument|null>(null);
   const scaleMode=useRef<"width"|"page"|number>("width");
   const scaleRequest=useRef(0);
@@ -269,6 +271,10 @@ export default function PdfReaderWorkspace(props:Props) {
           const next=Number(node.dataset.page);const delta=Math.abs((rect.top+rect.bottom)/2-center);
           if(delta<distance){distance=delta;nearest=next;}
         });
+        if(pendingNavigation.current!==null){
+          if(nearest!==pendingNavigation.current)return;
+          pendingNavigation.current=null;
+        }
         if(nearest!==page){setPage(nearest);onProgressChange(nearest);}
       });
     };
@@ -279,16 +285,22 @@ export default function PdfReaderWorkspace(props:Props) {
       if(rect.bottom<0||rect.top>window.innerHeight){setSelectionAnchor(null);return;}
       setSelectionAnchor({left:rect.left,top:rect.top,width:rect.width,height:rect.height});
     };
+    const finishNavigation=()=>{pendingNavigation.current=null;update();};
     root.addEventListener("scroll",update,{passive:true});
     root.addEventListener("scroll",repositionSelection,{passive:true});
+    root.addEventListener("scrollend",finishNavigation);
     update();
-    return()=>{root.removeEventListener("scroll",update);root.removeEventListener("scroll",repositionSelection);cancelAnimationFrame(frame);};
+    return()=>{root.removeEventListener("scroll",update);root.removeEventListener("scroll",repositionSelection);root.removeEventListener("scrollend",finishNavigation);cancelAnimationFrame(frame);};
   },[pdf,scale,page,onProgressChange]);
 
   const goToPage=useCallback((next:number)=>{
-    const target=clamp(next,1,pageCount);setSelectionAnchor(null);setPage(target);onProgressChange(target);
-    pageRefs.current.get(target)?.scrollIntoView({behavior:"smooth",block:"start"});
-  },[pageCount,onProgressChange]);
+    const target=clamp(next,1,pageCount);
+    setSelectionAnchor(null);setPageInput(String(target));
+    if(target===page){return;}
+    pendingNavigation.current=target;
+    setPage(target);onProgressChange(target);
+    window.requestAnimationFrame(()=>pageRefs.current.get(target)?.scrollIntoView({behavior:"smooth",block:"start"}));
+  },[page,pageCount,onProgressChange]);
   useEffect(()=>{if(pdf&&initialPage>1){const timer=window.setTimeout(()=>goToPage(initialPage),180);return()=>clearTimeout(timer);}},[pdf,initialPage,goToPage]);
 
   useEffect(()=>{
@@ -415,7 +427,7 @@ export default function PdfReaderWorkspace(props:Props) {
     }finally{setSaving(false);}
   }
   async function deleteAnnotation(id:number){await persistAnnotationDelete(id);}
-  useEffect(()=>{setSelectedPage(page);},[page]);
+  useEffect(()=>{setSelectedPage(page);setPageInput(String(page));},[page]);
   const currentBookmark=bookmarks.some(mark=>mark.page_number===page);
   const pageNumbers=useMemo(()=>Array.from({length:pageCount},(_,index)=>index+1),[pageCount]);
 
@@ -426,7 +438,7 @@ export default function PdfReaderWorkspace(props:Props) {
       <button className="atlas-reader-mode" onClick={onToggleFocus}><Maximize2 size={14}/>{readerMode?"Exit focus":"Focus mode"}</button>
     </header>
     <div className="atlas-reader-toolbar">
-      <div className="atlas-reader-page-control"><button onClick={()=>goToPage(page-1)} disabled={page<=1} aria-label="Previous page"><ChevronLeft size={16}/></button><input aria-label="Current page" value={page} inputMode="numeric" onChange={e=>{const n=Number(e.target.value);if(Number.isFinite(n)&&n>0)setPage(clamp(n,1,pageCount));}} onBlur={e=>{const n=Number(e.currentTarget.value);goToPage(Number.isFinite(n)&&n>0?n:page);}} onKeyDown={e=>{if(e.key==="Enter"){const n=Number(e.currentTarget.value);goToPage(Number.isFinite(n)&&n>0?n:page);}}}/><span>/ {pageCount}</span><button onClick={()=>goToPage(page+1)} disabled={page>=pageCount} aria-label="Next page"><ChevronRight size={16}/></button></div>
+      <div className="atlas-reader-page-control"><button onClick={()=>goToPage(page-1)} disabled={page<=1} aria-label="Previous page"><ChevronLeft size={16}/></button><input aria-label="Current page" value={pageInput} inputMode="numeric" onChange={e=>setPageInput(e.target.value.replace(/[^0-9]/g,""))} onBlur={()=>{const n=Number(pageInput);goToPage(Number.isFinite(n)&&n>0?n:page);}} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();const n=Number(pageInput);goToPage(Number.isFinite(n)&&n>0?n:page);}}}/><span>/ {pageCount}</span><button onClick={()=>goToPage(page+1)} disabled={page>=pageCount} aria-label="Next page"><ChevronRight size={16}/></button></div>
       <div className="atlas-reader-toolbar-divider"/>
       <button className={`atlas-reader-tool ${zoom==="width"?"active":""}`} onClick={()=>{scaleMode.current="width";setZoom("width");updateScale();}}>Fit width</button>
       <button className={`atlas-reader-tool ${zoom==="page"?"active":""}`} onClick={()=>{scaleMode.current="page";setZoom("page");updateScale();}}>Fit page</button>
