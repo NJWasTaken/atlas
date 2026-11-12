@@ -61,9 +61,11 @@
       "category": "Education",
       "maintainer": "Noel Jose",
       "desktop": {
-        "Name": "Atlas",
-        "Comment": "Personal learning environment",
-        "Categories": "Education;"
+        "entry": {
+          "Name": "Atlas",
+          "Comment": "Personal learning environment",
+          "Categories": "Education;"
+        }
       }
     }
   },
