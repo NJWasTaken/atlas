@@ -456,7 +456,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByRole("button",{name:"Retry annotation change"}).click();
   await expect(page.locator(".atlas-pdf-mark")).toHaveCount(1);
   await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
-  await page.getByTitle("Add a comment").evaluate(button=>(button as HTMLButtonElement).click());
+  await page.getByTitle("Add a comment").evaluate(button=>button.click());
   await page.getByLabel("Comment").fill("Compare this result with the lecture discussion.");
   await page.getByRole("button",{name:"Save highlight & comment"}).click();
   await expect(page.getByText("Compare this result with the lecture discussion.")).toBeVisible();
