@@ -93,6 +93,7 @@ export default function ExploreWorkspace() {
     finally {setUploading(false);}
   }
   async function closeReader(lastPage:number) {
+    console.error("PDF READER EXIT PAGE", {lastPage, parentPage:page, selectedPageCount:selected?.page_count});
     if(selected) {
       try {
         const updated=await api<DocumentItem>(`/explore/documents/${selected.id}`,{method:"PATCH",body:JSON.stringify({last_page:lastPage})});
