@@ -1,6 +1,21 @@
 name: Desktop release
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (without the v prefix, e.g. 0.2.0)"
+        required: true
+        type: string
+      release_notes:
+        description: "Manually written release notes"
+        required: true
+        type: string
+      prerelease:
+        description: "Mark this release as a prerelease"
+        required: true
+        default: false
+        type: boolean
   push:
     tags:
       - "v*"
@@ -9,7 +24,38 @@ permissions:
   contents: write
 
 jobs:
+  validate-manual-release:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+      tag: ${{ steps.validate.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate manually supplied release metadata
+        id: validate
+        working-directory: desktop
+        env:
+          ATLAS_RELEASE_VERSION: ${{ inputs.version }}
+          ATLAS_RELEASE_NOTES: ${{ inputs.release_notes }}
+        run: |
+          npm run test:release
+          npm run release:validate
+          if git ls-remote --exit-code --tags origin "refs/tags/v${ATLAS_RELEASE_VERSION}" >/dev/null 2>&1; then
+            echo "Release tag v${ATLAS_RELEASE_VERSION} already exists."
+            exit 1
+          fi
+          echo "Release tag v${ATLAS_RELEASE_VERSION} is available."
+
   build:
+    if: github.event_name == 'push'
     strategy:
       fail-fast: false
       matrix:
@@ -74,6 +120,7 @@ jobs:
           retention-days: 3
 
   publish:
+    if: github.event_name == 'push'
     needs: build
     runs-on: ubuntu-24.04
     steps:

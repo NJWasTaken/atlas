@@ -7,7 +7,9 @@
   "scripts": {
     "start": "electron .",
     "package:dir": "electron-builder --dir",
-    "package": "electron-builder"
+    "package": "electron-builder",
+    "release:validate": "node scripts/validate-release.mjs",
+    "test:release": "node --test scripts/*.test.mjs"
   },
   "devDependencies": {
     "electron": "^39.2.7",
@@ -25,7 +27,9 @@
       {
         "from": "runtime",
         "to": "runtime",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "directories": {
@@ -33,7 +37,9 @@
     },
     "artifactName": "Atlas-${version}-${os}-${arch}.${ext}",
     "win": {
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "nsis": {
       "oneClick": false,
@@ -42,11 +48,16 @@
       "createStartMenuShortcut": true
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "category": "public.app-category.education"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Education"
     }
   }
