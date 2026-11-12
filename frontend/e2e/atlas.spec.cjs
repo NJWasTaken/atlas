@@ -225,7 +225,7 @@ test("daily quote changes with a clean text-only transition", async ({ page }) =
   await expect(copy).toHaveClass(/quote-in/);
   await expect(copy).toHaveCSS("opacity", "1");
   await expect(card.locator(".atlas-orbit-art")).toBeVisible();
-  await expect(card).not.toHaveCSS("transform", /matrix/);
+  await expect(card).toHaveCSS("transform", "matrix(1, 0, 0, 1, 0, 0)");
 });
 
 test("calendar offers a weekly view and saves a day note", async ({ page }) => {
