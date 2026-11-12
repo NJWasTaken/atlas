@@ -208,9 +208,9 @@ main{position:relative;z-index:1}h1,h2,h3{margin:0;font-family:'Cormorant Garamo
 
 /* Animate only the quote copy. The card and orbital illustration stay fixed. */
 .atlas-quote-card{cursor:pointer;transition:border-color .35s ease,box-shadow .35s ease}
-.atlas-welcome-copy{transition:opacity .2s ease,transform .28s cubic-bezier(.2,.7,.2,1)}
-.atlas-welcome-copy.quote-out{opacity:0;transform:translateY(7px)}
-.atlas-welcome-copy.quote-in{opacity:1;transform:translateY(0)}
+.atlas-welcome-copy{filter:none;transition:opacity .2s ease,transform .28s cubic-bezier(.2,.7,.2,1)}
+.atlas-welcome-copy.quote-out{opacity:0;transform:translateY(7px);filter:none;animation:none}
+.atlas-welcome-copy.quote-in{opacity:1;transform:translateY(0);filter:none;animation:none}
 @media(prefers-reduced-motion:reduce){
   .atlas-welcome-copy{transition:none!important}
 }
