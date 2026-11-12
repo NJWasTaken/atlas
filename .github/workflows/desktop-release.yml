@@ -65,8 +65,26 @@ jobs:
           npm install --no-audit --no-fund
           npm version --no-git-tag-version --allow-same-version "${GITHUB_REF_NAME#v}"
           npx electron-builder --${{ matrix.platform }} ${{ matrix.target }} --publish never
-      - name: Upload release assets
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-${{ matrix.platform }}
+          path: desktop/dist/*
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download all platform installers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: atlas-*
+          path: release-assets
+          merge-multiple: true
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: desktop/dist/*
+          files: release-assets/*
           fail_on_unmatched_files: true
