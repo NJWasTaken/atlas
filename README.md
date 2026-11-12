@@ -701,7 +701,7 @@ The current project uses the following technologies.
 
 Additional technologies may be introduced as individual modules mature.
 
-The architecture should favour lightweight dependencies and avoid adding infrastructure without a clear requirement.
+The architecture should favour lightweight dependencies and avoid adding infrastructure without a clear requirement. Atlas is moving towards an Electron desktop distribution: a bundled Next.js frontend and FastAPI sidecar, SQLite for desktop structured data, and PDF files stored under the operating system's per-user application-data directory. PostgreSQL remains the development database.
 
 ---
 
@@ -1124,6 +1124,20 @@ The development roadmap prioritises a dependable academic foundation, a high-qua
 - Evaluate deployment and production requirements.
 
 ---
+
+
+## Desktop application (in development)
+
+The desktop target is an Electron application that runs Atlas locally:
+
+- Electron manages the application window and starts the local services.
+- The existing Next.js frontend is bundled as a standalone server.
+- A bundled FastAPI sidecar provides the API.
+- Desktop structured data uses SQLite; PostgreSQL remains the development and CI database.
+- Explore PDFs are stored under the OS-specific Atlas application-data directory. SQLite stores document metadata and relative paths.
+- Database files, PDFs, and the generated per-install authentication secret stay outside the installation directory so updates do not replace user data.
+
+The desktop app is intended to work without Docker, PostgreSQL, a separately installed Python runtime, or a cloud-storage subscription. Installer and release automation are in development; do not treat desktop builds as supported releases until the release-readiness checklist is complete.
 
 # Running Locally
 

@@ -116,6 +116,22 @@ Keep these follow-up PRs separate and do not add a paid object-storage dependenc
 2. [ ] **Large-document reader performance:** audit page virtualization, lazy text extraction, canvas/text-layer lifecycle, cancellation of obsolete renders, and memory cleanup; stress-test with the 44 MB textbook and long/mixed-dimension PDFs while preserving annotations and reading behavior.
 3. [ ] **Local storage operations:** document/configure persistent PDF storage for deployment, handle disk-full and storage failures, and provide coordinated local PDF + PostgreSQL backup/restore guidance. No cloud storage service or recurring storage cost.
 
+
+## Desktop application and release engineering
+
+**Product decision:** ship Atlas as an Electron desktop application with a bundled local API and frontend. End users should not need Node.js, Python, Docker, PostgreSQL, or a cloud-storage account.
+
+- [ ] Add the Electron main/preload process with hardened BrowserWindow defaults, local-origin navigation restrictions, validated external-link handling, startup diagnostics, and clean child-process shutdown.
+- [ ] Bundle the Next.js standalone server and a platform-specific FastAPI sidecar; verify startup and health checks on Windows, macOS, and Linux.
+- [ ] Add a desktop runtime entry point that selects SQLite, stores the database and PDF directory under Electron `userData`, persists a generated per-install JWT secret, and runs Alembic migrations before serving requests.
+- [ ] Add SQLite engine configuration with thread-safe connections and foreign-key enforcement; keep PostgreSQL as the default development and CI database.
+- [ ] Ensure desktop mode uses a loopback-only API origin and no API key, JWT secret, local database, or uploaded PDF is bundled in the installer.
+- [ ] Add migration tests for a fresh desktop SQLite database and upgrades from the previous desktop schema; verify PDF metadata and files remain consistent.
+- [ ] Add CI checks for frontend build, Playwright, backend tests, Electron packaging smoke tests, and artifact inspection on pull requests.
+- [ ] Add a version-tag release workflow that builds Windows, macOS, and Linux installers and publishes them to GitHub Releases. Configure macOS signing/notarisation only when repository secrets are present.
+- [ ] Document desktop installation, data locations, upgrade behavior, backup/restore, uninstall behavior, and troubleshooting.
+- [ ] Validate clean install, relaunch, app upgrade, and uninstall/reinstall while confirming SQLite data and PDFs persist.
+
 ## My Universe
 
 - [ ] Implement personal notes and saved resources/concepts.

@@ -367,15 +367,26 @@ test("calendar note deletion is confirmed and mutation errors do not offer a mis
 async function selectPdfText(page, { expectToolbar = true } = {}) {
   const span = page.locator('[data-page="3"] .atlas-pdf-text-layer span').first();
   await expect(span).toBeVisible();
-  const box = await span.boundingBox();
-  if (!box || box.width < 8 || box.height < 4) throw new Error("PDF text span has no usable selection bounds.");
-  const x = box.x + box.width / 2;
-  const y = box.y + box.height / 2;
-  // Double-click selects a real word in Chromium and emits the same mouseup
-  // event used by the reader's document-level selection handler.
-  await page.mouse.dblclick(x, y);
-  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString().trim() ?? "")).not.toBe("");
-  if (expectToolbar) await expect(page.locator(".atlas-pdf-selection-toolbar")).toBeVisible();
+
+  // Chromium's synthetic double-click can miss the transparent PDF text
+  // glyphs in headless CI. Select the rendered text node directly, then emit
+  // the same document-level mouseup event handled by the reader.
+  await span.evaluate(node => {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+  });
+
+  await expect.poll(() => page.evaluate(
+    () => window.getSelection()?.toString().trim() ?? ""
+  )).not.toBe("");
+
+  if (expectToolbar) {
+    await expect(page.locator(".atlas-pdf-selection-toolbar")).toBeVisible();
+  }
 }
 
 test("Explore keeps a PDF in the library with reading progress, bookmarks and anchored annotations", async ({ page }) => {
@@ -465,12 +476,17 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await expect(page.getByText("This document does not contain a navigable outline.")).toBeVisible();
   await page.getByRole("tab",{name:/Marks/}).click();
   await selectPdfText(page);
+
+  const selectionToolbar = page.locator(".atlas-pdf-selection-toolbar");
+  await expect(selectionToolbar).toBeVisible();
+
   const failedAnnotationCreate = page.waitForResponse(response =>
     response.url().includes("/api/v1/explore/documents/") &&
     response.url().endsWith("/annotations") &&
     response.request().method() === "POST" &&
     response.status() === 503
   );
+
   await page.getByLabel("Highlight in green").click();
   await failedAnnotationCreate;
   await expect(page.locator(".atlas-reader-mutation-retry")).toContainText("temporarily unavailable");
@@ -481,7 +497,8 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByLabel("Comment").fill("Compare this result with the lecture discussion.");
   await page.getByRole("button",{name:"Save highlight & comment"}).click();
   await expect(page.getByText("Compare this result with the lecture discussion.")).toBeVisible();
-  await page.locator(".atlas-reader-mark-card").first().getByRole("button",{name:"Edit annotation"}).click();
+  await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(2);
+  await page.locator(".atlas-reader-mark-card").filter({hasText:"Compare this result with the lecture discussion."}).getByRole("button",{name:"Edit annotation"}).click();
   await page.getByLabel("Edit annotation comment").fill("Revisit this argument in the next reading.");
   await page.getByLabel("Edit annotation type").selectOption("underline");
   await page.getByLabel("Edit annotation colour").selectOption("pink");

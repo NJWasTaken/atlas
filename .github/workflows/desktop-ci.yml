@@ -1,0 +1,116 @@
+name: Desktop CI
+
+on:
+  pull_request:
+    branches: [main, feature/large-pdf-local-storage]
+    paths:
+      - "desktop/**"
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/desktop-ci.yml"
+      - ".github/workflows/frontend-checks.yml"
+      - ".github/workflows/backend-tests.yml"
+  push:
+    branches: [main, feature/large-pdf-local-storage]
+    paths:
+      - "desktop/**"
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/desktop-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  package-linux:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: atlas_test
+          POSTGRES_USER: atlas
+          POSTGRES_PASSWORD: atlas_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U atlas -d atlas_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run backend tests and migration checks
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://atlas:atlas_test_password@localhost:5432/atlas_test
+        run: |
+          python -m pip install -r requirements.txt
+          DATABASE_URL=sqlite:////tmp/atlas-desktop-migrations.db python -m alembic upgrade head
+          DATABASE_URL=sqlite:////tmp/atlas-desktop-migrations.db python -m alembic check
+          python -m pytest -v
+      - name: Build Next.js standalone server
+        working-directory: frontend
+        run: |
+          npm ci
+          NEXT_PUBLIC_API_URL=http://127.0.0.1:43121/api/v1 npm run build
+          mkdir -p .next/standalone/.next
+          cp -R .next/static .next/standalone/.next/static
+          if [ -d public ]; then cp -R public .next/standalone/public; fi
+      - name: Build FastAPI sidecar
+        run: |
+          python -m pip install -r backend/requirements-desktop.txt
+          pyinstaller --clean --onefile --name atlas-api --paths backend \
+            --add-data "backend/migrations:migrations" \
+            --add-data "backend/alembic.ini:." \
+            --collect-all alembic --collect-all sqlalchemy --collect-all passlib --collect-all bcrypt --hidden-import passlib.handlers.bcrypt \
+            backend/desktop_entry.py
+          mkdir -p desktop/runtime
+          cp dist/atlas-api desktop/runtime/atlas-api
+          cp -R frontend/.next/standalone desktop/runtime/frontend
+      - name: Smoke-test packaged API sidecar
+        env:
+          ATLAS_USER_DATA_DIR: /tmp/atlas-desktop-smoke
+          JWT_SECRET: atlas-desktop-smoke-secret-that-is-long-enough
+          ATLAS_API_PORT: "43121"
+          FRONTEND_ORIGIN: http://127.0.0.1:43122
+          CORS_ORIGINS: http://127.0.0.1:43122
+          ENVIRONMENT: development
+        run: |
+          desktop/runtime/atlas-api &
+          API_PID=$!
+          trap 'kill "$API_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:43121/health; then exit 0; fi
+            sleep 1
+          done
+          echo "Packaged Atlas API did not become healthy."
+          exit 1
+      - name: Install Playwright and Chromium
+        working-directory: frontend
+        run: |
+          npm install --no-save --package-lock=false @playwright/test@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Run browser regression suite
+        working-directory: frontend
+        env:
+          CI: true
+        run: npx playwright test
+      - name: Package Electron application
+        working-directory: desktop
+        run: |
+          npm install --no-audit --no-fund
+          npx electron-builder --linux AppImage --publish never
+      - name: Upload desktop smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-linux-desktop-smoke
+          path: desktop/dist/*
+          if-no-files-found: error
+          retention-days: 7
