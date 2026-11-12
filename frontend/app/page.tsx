@@ -87,13 +87,13 @@ export default function Home() {
       const next = await api<Quote>(`/quotes/${random ? "random" : "daily"}`);
       if (random) {
         setQuotePhase("out");
-        await new Promise(resolve => window.setTimeout(resolve, 180));
+        await new Promise(resolve => window.setTimeout(resolve, 220));
       }
       setQuote(next);
       setQuotePhase(random ? "in" : "idle");
       if (quoteTransitionTimer.current !== null) window.clearTimeout(quoteTransitionTimer.current);
       if (random) {
-        quoteTransitionTimer.current = window.setTimeout(() => setQuotePhase("idle"), 360);
+        quoteTransitionTimer.current = window.setTimeout(() => setQuotePhase("idle"), 420);
       }
     } catch (e) {
       setQuoteError(e instanceof Error ? e.message : "Could not load a quote");
