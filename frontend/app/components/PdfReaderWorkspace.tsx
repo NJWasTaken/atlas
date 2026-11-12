@@ -170,6 +170,7 @@ export default function PdfReaderWorkspace(props:Props) {
   const [sidebarOpen,setSidebarOpen]=useState(true);
   const scrollRef=useRef<HTMLDivElement>(null);
   const pageRefs=useRef<Map<number,HTMLDivElement>>(new Map());
+  const currentPageRef=useRef(initialPage);
   const pendingNavigation=useRef<number|null>(null);
   const pdfRef=useRef<PdfDocument|null>(null);
   const scaleMode=useRef<"width"|"page"|number>("width");
@@ -275,7 +276,7 @@ export default function PdfReaderWorkspace(props:Props) {
           if(nearest!==pendingNavigation.current)return;
           pendingNavigation.current=null;
         }
-        if(nearest!==page){setPage(nearest);onProgressChange(nearest);}
+        if(nearest!==page){currentPageRef.current=nearest;setPage(nearest);onProgressChange(nearest);}
       });
     };
     const repositionSelection=()=>{
@@ -296,11 +297,12 @@ export default function PdfReaderWorkspace(props:Props) {
   const goToPage=useCallback((next:number)=>{
     const target=clamp(next,1,pageCount);
     setSelectionAnchor(null);setPageInput(String(target));
-    if(target===page){return;}
+    if(target===currentPageRef.current)return;
+    currentPageRef.current=target;
     pendingNavigation.current=target;
     setPage(target);onProgressChange(target);
     window.requestAnimationFrame(()=>pageRefs.current.get(target)?.scrollIntoView({behavior:"smooth",block:"start"}));
-  },[page,pageCount,onProgressChange]);
+  },[pageCount,onProgressChange]);
   useEffect(()=>{if(pdf&&initialPage>1){const timer=window.setTimeout(()=>goToPage(initialPage),180);return()=>clearTimeout(timer);}},[pdf,initialPage,goToPage]);
 
   useEffect(()=>{
@@ -427,7 +429,7 @@ export default function PdfReaderWorkspace(props:Props) {
     }finally{setSaving(false);}
   }
   async function deleteAnnotation(id:number){await persistAnnotationDelete(id);}
-  useEffect(()=>{setSelectedPage(page);setPageInput(String(page));},[page]);
+  useEffect(()=>{currentPageRef.current=page;setSelectedPage(page);setPageInput(String(page));},[page]);
   const currentBookmark=bookmarks.some(mark=>mark.page_number===page);
   const pageNumbers=useMemo(()=>Array.from({length:pageCount},(_,index)=>index+1),[pageCount]);
 
