@@ -364,6 +364,21 @@ test("calendar note deletion is confirmed and mutation errors do not offer a mis
 });
 
 
+async function selectPdfText(page, { expectToolbar = true } = {}) {
+  const span = page.locator('[data-page="3"] .atlas-pdf-text-layer span').first();
+  await expect(span).toBeVisible();
+  const box = await span.boundingBox();
+  if (!box || box.width < 8 || box.height < 4) throw new Error("PDF text span has no usable selection bounds.");
+  const startX = box.x + Math.min(2, box.width / 4);
+  const endX = box.x + Math.max(4, box.width - 2);
+  const y = box.y + box.height / 2;
+  await page.mouse.move(startX, y);
+  await page.mouse.down();
+  await page.mouse.move(endX, y, { steps: 8 });
+  await page.mouse.up();
+  if (expectToolbar) await expect(page.locator(".atlas-pdf-selection-toolbar")).toBeVisible();
+}
+
 test("Explore keeps a PDF in the library with reading progress, bookmarks and anchored annotations", async ({ page }) => {
   installApiMock(page);
   const docs = [];
@@ -450,8 +465,15 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByRole("tab",{name:/Outline/}).click();
   await expect(page.getByText("This document does not contain a navigable outline.")).toBeVisible();
   await page.getByRole("tab",{name:/Marks/}).click();
-  await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
-  await page.getByLabel("Highlight in green").evaluate(button=>button.click());
+  await selectPdfText(page, { expectToolbar: false });
+  const failedAnnotationCreate = page.waitForResponse(response =>
+    response.url().includes("/api/v1/explore/documents/") &&
+    response.url().endsWith("/annotations") &&
+    response.request().method() === "POST" &&
+    response.status() === 503
+  );
+  await page.getByLabel("Highlight in green").click();
+  await failedAnnotationCreate;
   await expect(page.locator(".atlas-reader-mutation-retry")).toContainText("temporarily unavailable");
   await page.getByRole("button",{name:"Retry annotation change"}).click();
   await expect(page.locator(".atlas-pdf-mark")).toHaveCount(1);
