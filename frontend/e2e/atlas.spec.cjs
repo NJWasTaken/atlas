@@ -1,20 +1,34 @@
-function createPdfFixture() {
+function createPdfFixture({pageCount=8,includeOutline=false}={}) {
   const objects = [];
-  objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
-  objects[2] = "<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R 6 0 R 7 0 R 8 0 R 9 0 R 10 0 R] /Count 8 >>";
-  for (let i=0;i<8;i++) {
-    objects[3+i] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 11 0 R >> >> /Contents ${12+i} 0 R >>`;
-    const text = `BT /F1 18 Tf 50 740 Td (Page ${i+1} searchable text for Atlas reader tests) Tj ET`;
-    objects[12+i] = `<< /Length ${text.length} >>\nstream\n${text}\nendstream`;
+  const firstPageId = 3;
+  const fontId = pageCount + 3;
+  const firstContentId = pageCount + 4;
+  const outlineRootId = firstContentId + pageCount;
+  const outlineItemId = outlineRootId + 1;
+  const kids = Array.from({length:pageCount},(_,i)=>`${firstPageId+i} 0 R`).join(" ");
+  objects[1] = includeOutline
+    ? `<< /Type /Catalog /Pages 2 0 R /Outlines ${outlineRootId} 0 R /PageMode /UseOutlines >>`
+    : "<< /Type /Catalog /Pages 2 0 R >>";
+  objects[2] = `<< /Type /Pages /Kids [${kids}] /Count ${pageCount} >>`;
+  for (let i=0;i<pageCount;i++) {
+    const mediaBox = i % 3 === 1 ? "0 0 792 612" : i % 3 === 2 ? "0 0 612 1008" : "0 0 612 792";
+    objects[firstPageId+i] = `<< /Type /Page /Parent 2 0 R /MediaBox [${mediaBox}] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${firstContentId+i} 0 R >>`;
+    const text = `BT /F1 18 Tf 50 540 Td (Page ${i+1} searchable text for Atlas reader tests) Tj ET`;
+    objects[firstContentId+i] = `<< /Length ${text.length} >>\nstream\n${text}\nendstream`;
   }
-  objects[11] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  objects[fontId] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  if(includeOutline){
+    objects[outlineRootId] = `<< /Type /Outlines /First ${outlineItemId} 0 R /Last ${outlineItemId} 0 R /Count 1 >>`;
+    objects[outlineItemId] = `<< /Title (Chapter One) /Parent ${outlineRootId} 0 R /Dest [${firstPageId} 0 R /Fit] >>`;
+  }
   let pdf = "%PDF-1.4\n";
+  const lastObjectId = includeOutline ? outlineItemId : fontId;
   const offsets = [0];
-  for (let i=1;i<objects.length;i++) { offsets[i]=Buffer.byteLength(pdf,"binary"); pdf += `${i} 0 obj\n${objects[i]}\nendobj\n`; }
+  for (let i=1;i<=lastObjectId;i++) { offsets[i]=Buffer.byteLength(pdf,"binary"); pdf += `${i} 0 obj\n${objects[i]}\nendobj\n`; }
   const xref = Buffer.byteLength(pdf,"binary");
-  pdf += `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
-  for (let i=1;i<objects.length;i++) pdf += `${String(offsets[i]).padStart(10,"0")} 00000 n \n`;
-  pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  pdf += `xref\n0 ${lastObjectId+1}\n0000000000 65535 f \n`;
+  for (let i=1;i<=lastObjectId;i++) pdf += `${String(offsets[i]).padStart(10,"0")} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${lastObjectId+1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
   return Buffer.from(pdf,"binary");
 }
 
@@ -339,6 +353,9 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   const bookmarks = [];
   const annotations = [];
   let nextId = 40;
+  let failAnnotationCreateOnce = true;
+  let failAnnotationUpdateOnce = true;
+  let failAnnotationDeleteOnce = true;
   await page.route("**/api/v1/explore/**", async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -369,13 +386,22 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
     if(marksPath&&method==="POST"){const mark={id:nextId++,...body};bookmarks.push(mark);return created(mark);}
     const notesPath=path.match(/^\/explore\/documents\/(\d+)\/annotations$/);
     if(notesPath&&method==="GET")return json(annotations);
-    if(notesPath&&method==="POST"){const note={id:nextId++,...body,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};annotations.unshift(note);return created(note);}
+    if(notesPath&&method==="POST"){
+      if(failAnnotationCreateOnce){failAnnotationCreateOnce=false;return route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({detail:"Annotation service temporarily unavailable."})});}
+      const note={id:nextId++,...body,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};annotations.unshift(note);return created(note);
+    }
     const updateNote=path.match(/\/annotations\/(\d+)$/);
-    if(updateNote&&method==="PATCH"){const note=annotations.find(x=>x.id===Number(updateNote[1]));Object.assign(note,body,{updated_at:new Date().toISOString()});return json(note);}
+    if(updateNote&&method==="PATCH"){
+      if(failAnnotationUpdateOnce){failAnnotationUpdateOnce=false;return route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({detail:"Annotation update temporarily unavailable."})});}
+      const note=annotations.find(x=>x.id===Number(updateNote[1]));Object.assign(note,body,{updated_at:new Date().toISOString()});return json(note);
+    }
     const removeBookmark=path.match(/\/bookmarks\/(\d+)$/);
     if(removeBookmark&&method==="DELETE"){const index=bookmarks.findIndex(x=>x.id===Number(removeBookmark[1]));if(index>=0)bookmarks.splice(index,1);return empty();}
     const removeNote=path.match(/\/annotations\/(\d+)$/);
-    if(removeNote&&method==="DELETE"){const index=annotations.findIndex(x=>x.id===Number(removeNote[1]));if(index>=0)annotations.splice(index,1);return empty();}
+    if(removeNote&&method==="DELETE"){
+      if(failAnnotationDeleteOnce){failAnnotationDeleteOnce=false;return route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({detail:"Annotation delete temporarily unavailable."})});}
+      const index=annotations.findIndex(x=>x.id===Number(removeNote[1]));if(index>=0)annotations.splice(index,1);return empty();
+    }
     return route.fulfill({status:404,contentType:"application/json",body:JSON.stringify({detail:"Unmocked Explore request: "+method+" "+path})});
   });
   page.on("console", message => { if(message.type()==="error") console.log("BROWSER CONSOLE:",message.text()); });
@@ -388,21 +414,42 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await expect(page.locator(".atlas-pdf-page").first()).toBeVisible({timeout:15000}).catch(async error => { const alerts=await page.locator(".atlas-explore-alert").allTextContents(); const states=await page.locator(".atlas-explore-state").allTextContents(); throw new Error(`PDF reader did not load. Alerts: ${alerts.join(" | ")}. States: ${states.join(" | ")}. ${error.message}`); });
   await expect.poll(async()=>page.locator(".atlas-pdf-canvas").first().evaluate((canvas)=>canvas.width)).toBeGreaterThan(0);
   await expect(page.locator("iframe")).toHaveCount(0);
-  await page.locator('[data-page="3"]').scrollIntoViewIfNeeded();
+  await page.getByRole("button",{name:"Fit page"}).click();
+  await expect(page.locator(".atlas-reader-zoom span")).toContainText("%");
+  await page.getByRole("button",{name:"Fit width"}).click();
+  const zoomBefore=Number((await page.locator(".atlas-reader-zoom span").textContent()).replace("%",""));
+  await page.locator(".atlas-pdf-scroll").focus();
+  await page.keyboard.press("+");
+  await expect.poll(async()=>Number((await page.locator(".atlas-reader-zoom span").textContent()).replace("%",""))).toBe(zoomBefore+10);
+  await page.keyboard.press("-");
+  await expect.poll(async()=>Number((await page.locator(".atlas-reader-zoom span").textContent()).replace("%",""))).toBe(zoomBefore);
+  await page.getByLabel("Current page").fill("3");
+  await page.getByLabel("Current page").press("Enter");
   await expect(page.getByLabel("Current page")).toHaveValue("3");
-  await page.getByRole("button",{name:/Marks/}).click();
+  await expect.poll(()=>page.locator('[data-page="3"] .atlas-pdf-canvas').evaluate(canvas=>canvas.style.width)).not.toBe("");
+  await expect.poll(()=>page.locator('[data-page="3"] .atlas-pdf-text-layer span').count()).toBeGreaterThan(0);
+  await page.getByRole("tab",{name:/Outline/}).click();
+  await expect(page.getByText("This document does not contain a navigable outline.")).toBeVisible();
+  await page.getByRole("tab",{name:/Marks/}).click();
   await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
   await page.getByLabel("Highlight in green").click();
+  await expect(page.locator(".atlas-reader-mutation-retry")).toContainText("temporarily unavailable");
+  await page.getByRole("button",{name:"Retry annotation change"}).click();
   await expect(page.locator(".atlas-pdf-mark")).toHaveCount(1);
   await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
   await page.getByTitle("Add a comment").click();
   await page.getByLabel("Comment").fill("Compare this result with the lecture discussion.");
   await page.getByRole("button",{name:"Save highlight & comment"}).click();
   await expect(page.getByText("Compare this result with the lecture discussion.")).toBeVisible();
-  await page.getByRole("button",{name:"Edit comment"}).click();
+  await page.locator(".atlas-reader-mark-card").first().getByRole("button",{name:"Edit annotation"}).click();
   await page.getByLabel("Edit annotation comment").fill("Revisit this argument in the next reading.");
-  await page.getByRole("button",{name:"Save",exact:true}).click();
+  await page.getByLabel("Edit annotation type").selectOption("underline");
+  await page.getByLabel("Edit annotation colour").selectOption("pink");
+  await page.getByRole("button",{name:"Save changes"}).click();
+  await expect(page.locator(".atlas-reader-mutation-retry")).toContainText("update temporarily unavailable");
+  await page.getByRole("button",{name:"Retry annotation change"}).click();
   await expect(page.getByText("Revisit this argument in the next reading.")).toBeVisible();
+  await expect(page.locator(".atlas-pdf-mark-underline.atlas-pdf-color-pink")).toHaveCount(1);
   await page.getByLabel("Filter annotation colour").selectOption("green");
   await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(1);
   await page.getByLabel("Filter annotation colour").selectOption("all");
@@ -411,6 +458,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByLabel("Search annotations").fill("");
   await page.getByLabel("Reading theme").selectOption("sepia");
   await expect(page.locator(".atlas-reader.theme-sepia")).toHaveCount(1);
+  await expect.poll(()=>page.evaluate(()=>localStorage.getItem("atlas:pdf-theme:40"))).toBe("sepia");
   await page.getByLabel("Reading theme").selectOption("dark");
   await expect(page.locator(".atlas-reader.theme-dark")).toHaveCount(1);
   await page.getByLabel("Reading theme").selectOption("paper");
@@ -422,14 +470,85 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByRole("button",{name:/Export PDF/}).click();
   const download=await exportPromise;
   expect(download.suggestedFilename()).toBe("Research-paper-annotated.pdf");
+  await page.locator(".atlas-reader-mark-card").first().getByRole("button",{name:"Delete annotation"}).click();
+  await expect(page.locator(".atlas-reader-mutation-retry")).toContainText("delete temporarily unavailable");
+  await page.getByRole("button",{name:"Retry annotation change"}).click();
+  await expect(page.locator(".atlas-reader-mark-card")).toHaveCount(2);
   await page.getByRole("button",{name:/Bookmark/}).click();
-  await page.getByRole("button",{name:/Saved/}).click();
+  await page.getByRole("tab",{name:/Saved/}).click();
   await expect(page.locator(".atlas-reader-bookmark").filter({hasText:"Page 3"})).toBeVisible();
-  await page.getByRole("button",{name:/Pages/}).click();
+  await page.getByRole("tab",{name:/Pages/}).click();
   await page.getByRole("button",{name:"Search"}).click();
   await page.getByPlaceholder("Search words or phrases in this PDF…").fill("searchable text");
   await page.getByRole("button",{name:"Find"}).click();
   await expect(page.locator(".atlas-pdf-search-results")).toContainText("Page 1");
+  await page.getByLabel("Reading theme").selectOption("dark");
+  await page.getByRole("button",{name:"Library"}).click();
+  await expect(page.getByText("Page 3 of 8")).toBeVisible();
+  await page.getByRole("button",{name:/Research paper/}).click();
+  await expect(page.locator(".atlas-reader.theme-dark")).toHaveCount(1);
   await page.getByRole("button",{name:"Library"}).click();
   await expect(page.getByText("Page 3 of 8")).toBeVisible();
 });
+
+
+test("PDF fixture supports long mixed-size documents", async () => {
+  const pdf = createPdfFixture({pageCount:120,includeOutline:true});
+  expect(pdf.toString("binary").match(/\/Type \/Page /g)).toHaveLength(120);
+});
+test("PDF reader navigates a long mixed-size document with an outline on mobile", async ({ page }) => {
+  await page.setViewportSize({width:390,height:844});
+  await page.emulateMedia({reducedMotion:"reduce"});
+  installApiMock(page);
+  let doc = null;
+  let nextId = 120;
+  await page.route("**/api/v1/explore/**", async route => {
+    const request=route.request();
+    const path=new URL(request.url()).pathname.replace("/api/v1","");
+    const method=request.method();
+    let body={};
+    if(method!=="GET"&&method!=="DELETE"){try{body=request.postDataJSON?.()??{};}catch{body={};}}
+    const json=data=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(data)});
+    const created=data=>route.fulfill({status:201,contentType:"application/json",body:JSON.stringify(data)});
+    if(path==="/explore/documents"&&method==="POST"){
+      doc={id:nextId++,title:"Long mixed-size report",filename:"long-report.pdf",source_url:null,page_count:120,size_bytes:2048,last_page:96,last_opened_at:null,created_at:new Date().toISOString()};
+      return created(doc);
+    }
+    if(path==="/explore/documents"&&method==="GET")return json(doc?[doc]:[]);
+    if(path.endsWith("/file"))return route.fulfill({status:200,contentType:"application/pdf",body:createPdfFixture({pageCount:120,includeOutline:true})});
+    if(/^\/explore\/documents\/\d+$/.test(path)&&method==="GET")return json(doc);
+    if(/^\/explore\/documents\/\d+$/.test(path)&&method==="PATCH"){doc={...doc,...body};return json(doc);}
+    if(path.endsWith("/bookmarks")&&method==="GET")return json([]);
+    if(path.endsWith("/annotations")&&method==="GET")return json([]);
+    return route.fulfill({status:404,contentType:"application/json",body:JSON.stringify({detail:"Unmocked long-PDF request: "+method+" "+path})});
+  });
+  await signIn(page);
+  await page.getByRole("button",{name:"Explore"}).click();
+  await page.locator(".atlas-upload-button input").setInputFiles({name:"long-report.pdf",mimeType:"application/pdf",buffer:Buffer.from("%PDF-1.4")});
+  await expect(page.locator(".atlas-reader.theme-paper")).toBeVisible();
+  await expect(page.getByLabel("Current page")).toHaveValue("96",{timeout:20000});
+  await page.getByRole("tab",{name:/Outline/}).click();
+  await expect(page.getByRole("button",{name:/Chapter One/})).toBeVisible();
+  await page.getByRole("button",{name:/Chapter One/}).click();
+  await expect(page.getByLabel("Current page")).toHaveValue("1");
+  await page.getByRole("tab",{name:/Outline/}).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("tab",{name:/Marks/})).toHaveAttribute("aria-selected","true");
+  await page.getByLabel("Current page").fill("115");
+  await page.getByLabel("Current page").press("Enter");
+  await expect(page.getByLabel("Current page")).toHaveValue("115");
+  await expect.poll(()=>page.locator('[data-page="115"] .atlas-pdf-canvas').evaluate(canvas=>canvas.style.width)).not.toBe("");
+  const portraitRatio=await page.locator('[data-page="115"] .atlas-pdf-canvas').evaluate(canvas=>parseFloat(canvas.style.width)/parseFloat(canvas.style.height));
+  expect(portraitRatio).toBeLessThan(1);
+  await page.getByLabel("Current page").fill("116");
+  await page.getByLabel("Current page").press("Enter");
+  await expect.poll(()=>page.locator('[data-page="116"] .atlas-pdf-canvas').evaluate(canvas=>canvas.style.width)).not.toBe("");
+  const landscapeRatio=await page.locator('[data-page="116"] .atlas-pdf-canvas').evaluate(canvas=>parseFloat(canvas.style.width)/parseFloat(canvas.style.height));
+  expect(landscapeRatio).toBeGreaterThan(1);
+  await expect.poll(()=>doc?.last_page).toBe(116);
+  await expect(page.locator(".atlas-pdf-page")).toHaveCount(9);
+  await expect(page.getByRole("tab",{name:/Outline/})).toHaveAttribute("aria-selected","true");
+  await expect.poll(()=>page.locator(".atlas-reader-tabs button").first().evaluate(node=>parseFloat(getComputedStyle(node).minHeight))).toBeGreaterThanOrEqual(42);
+  await expect(page.locator(".atlas-pdf-scroll")).toHaveAttribute("aria-label","PDF pages");
+});
+

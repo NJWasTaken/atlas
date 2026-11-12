@@ -404,6 +404,8 @@ The reader should support:
 
 There is no standalone notes area in Explore. A comment exists only as part of an annotation on the PDF. Atlas stores annotation overlays separately and never silently modifies the original upload.
 
+**Current reader implementation:** Atlas uses a custom PDF.js canvas/text-layer renderer with nearby-page rendering and measured page dimensions to improve mixed-size document scrolling. Reading position and bookmarks persist with the document; paper, sepia, and dark reading-surround preferences persist per document without filtering the PDF page itself. Existing annotations can be edited (mark type, colour, and comment), and failed annotation saves/edits/deletions can be retried in place. Lector was evaluated but deferred until its PDF.js peer-version guidance supports Atlas's PDF.js 6.x runtime. Automated browser coverage includes long mixed-size documents, outline/no-outline behaviour, keyboard zoom, and mobile layout; manual screen-reader, physical touch-device, and real-world PDF review remain release checks.
+
 ### 3.3 Explicit non-goals
 
 Explore does not include topic workspaces, discovery sessions, standalone notes, whiteboards, knowledge graphs, web article capture, social features, or automatic knowledge organization. Its job is to make reading and marking up a PDF exceptionally good.
