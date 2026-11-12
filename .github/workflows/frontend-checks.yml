@@ -35,7 +35,13 @@ jobs:
       - name: Check TypeScript
         run: npx tsc --noEmit
       - name: Build frontend
-        run: npm run build
+        run: |
+          npm run build
+          # Playwright serves the production standalone server; copy its
+          # static assets just as the desktop packaging workflow does.
+          mkdir -p .next/standalone/.next
+          cp -R .next/static .next/standalone/.next/static
+          if [ -d public ]; then cp -R public .next/standalone/public; fi
       - name: Install temporary browser-test tooling
         run: npm install --no-save --package-lock=false @playwright/test@1.56.1
       - name: Install Chromium
