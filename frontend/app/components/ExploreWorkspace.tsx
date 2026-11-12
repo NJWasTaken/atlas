@@ -92,10 +92,10 @@ export default function ExploreWorkspace() {
     } catch(e) {setError(e instanceof Error?e.message:"Could not import this PDF.");}
     finally {setUploading(false);}
   }
-  async function closeReader() {
+  async function closeReader(lastPage:number) {
     if(selected) {
       try {
-        const updated=await api<DocumentItem>(`/explore/documents/${selected.id}`,{method:"PATCH",body:JSON.stringify({last_page:page})});
+        const updated=await api<DocumentItem>(`/explore/documents/${selected.id}`,{method:"PATCH",body:JSON.stringify({last_page:lastPage})});
         setDocuments(current=>current.map(doc=>doc.id===updated.id?updated:doc));
       } catch(e) { setError(e instanceof Error?e.message:"Could not save your reading position."); return; }
     }
@@ -142,7 +142,7 @@ export default function ExploreWorkspace() {
             bookmarks={bookmarks}
             annotations={annotations}
             readerMode={readerMode}
-            onExit={()=>void closeReader()}
+            onExit={lastPage=>void closeReader(lastPage)}
             onToggleFocus={()=>setReaderMode(v=>!v)}
             onProgressChange={goToPage}
             onBookmarksChange={setBookmarks}
