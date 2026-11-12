@@ -32,9 +32,10 @@ def main() -> None:
     config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"].replace("%", "%%"))
     command.upgrade(config, "head")
 
+    from app.main import app
     import uvicorn
     uvicorn.run(
-        "app.main:app",
+        app,
         host="127.0.0.1",
         port=int(os.environ.get("ATLAS_API_PORT", "43121")),
         log_level="info",
