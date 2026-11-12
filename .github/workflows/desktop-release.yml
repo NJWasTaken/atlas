@@ -143,6 +143,7 @@ jobs:
           if [ -f dist/atlas-api.exe ]; then cp dist/atlas-api.exe desktop/runtime/atlas-api.exe; else cp dist/atlas-api desktop/runtime/atlas-api; fi
           cp -R frontend/.next/standalone desktop/runtime/frontend
       - name: Package installer
+        id: package
         working-directory: desktop
         shell: bash
         env:
@@ -156,6 +157,16 @@ jobs:
           fi
           npm version --no-git-tag-version --allow-same-version "$RELEASE_VERSION"
           npx electron-builder --${{ matrix.platform }} ${{ matrix.target }} --${{ matrix.arch }} --publish never
+          echo "version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+      - name: Write build provenance
+        working-directory: desktop
+        env:
+          RELEASE_VERSION: ${{ steps.package.outputs.version }}
+          SOURCE_SHA: ${{ github.event_name == 'workflow_dispatch' && needs.validate-manual-release.outputs.source_sha || github.sha }}
+        run: |
+          printf 'Atlas version: %s\nSource commit: %s\nPlatform: %s\nArchitecture: %s\n' \
+            "$RELEASE_VERSION" "$SOURCE_SHA" "${{ matrix.platform }}" "${{ matrix.arch }}" \
+            > dist/build-info.txt
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
