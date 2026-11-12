@@ -46,12 +46,10 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
         canvas.style.width=`${viewport.width}px`;canvas.style.height=`${viewport.height}px`;
         const context=canvas.getContext("2d");
         if(!context)return;
-        // Text extraction is independent of rasterisation. Start both together and
-        // populate the selectable text layer as soon as PDF.js has the text, rather
-        // than making text selection wait for a potentially expensive canvas render.
-        const textPromise=page.getTextContent();
-        renderTask=page.render({canvasContext:context,viewport,transform:ratio!==1?[ratio,0,0,ratio,0,0]:null});
-        const text=await textPromise;
+        // Build the selectable text layer before starting canvas rasterisation.
+        // PDF.js can serialize work on a page; keeping extraction first avoids
+        // leaving the text layer empty while a long-running render task is active.
+        const text=await page.getTextContent();
         if(cancelled)return;
         const layer=hostNode.querySelector(".atlas-pdf-text-layer") as HTMLDivElement|null;
         if(layer){
@@ -74,6 +72,7 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
             layer.appendChild(span);
           }
         }
+        renderTask=page.render({canvasContext:context,viewport,transform:ratio!==1?[ratio,0,0,ratio,0,0]:null});
         await renderTask.promise;
         if(cancelled)return;
         setDimensions({width:viewport.width,height:viewport.height});
