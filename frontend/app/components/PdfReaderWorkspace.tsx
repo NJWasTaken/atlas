@@ -280,7 +280,7 @@ export default function PdfReaderWorkspace(props:Props) {
           if(nearest!==pendingNavigation.current)return;
           pendingNavigation.current=null;
         }
-        if(nearest!==page){currentPageRef.current=nearest;setPage(nearest);onProgressChange(nearest);}
+        if(nearest!==page){console.error("PDF PAGE OBSERVER",{from:page,to:nearest,scrollTop:root.scrollTop,pending:pendingNavigation.current});currentPageRef.current=nearest;setPage(nearest);onProgressChange(nearest);}
       });
     };
     const repositionSelection=()=>{
@@ -302,6 +302,7 @@ export default function PdfReaderWorkspace(props:Props) {
     const target=clamp(next,1,pageCount);
     setSelectionAnchor(null);setPageInput(String(target));
     if(target===currentPageRef.current)return;
+    console.error("PDF PAGE NAV",{target,from:currentPageRef.current});
     currentPageRef.current=target;
     pendingNavigation.current=target;
     setPage(target);onProgressChange(target);
