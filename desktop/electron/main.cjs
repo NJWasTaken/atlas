@@ -6,6 +6,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 
+app.setName("Atlas");
+
 const API_PORT = 43121;
 const WEB_PORT = 43122;
 const API_ORIGIN = `http://127.0.0.1:${API_PORT}`;

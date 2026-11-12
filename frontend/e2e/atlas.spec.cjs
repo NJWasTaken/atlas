@@ -465,12 +465,17 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await expect(page.getByText("This document does not contain a navigable outline.")).toBeVisible();
   await page.getByRole("tab",{name:/Marks/}).click();
   await selectPdfText(page);
+
+  const selectionToolbar = page.locator(".atlas-pdf-selection-toolbar");
+  await expect(selectionToolbar).toBeVisible();
+
   const failedAnnotationCreate = page.waitForResponse(response =>
     response.url().includes("/api/v1/explore/documents/") &&
     response.url().endsWith("/annotations") &&
     response.request().method() === "POST" &&
     response.status() === 503
   );
+
   await page.getByLabel("Highlight in green").click();
   await failedAnnotationCreate;
   await expect(page.locator(".atlas-reader-mutation-retry")).toContainText("temporarily unavailable");

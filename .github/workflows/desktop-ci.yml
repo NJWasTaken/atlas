@@ -51,6 +51,16 @@ jobs:
           mkdir -p desktop/runtime
           cp dist/atlas-api desktop/runtime/atlas-api
           cp -R frontend/.next/standalone desktop/runtime/frontend
+      - name: Install Playwright and Chromium
+        working-directory: frontend
+        run: |
+          npm install --no-save --package-lock=false @playwright/test@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Run browser regression suite
+        working-directory: frontend
+        env:
+          CI: true
+        run: npx playwright test
       - name: Package Electron application
         working-directory: desktop
         run: |
