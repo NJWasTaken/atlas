@@ -26,16 +26,19 @@ function main() {
   if (process.env.GITHUB_OUTPUT) {
     appendFileSync(
       process.env.GITHUB_OUTPUT,
-      \`version=\${version}\ntag=v\${version}\n\`,
+      "version=" + version + "\ntag=v" + version + "\n",
       "utf8",
     );
   }
 
-  console.log(\`Validated Atlas release v\${version}.\`);
-  console.log(\`Release notes: \${notes.length} characters.\`);
+  console.log("Validated Atlas release v" + version + ".");
+  console.log("Release notes: " + notes.length + " characters.");
 }
 
-if (process.argv[1] && import.meta.url === new URL(\`file://\${process.argv[1]}\`).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === new URL("file://" + process.argv[1]).href
+) {
   try {
     main();
   } catch (error) {
