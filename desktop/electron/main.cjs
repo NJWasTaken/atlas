@@ -116,10 +116,11 @@ async function stopServices() {
   const running = children.splice(0).reverse().filter(child => child.exitCode === null);
   await Promise.all(running.map(child => new Promise(resolve => {
     let settled = false;
+    let forceTimer;
     const finish = () => {
       if (settled) return;
       settled = true;
-      clearTimeout(forceTimer);
+      if (forceTimer) clearTimeout(forceTimer);
       child.removeListener("exit", finish);
       child.removeListener("close", finish);
       resolve();
@@ -130,7 +131,7 @@ async function stopServices() {
 
     // Give each service a chance to flush SQLite writes and exit cleanly.
     try { child.kill("SIGTERM"); } catch {}
-    const forceTimer = setTimeout(() => {
+    forceTimer = setTimeout(() => {
       if (child.exitCode === null) {
         try { child.kill("SIGKILL"); } catch {}
       }
