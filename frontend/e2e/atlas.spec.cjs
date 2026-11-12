@@ -451,7 +451,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await expect(page.getByText("This document does not contain a navigable outline.")).toBeVisible();
   await page.getByRole("tab",{name:/Marks/}).click();
   await page.locator('[data-page="3"] .atlas-pdf-text-layer span').first().evaluate((span)=>{const range=document.createRange();range.selectNodeContents(span);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);document.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));});
-  await page.getByLabel("Highlight in green").evaluate(button=>(button as HTMLButtonElement).click());
+  await page.getByLabel("Highlight in green").evaluate(button=>button.click());
   await expect(page.locator(".atlas-reader-mutation-retry")).toContainText("temporarily unavailable");
   await page.getByRole("button",{name:"Retry annotation change"}).click();
   await expect(page.locator(".atlas-pdf-mark")).toHaveCount(1);
