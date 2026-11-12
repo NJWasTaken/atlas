@@ -506,7 +506,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByLabel("Reading theme").selectOption("dark");
   await page.getByRole("button",{name:"Library"}).click();
   await expect(page.locator(".atlas-document-meta")).toContainText("8 pages");
-  await page.getByRole("button",{name:/Research paper/}).click();
+  await page.locator(".atlas-document-open").filter({hasText:"Research paper"}).click();
   await expect(page.locator(".atlas-reader.theme-dark")).toHaveCount(1);
   await page.getByRole("button",{name:"Library"}).click();
   await expect(page.locator(".atlas-document-meta")).toContainText("8 pages");
