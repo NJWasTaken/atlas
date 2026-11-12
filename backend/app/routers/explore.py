@@ -1,6 +1,9 @@
 import ipaddress
+import os
 import re
 import socket
+import uuid
+from pathlib import Path
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 import httpx
@@ -22,7 +25,8 @@ from app.explore_schemas import (
 )
 
 router = APIRouter(prefix="/explore", tags=["explore"])
-MAX_PDF_BYTES = 12 * 1024 * 1024
+MAX_PDF_BYTES = 50 * 1024 * 1024
+PDF_STORAGE_DIR = Path(os.getenv("ATLAS_PDF_STORAGE_DIR", "data/pdfs"))
 
 
 def inspect_pdf(content: bytes) -> tuple[int, str | None]:
@@ -69,20 +73,42 @@ def safe_public_url(value: str) -> str:
 
 def create_document(db: Session, user: User, content: bytes, filename: str, title: str | None, source_url: str | None = None):
     if len(content) > MAX_PDF_BYTES:
-        raise HTTPException(413, "PDFs are limited to 12 MB.")
+        raise HTTPException(413, "PDFs are limited to 50 MB.")
     page_count, metadata_title = inspect_pdf(content)
     safe_name = filename.replace(chr(92), "/").split("/")[-1][:255] or "document.pdf"
     clean_title = (title or metadata_title or safe_name.rsplit(".", 1)[0]).strip()[:240]
     if not clean_title:
         clean_title = "Untitled document"
+    stored_name = f"{uuid.uuid4().hex}.pdf"
+    PDF_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+    stored_file = PDF_STORAGE_DIR / stored_name
     document = ExploreDocument(
         user_id=user.id, title=clean_title, filename=safe_name, source_url=source_url,
-        pdf_data=content, page_count=page_count, size_bytes=len(content), last_page=1,
+        pdf_data=None, storage_path=stored_name, page_count=page_count,
+        size_bytes=len(content), last_page=1,
     )
-    db.add(document)
-    db.commit()
-    db.refresh(document)
-    return document
+    try:
+        db.add(document)
+        db.flush()
+        stored_file.write_bytes(content)
+        db.commit()
+        db.refresh(document)
+        return document
+    except Exception:
+        db.rollback()
+        stored_file.unlink(missing_ok=True)
+        raise
+
+
+def read_document_bytes(document: ExploreDocument) -> bytes:
+    if document.storage_path:
+        try:
+            return (PDF_STORAGE_DIR / document.storage_path).read_bytes()
+        except OSError as exc:
+            raise HTTPException(503, "This PDF is unavailable on the Atlas storage volume.") from exc
+    if document.pdf_data:
+        return document.pdf_data
+    raise HTTPException(503, "This PDF is unavailable on the Atlas storage volume.")
 
 
 @router.get("/documents", response_model=list[DocumentOut])
@@ -116,13 +142,13 @@ async def import_document_url(data: UrlImport, db: Session = Depends(get_db), us
                     raise HTTPException(422, "That link did not return a PDF document.")
                 length = response.headers.get("content-length")
                 if length and int(length) > MAX_PDF_BYTES:
-                    raise HTTPException(413, "PDFs are limited to 12 MB.")
+                    raise HTTPException(413, "PDFs are limited to 50 MB.")
                 chunks = []
                 size = 0
                 async for chunk in response.aiter_bytes():
                     size += len(chunk)
                     if size > MAX_PDF_BYTES:
-                        raise HTTPException(413, "PDFs are limited to 12 MB.")
+                        raise HTTPException(413, "PDFs are limited to 50 MB.")
                     chunks.append(chunk)
                 content = b"".join(chunks)
     except HTTPException:
@@ -149,7 +175,7 @@ def get_document(document_id: int, db: Session = Depends(get_db), user: User = D
 def get_document_file(document_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     document = owned_document(db, document_id, user.id)
     return Response(
-        content=document.pdf_data, media_type="application/pdf",
+        content=read_document_bytes(document), media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="{re.sub(r"[^A-Za-z0-9._-]", "_", document.filename) or "document.pdf"}"', "Cache-Control": "private, no-store"},
     )
 
@@ -169,8 +195,11 @@ def update_document_progress(document_id: int, data: DocumentProgressUpdate, db:
 @router.delete("/documents/{document_id}", status_code=204)
 def delete_document(document_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     document = owned_document(db, document_id, user.id)
+    stored_file = PDF_STORAGE_DIR / document.storage_path if document.storage_path else None
     db.delete(document)
     db.commit()
+    if stored_file:
+        stored_file.unlink(missing_ok=True)
 
 
 @router.get("/documents/{document_id}/bookmarks", response_model=list[BookmarkOut])
@@ -248,7 +277,7 @@ def export_annotated_document(document_id: int, db: Session = Depends(get_db), u
     """Return a separate PDF copy with Atlas marks embedded as standard PDF annotations."""
     document = owned_document(db, document_id, user.id)
     try:
-        reader = PdfReader(BytesIO(document.pdf_data), strict=False)
+        reader = PdfReader(BytesIO(read_document_bytes(document)), strict=False)
         writer = PdfWriter()
         writer.clone_document_from_reader(reader)
         palette = {

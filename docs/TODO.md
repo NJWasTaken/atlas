@@ -65,7 +65,7 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 - [x] Private PDF library with device upload and public-URL import, per-user ownership, document metadata, and durable reading position.
 - [x] Bundled PDF.js reader with continuous scrolling, page navigation, thumbnails, document outline, text search, zoom/fit, bookmarks, and focus mode.
 - [x] Persist page bookmarks and page-relative text-selection highlights/annotations per document.
-- [x] Validate PDFs, enforce the 12 MB limit, reject encrypted files, validate public import hosts, and cover ownership and persistence with tests.
+- [x] Validate PDFs, enforce the 50 MB limit, reject encrypted files, validate public import hosts, and cover ownership and persistence with tests.
 - [x] First reader shell refinement — give the PDF canvas more room, calm the toolbar/sidebar, improve focus-mode framing, and add a responsive annotation surface while retaining the celestial theme.
 - [x] Add reader keyboard shortcuts: Ctrl/Cmd+F for search, arrow/PageUp/PageDown navigation, +/- zoom, and Escape to clear the active selection.
 - [x] Add browser regression coverage for fit-width, fit-page, manual +/- zoom, page indicators, page navigation, and reading-position restoration.
@@ -107,6 +107,14 @@ The next PR should finish the remaining reader work as one cohesive quality pass
 7. [x] Add automated regression coverage and update reader documentation/status.
 
 Keep freehand ink/area markup out of this PR unless the evaluation shows it is essential to the reading workflow; it is explicitly optional.
+
+## Next substantial change: zero-cost large PDF support
+
+Keep these follow-up PRs separate and do not add a paid object-storage dependency.
+
+1. [ ] **Efficient private PDF delivery:** implement authenticated HTTP Range support (206 Partial Content, Content-Range, Accept-Ranges, correct length/cache headers) for locally stored files; switch PDF.js to URL-based loading rather than downloading the full file into an ArrayBuffer; test range boundaries, invalid ranges, ownership, and browser behavior.
+2. [ ] **Large-document reader performance:** audit page virtualization, lazy text extraction, canvas/text-layer lifecycle, cancellation of obsolete renders, and memory cleanup; stress-test with the 44 MB textbook and long/mixed-dimension PDFs while preserving annotations and reading behavior.
+3. [ ] **Local storage operations:** document/configure persistent PDF storage for deployment, handle disk-full and storage failures, and provide coordinated local PDF + PostgreSQL backup/restore guidance. No cloud storage service or recurring storage cost.
 
 ## My Universe
 
