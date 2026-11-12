@@ -426,7 +426,7 @@ test("Explore keeps a PDF in the library with reading progress, bookmarks and an
   await page.getByLabel("Current page").fill("3");
   await page.getByLabel("Current page").press("Enter");
   await expect(page.getByLabel("Current page")).toHaveValue("3");
-  await expect.poll(()=>page.locator('[data-page="3"] .atlas-pdf-canvas').evaluate(canvas=>canvas.width)).toBeGreaterThan(0);
+  await expect.poll(()=>page.locator('[data-page="3"] .atlas-pdf-canvas').evaluate(canvas=>canvas.style.width)).not.toBe("");
   await expect.poll(()=>page.locator('[data-page="3"] .atlas-pdf-text-layer span').count()).toBeGreaterThan(0);
   await page.getByRole("tab",{name:/Outline/}).click();
   await expect(page.getByText("This document does not contain a navigable outline.")).toBeVisible();
@@ -537,13 +537,13 @@ test("PDF reader navigates a long mixed-size document with an outline on mobile"
   await page.getByLabel("Current page").fill("115");
   await page.getByLabel("Current page").press("Enter");
   await expect(page.getByLabel("Current page")).toHaveValue("115");
-  await expect.poll(()=>page.locator('[data-page="115"] .atlas-pdf-canvas').evaluate(canvas=>canvas.width)).toBeGreaterThan(0);
-  const portraitRatio=await page.locator('[data-page="115"] .atlas-pdf-canvas').evaluate(canvas=>canvas.width/canvas.height);
+  await expect.poll(()=>page.locator('[data-page="115"] .atlas-pdf-canvas').evaluate(canvas=>canvas.style.width)).not.toBe("");
+  const portraitRatio=await page.locator('[data-page="115"] .atlas-pdf-canvas').evaluate(canvas=>parseFloat(canvas.style.width)/parseFloat(canvas.style.height));
   expect(portraitRatio).toBeLessThan(1);
   await page.getByLabel("Current page").fill("116");
   await page.getByLabel("Current page").press("Enter");
-  await expect.poll(()=>page.locator('[data-page="116"] .atlas-pdf-canvas').evaluate(canvas=>canvas.width)).toBeGreaterThan(0);
-  const landscapeRatio=await page.locator('[data-page="116"] .atlas-pdf-canvas').evaluate(canvas=>canvas.width/canvas.height);
+  await expect.poll(()=>page.locator('[data-page="116"] .atlas-pdf-canvas').evaluate(canvas=>canvas.style.width)).not.toBe("");
+  const landscapeRatio=await page.locator('[data-page="116"] .atlas-pdf-canvas').evaluate(canvas=>parseFloat(canvas.style.width)/parseFloat(canvas.style.height));
   expect(landscapeRatio).toBeGreaterThan(1);
   await expect.poll(()=>doc?.last_page).toBe(116);
   await expect(page.locator(".atlas-pdf-page")).toHaveCount(9);
