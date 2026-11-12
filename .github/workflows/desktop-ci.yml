@@ -69,7 +69,7 @@ jobs:
           pyinstaller --clean --onefile --name atlas-api --paths backend \
             --add-data "backend/migrations:migrations" \
             --add-data "backend/alembic.ini:." \
-            --collect-all alembic --collect-all sqlalchemy \
+            --collect-all alembic --collect-all sqlalchemy --collect-all passlib --collect-all bcrypt --hidden-import passlib.handlers.bcrypt \
             backend/desktop_entry.py
           mkdir -p desktop/runtime
           cp dist/atlas-api desktop/runtime/atlas-api
