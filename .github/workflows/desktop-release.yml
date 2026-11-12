@@ -136,6 +136,7 @@ jobs:
         working-directory: desktop
         env:
           RELEASE_VERSION: ${{ needs.validate-manual-release.outputs.version }}
+        shell: bash
         run: |
           npm install --no-audit --no-fund
           npm version --no-git-tag-version --allow-same-version "$RELEASE_VERSION"
