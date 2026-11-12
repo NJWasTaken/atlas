@@ -51,9 +51,7 @@ function PdfPage({pdf,pageNumber,scale,searchTerm,annotations,onSelect}:{pdf:Pdf
         // leaving the text layer empty while a long-running render task is active.
         const text=await page.getTextContent();
         if(cancelled)return;
-        if(!text.items.length) console.error("PDF text extraction returned no items", {pageNumber, pageView:page.view, pageRotation:page.rotate});
         const layer=hostNode.querySelector(".atlas-pdf-text-layer") as HTMLDivElement|null;
-        if(layer) layer.dataset.textItemCount=String(text.items.length);
         if(layer){
           layer.replaceChildren();
           const viewportTransform=viewport.transform;
