@@ -309,8 +309,9 @@ export default function PdfReaderWorkspace(props:Props) {
       const root=scrollRef.current;const node=pageRefs.current.get(target);
       if(!root||!node)return;
       const top=node.getBoundingClientRect().top-root.getBoundingClientRect().top+root.scrollTop;
-      const reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      root.scrollTo({top,behavior:reducedMotion?"auto":"smooth"});
+      // Page-number navigation is a precise reading-position change, not a decorative scroll.
+      // Jump immediately so the visibility observer cannot persist an intermediate page.
+      root.scrollTo({top,behavior:"auto"});
     });
   },[pageCount,onProgressChange]);
   useEffect(()=>{if(pdf&&initialPage>1){const timer=window.setTimeout(()=>goToPage(initialPage),180);return()=>clearTimeout(timer);}},[pdf,initialPage,goToPage]);
