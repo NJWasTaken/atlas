@@ -146,10 +146,15 @@ jobs:
         working-directory: desktop
         shell: bash
         env:
-          ATLAS_RELEASE_VERSION: ${{ github.event_name == 'workflow_dispatch' && needs.validate-manual-release.outputs.version || github.ref_name }}
+          MANUAL_RELEASE_VERSION: ${{ needs.validate-manual-release.outputs.version }}
         run: |
           npm install --no-audit --no-fund
-          npm version --no-git-tag-version --allow-same-version "$ATLAS_RELEASE_VERSION"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            RELEASE_VERSION="$MANUAL_RELEASE_VERSION"
+          else
+            RELEASE_VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          npm version --no-git-tag-version --allow-same-version "$RELEASE_VERSION"
           npx electron-builder --${{ matrix.platform }} ${{ matrix.target }} --${{ matrix.arch }} --publish never
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
