@@ -72,7 +72,7 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
     let live = true;
     setLoading(true); setSyncError("");
     api<DayNote[]>(`/calendar?start=${from}&end=${to}`)
-      .then(rows => { if(live) setNotes(Object.fromEntries(rows.map(r=>[r.day,r.note]))); })
+      .then(rows => { if(live) setNotes(current => ({...current, ...Object.fromEntries(rows.map(r=>[r.day,r.note]))})); })
       .catch(e => { if(live) setSyncError(e instanceof Error ? e.message : "Calendar sync failed"); })
       .finally(() => { if(live) setLoading(false); });
     return () => { live = false; };
@@ -242,7 +242,7 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
   return <section className="atlas-calendar-panel">
     <div className="atlas-calendar-main">
       <div className="atlas-calendar-heading">
-        <div><p className="eyebrow">YOUR TIME, YOUR WAY</p><h2>Days on the map</h2><p className="atlas-calendar-caption">Academic exams appear as events; personal notes stay attached to individual dates.</p></div>
+        <div><p className="eyebrow">YOUR TIME, YOUR WAY</p><h2>Your calendar</h2><p className="atlas-calendar-caption">Exams and important dates from Atlas, alongside personal notes saved to each day.</p></div>
         <div className="atlas-calendar-controls">
           <div className="atlas-calendar-view-switch" role="group" aria-label="Calendar view"><button type="button" aria-pressed={view==="month"} className={view==="month"?"active":""} onClick={()=>setView("month")}>Month</button><button type="button" aria-pressed={view==="week"} className={view==="week"?"active":""} onClick={()=>setView("week")}>Week</button></div>
           <button type="button" className="atlas-calendar-today" onClick={()=>{setMonth(new Date(today.getFullYear(),today.getMonth(),1));setSelected(todayKey);}}>Today</button>
@@ -250,7 +250,7 @@ export default function DashboardCalendar({ onDataChange }: { onDataChange?: () 
           <button type="button" className="atlas-calendar-arrow" aria-label={view==="month"?"Next month":"Next week"} onClick={()=>view==="month"?setMonth(m=>new Date(m.getFullYear(),m.getMonth()+1,1)):setSelected(keyOf(shift(selectedAnchor,7)))}><ArrowRight size={15}/></button>
         </div>
       </div>
-      <div className="atlas-calendar-monthline"><h3>{view==="month"?month.toLocaleDateString("en-IN",{month:"long",year:"numeric"}):start.toLocaleDateString("en-IN",{day:"numeric",month:"short"}) + " – " + days[6].toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</h3><span role="status" aria-live="polite" aria-busy={loading}>{loading?"SYNCING":"SYNCED"} <i className={loading?"is-syncing":""}/></span></div>
+      <div className="atlas-calendar-monthline"><h3>{view==="month"?month.toLocaleDateString("en-IN",{month:"long",year:"numeric"}):start.toLocaleDateString("en-IN",{day:"numeric",month:"short"}) + " – " + days[6].toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</h3><span role="status" aria-live="polite" aria-busy={loading}>{syncError?"NEEDS SYNC":loading?"SYNCING":"ALL CAUGHT UP"} <i className={loading?"is-syncing":syncError?"has-sync-error":""}/></span></div>
       <div className="atlas-calendar-grid" role="grid" aria-label="Calendar" aria-busy={loading}>
         {weekdays.map(d=><div key={d} className="atlas-calendar-weekday" role="columnheader">{d}</div>)}
         {days.map(d=>{const k=keyOf(d),hasNote=Boolean(notes[k]?.trim()),hasExam=Boolean(examsByDay[k]?.length);return <button key={k} type="button" role="gridcell" aria-pressed={selected===k} aria-label={`${d.toLocaleDateString()}${hasExam?`, ${examsByDay[k].length} exam${examsByDay[k].length===1?"":"s"}`:""}${hasNote?", has a note":""}`} onClick={()=>setSelected(k)} className={`atlas-calendar-day${d.getMonth()!==month.getMonth()?" outside":""}${selected===k?" selected":""}${k===todayKey?" today":""}${hasNote?" has-note":""}${hasExam?" has-event":""}`}><span>{d.getDate()}</span>{hasNote&&<i/>}{hasExam&&<i className="exam-dot"/>}</button>;})}
