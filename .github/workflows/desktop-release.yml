@@ -146,6 +146,7 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.validate-manual-release.outputs.version }}
           SOURCE_SHA: ${{ needs.validate-manual-release.outputs.source_sha }}
+        shell: bash
         run: |
           printf 'Atlas version: %s\nSource commit: %s\nPlatform: %s\nArchitecture: %s\n' \
             "$RELEASE_VERSION" "$SOURCE_SHA" "${{ matrix.platform }}" "${{ matrix.arch }}" > dist/build-info.txt
