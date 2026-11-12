@@ -301,7 +301,13 @@ export default function PdfReaderWorkspace(props:Props) {
     currentPageRef.current=target;
     pendingNavigation.current=target;
     setPage(target);onProgressChange(target);
-    window.requestAnimationFrame(()=>pageRefs.current.get(target)?.scrollIntoView({behavior:"smooth",block:"start"}));
+    window.requestAnimationFrame(()=>{
+      const root=scrollRef.current;const node=pageRefs.current.get(target);
+      if(!root||!node)return;
+      const top=node.getBoundingClientRect().top-root.getBoundingClientRect().top+root.scrollTop;
+      const reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      root.scrollTo({top,behavior:reducedMotion?"auto":"smooth"});
+    });
   },[pageCount,onProgressChange]);
   useEffect(()=>{if(pdf&&initialPage>1){const timer=window.setTimeout(()=>goToPage(initialPage),180);return()=>clearTimeout(timer);}},[pdf,initialPage,goToPage]);
 
