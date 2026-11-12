@@ -4,9 +4,23 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 ## Contribution workflow
 
-- Make small fixes, copy changes, and isolated polish directly on the working branch; do not open a PR solely for these changes.
-- Open a PR for a substantial, cohesive feature or architectural change with a clear scope, meaningful tests, and documentation updates where needed.
-- Group related implementation, regression coverage, and UX work into one reviewable change rather than splitting it into several small PRs.
+- Never push commits directly to `main`. All changes, including small fixes and polish, must be committed to a dedicated branch.
+- Open a PR targeting `main` for every change; group related implementation, regression coverage, and documentation updates into a cohesive review.
+- Do not merge a PR without Noel's explicit approval. Require relevant CI checks to pass before requesting merge.
+- Keep PRs focused and reviewable; avoid splitting one cohesive feature across several unnecessary PRs.
+
+## Prioritized roadmap
+
+This is the active implementation order. Reorder it only when new product constraints or release blockers justify doing so.
+
+1. [ ] **Desktop UX polish and roadmap accuracy** — remove Electron's default menu bar while retaining native window controls; gracefully stop bundled services on app exit and during Windows uninstall; configure platform icon/installer branding; verify install, relaunch, uninstall, and data persistence. (Implementation in PR #24; end-to-end lifecycle validation remains.)
+2. [ ] **Efficient private PDF delivery** — add authenticated HTTP Range responses (206, Content-Range, Accept-Ranges, correct length/cache headers), switch PDF.js to URL-based loading, and test range boundaries, ownership, and browser behavior.
+3. [ ] **Large-document reader performance** — audit virtualization, lazy text extraction, canvas/text-layer lifecycle, cancellation, and memory cleanup; stress-test large and mixed-dimension PDFs while preserving annotations and reading behavior.
+4. [ ] **Local PDF storage operations** — handle disk-full/storage failures, document persistent storage configuration, and provide coordinated local PDF + database backup/restore guidance without a paid storage dependency.
+5. [ ] **My Universe** — implement personal notes and saved concepts/resources, then personal questions and retrieval/search.
+6. [ ] **Accessibility and responsive audit** — complete manual screen-reader, keyboard, reduced-motion, mobile-layout, and physical-device touch testing across all views.
+7. [ ] **Data export and backup/restore** — give users a dependable way to export their learning data and recover it.
+8. [ ] **Operational reliability and deployment** — improve performance, logging, error reporting, deployment, secrets management, database backup, and production monitoring.
 
 ## Recently completed
 
@@ -121,14 +135,14 @@ Keep these follow-up PRs separate and do not add a paid object-storage dependenc
 
 **Product decision:** ship Atlas as an Electron desktop application with a bundled local API and frontend. End users should not need Node.js, Python, Docker, PostgreSQL, or a cloud-storage account.
 
-- [ ] Add the Electron main/preload process with hardened BrowserWindow defaults, local-origin navigation restrictions, validated external-link handling, startup diagnostics, and clean child-process shutdown.
-- [ ] Bundle the Next.js standalone server and a platform-specific FastAPI sidecar; verify startup and health checks on Windows, macOS, and Linux.
-- [ ] Add a desktop runtime entry point that selects SQLite, stores the database and PDF directory under Electron `userData`, persists a generated per-install JWT secret, and runs Alembic migrations before serving requests.
-- [ ] Add SQLite engine configuration with thread-safe connections and foreign-key enforcement; keep PostgreSQL as the default development and CI database.
-- [ ] Ensure desktop mode uses a loopback-only API origin and no API key, JWT secret, local database, or uploaded PDF is bundled in the installer.
+- [x] Add the Electron main/preload process with hardened BrowserWindow defaults, local-origin navigation restrictions, validated external-link handling, startup diagnostics, and clean child-process shutdown.
+- [x] Bundle the Next.js standalone server and a platform-specific FastAPI sidecar; verify startup and health checks on Windows, macOS, and Linux through successful installer launches.
+- [x] Add a desktop runtime entry point that selects SQLite, stores the database and PDF directory under Electron `userData`, persists a generated per-install JWT secret, and runs Alembic migrations before serving requests.
+- [x] Add SQLite engine configuration with thread-safe connections and foreign-key enforcement; keep PostgreSQL as the default development and CI database.
+- [x] Ensure desktop mode uses a loopback-only API origin and no API key, JWT secret, local database, or uploaded PDF is bundled in the installer.
 - [ ] Add migration tests for a fresh desktop SQLite database and upgrades from the previous desktop schema; verify PDF metadata and files remain consistent.
-- [ ] Add CI checks for frontend build, Playwright, backend tests, Electron packaging smoke tests, and artifact inspection on pull requests.
-- [ ] Add a version-tag release workflow that builds Windows, macOS, and Linux installers and publishes them to GitHub Releases. Configure macOS signing/notarisation only when repository secrets are present.
+- [ ] Expand PR CI to cover frontend build, Playwright, backend tests, cross-platform Electron packaging smoke tests, and artifact inspection.
+- [x] Add a manually versioned release workflow that builds Windows, macOS, and Linux installers and publishes them to GitHub Releases. Configure macOS signing/notarisation only when repository secrets are present.
 - [ ] Document desktop installation, data locations, upgrade behavior, backup/restore, uninstall behavior, and troubleshooting.
 - [ ] Validate clean install, relaunch, app upgrade, and uninstall/reinstall while confirming SQLite data and PDFs persist.
 

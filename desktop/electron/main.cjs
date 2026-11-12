@@ -95,6 +95,11 @@ function createWindow() {
     }
   });
 
+  // Keep the native OS title bar/window controls, but remove Electron's default
+  // File / Edit / View / Window / Help menu from the desktop experience.
+  mainWindow.setMenu(null);
+  mainWindow.setMenuBarVisibility(false);
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https:\/\//i.test(url)) shell.openExternal(url);
     return { action: "deny" };
@@ -108,9 +113,33 @@ function createWindow() {
 }
 
 async function stopServices() {
-  for (const child of children.splice(0).reverse()) {
-    if (child.exitCode === null) child.kill();
-  }
+  const running = children.splice(0).reverse().filter(child => child.exitCode === null);
+  await Promise.all(running.map(child => new Promise(resolve => {
+    let settled = false;
+    let forceTimer;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (forceTimer) clearTimeout(forceTimer);
+      child.removeListener("exit", finish);
+      child.removeListener("close", finish);
+      resolve();
+    };
+
+    child.once("exit", finish);
+    child.once("close", finish);
+
+    // Give each service a chance to flush SQLite writes and exit cleanly.
+    try { child.kill("SIGTERM"); } catch {}
+    forceTimer = setTimeout(() => {
+      if (child.exitCode === null) {
+        try { child.kill("SIGKILL"); } catch {}
+      }
+      // Do not hold application shutdown forever if the OS never reports exit.
+      setTimeout(finish, 1500).unref?.();
+    }, 5000);
+    forceTimer.unref?.();
+  })));
 }
 
 app.whenReady().then(async () => {
@@ -135,7 +164,20 @@ app.whenReady().then(async () => {
   }
 });
 
-app.on("before-quit", () => { void stopServices(); });
+let shutdownInProgress = false;
+let servicesStopped = false;
+
+app.on("before-quit", event => {
+  if (servicesStopped) return;
+  event.preventDefault();
+  if (shutdownInProgress) return;
+
+  shutdownInProgress = true;
+  void stopServices().finally(() => {
+    servicesStopped = true;
+    app.quit();
+  });
+});
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
