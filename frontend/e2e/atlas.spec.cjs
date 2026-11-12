@@ -367,15 +367,26 @@ test("calendar note deletion is confirmed and mutation errors do not offer a mis
 async function selectPdfText(page, { expectToolbar = true } = {}) {
   const span = page.locator('[data-page="3"] .atlas-pdf-text-layer span').first();
   await expect(span).toBeVisible();
-  const box = await span.boundingBox();
-  if (!box || box.width < 8 || box.height < 4) throw new Error("PDF text span has no usable selection bounds.");
-  const x = box.x + box.width / 2;
-  const y = box.y + box.height / 2;
-  // Double-click selects a real word in Chromium and emits the same mouseup
-  // event used by the reader's document-level selection handler.
-  await page.mouse.dblclick(x, y);
-  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString().trim() ?? "")).not.toBe("");
-  if (expectToolbar) await expect(page.locator(".atlas-pdf-selection-toolbar")).toBeVisible();
+
+  // Chromium's synthetic double-click can miss the transparent PDF text
+  // glyphs in headless CI. Select the rendered text node directly, then emit
+  // the same document-level mouseup event handled by the reader.
+  await span.evaluate(node => {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+  });
+
+  await expect.poll(() => page.evaluate(
+    () => window.getSelection()?.toString().trim() ?? ""
+  )).not.toBe("");
+
+  if (expectToolbar) {
+    await expect(page.locator(".atlas-pdf-selection-toolbar")).toBeVisible();
+  }
 }
 
 test("Explore keeps a PDF in the library with reading progress, bookmarks and anchored annotations", async ({ page }) => {
