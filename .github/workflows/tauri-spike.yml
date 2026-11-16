@@ -64,3 +64,16 @@ jobs:
       - name: Test Tauri runtime helpers
         working-directory: desktop-tauri
         run: cargo test
+      - name: Stage runnable Linux prototype
+        run: |
+          mkdir -p desktop-tauri/target/release/runtime
+          cp -R desktop-tauri/resources/runtime/. desktop-tauri/target/release/runtime/
+      - name: Upload Tauri Linux prototype
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-tauri-linux-x64-prototype
+          path: |
+            desktop-tauri/target/release/atlas-tauri
+            desktop-tauri/target/release/runtime/
+          if-no-files-found: error
+          retention-days: 7
