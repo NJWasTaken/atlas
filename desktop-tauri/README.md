@@ -5,7 +5,7 @@ This is an isolated Tauri v2 runtime prototype. The shipped Electron app remains
 ## Current prototype
 
 - Rust/Tauri owns the native window and application lifecycle.
-- Rust creates/loads a persistent per-install JWT secret in the Tauri app-data directory.
+- Rust reuses Electron's exact `Atlas` user-data directory (`%APPDATA%/Atlas` on Windows, `~/Library/Application Support/Atlas` on macOS, and `~/.config/Atlas` on Linux unless `XDG_CONFIG_HOME` is set), so the existing SQLite database, PDFs, and `instance.secret` remain in place.
 - Rust starts the existing FastAPI sidecar and the existing Next.js standalone server concurrently.
 - The frontend uses the same local API origin and port as the Electron runtime.
 - The startup screen is displayed immediately while both services become healthy.
@@ -37,7 +37,7 @@ The prototype is not yet a distributable replacement for Electron. Do not remove
 
 ## Important design constraints
 
-- Do not run a second database or move the existing app-data directory during this spike.
+- Do not run a second database or move the existing app-data directory during this spike. The Rust shell deliberately resolves Electron's legacy `Atlas` profile path rather than Tauri's identifier-derived default.
 - The same SQLite database, PDF directory, and `instance.secret` must remain in a stable user-data location.
 - Services bind to loopback only.
 - No user-installed Node, Python, Docker, PostgreSQL, or external storage service is required in the final installer.
