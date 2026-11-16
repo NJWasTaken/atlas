@@ -5,7 +5,7 @@
   "identifier": "com.noeljose.atlas",
   "build": {
     "devUrl": "http://localhost:43122",
-    "frontendDist": "../shell"
+    "frontendDist": "shell"
   },
   "app": {
     "windows": [
