@@ -276,3 +276,43 @@ fn main() {
         }
     });
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn instance_secret_is_persisted_and_reused() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock should be after Unix epoch")
+            .as_nanos();
+        let user_data = std::env::temp_dir().join(format!(
+            "atlas-tauri-secret-test-{}-{unique}",
+            std::process::id()
+        ));
+
+        let first = persisted_secret(&user_data).expect("first secret should be created");
+        let second = persisted_secret(&user_data).expect("existing secret should be reused");
+
+        assert_eq!(first, second);
+        assert_eq!(first.len(), 96);
+        assert!(first.bytes().all(|byte| byte.is_ascii_hexdigit()));
+
+        fs::remove_dir_all(user_data).expect("test directory should be removable");
+    }
+
+    #[test]
+    fn runtime_resources_are_resolved_under_runtime_directory() {
+        let path = runtime_path(Path::new("/opt/atlas"), "atlas-api");
+        assert_eq!(path, Path::new("/opt/atlas/runtime/atlas-api"));
+    }
+
+    #[test]
+    fn user_data_directory_keeps_electron_application_name() {
+        let path = electron_compatible_user_data_dir().expect("platform user-data path should resolve");
+        assert_eq!(path.file_name().and_then(|name| name.to_str()), Some("Atlas"));
+    }
+}
