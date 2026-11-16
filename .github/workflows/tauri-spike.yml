@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "desktop-tauri/**"
+      - "backend/**"
+      - "frontend/**"
       - ".github/workflows/tauri-spike.yml"
 
 permissions:
@@ -15,6 +17,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Install Tauri Linux prerequisites
         run: |
           sudo apt-get update
@@ -29,6 +37,27 @@ jobs:
       - name: Check formatting
         working-directory: desktop-tauri
         run: cargo fmt --all -- --check
+      - name: Prepare existing Atlas services for Tauri
+        run: |
+          npm ci --prefix frontend
+          NEXT_PUBLIC_API_URL=http://127.0.0.1:43121/api/v1 npm --prefix frontend run build
+          mkdir -p frontend/.next/standalone/.next
+          cp -R frontend/.next/static frontend/.next/standalone/.next/static
+          if [ -d frontend/public ]; then cp -R frontend/public frontend/.next/standalone/public; fi
+          python -m pip install -r backend/requirements-desktop.txt
+          python -m pip install pyinstaller
+          pyinstaller --clean --onefile --name atlas-api --paths backend \
+            --add-data "backend/migrations:migrations" \
+            --add-data "backend/alembic.ini:." \
+            --collect-all alembic --collect-all sqlalchemy --collect-all passlib --collect-all bcrypt \
+            --hidden-import passlib.handlers.bcrypt backend/desktop_entry.py
+          mkdir -p desktop-tauri/resources/runtime/frontend
+          cp dist/atlas-api desktop-tauri/resources/runtime/atlas-api
+          cp -R frontend/.next/standalone/. desktop-tauri/resources/runtime/frontend/
+          curl -fsSLO https://nodejs.org/dist/v22.16.0/node-v22.16.0-linux-x64.tar.xz
+          tar -xJf node-v22.16.0-linux-x64.tar.xz
+          cp node-v22.16.0-linux-x64/bin/node desktop-tauri/resources/runtime/node
+          chmod +x desktop-tauri/resources/runtime/node desktop-tauri/resources/runtime/atlas-api
       - name: Check Tauri shell
         working-directory: desktop-tauri
         run: cargo check
