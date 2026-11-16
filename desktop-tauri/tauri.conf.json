@@ -31,6 +31,8 @@
     "resources": {
       "resources/runtime/": "runtime/"
     },
-    "icon": []
+    "icon": [
+      "icons/icon.ico"
+    ]
   }
 }
