@@ -27,6 +27,13 @@
   },
   "bundle": {
     "active": false,
-    "targets": "all"
+    "targets": "all",
+    "resources": {
+      "../desktop/runtime/atlas-api": "runtime/atlas-api",
+      "../desktop/runtime/atlas-api.exe": "runtime/atlas-api.exe",
+      "../desktop/runtime/node": "runtime/node",
+      "../desktop/runtime/node.exe": "runtime/node.exe",
+      "../desktop/runtime/frontend/": "runtime/frontend/"
+    }
   }
 }
