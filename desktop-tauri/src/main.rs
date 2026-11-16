@@ -139,12 +139,13 @@ fn main() {
                 }
             };
             {
-                let mut running = children.lock().map_err(|_| "service process lock poisoned")?;
+                let mut running = children.lock().map_err(|_| io::Error::other("service process lock poisoned"))?;
                 running.push(api);
                 running.push(frontend);
             }
 
             let startup_window = window.clone();
+            let app_handle = app.handle().clone();
             thread::spawn(move || {
                 let api_ready = wait_for_health(
                     "http://127.0.0.1:43121/health",
@@ -154,7 +155,7 @@ fn main() {
                     "http://127.0.0.1:43122",
                     Duration::from_secs(45),
                 );
-                let _ = startup_window.run_on_main_thread(move || {
+                let _ = app_handle.run_on_main_thread(move || {
                     load_frontend_when_ready(startup_window, api_ready, frontend_ready);
                 });
             });
