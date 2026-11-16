@@ -9,6 +9,7 @@ edition = "2021"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+libc = "0.2"
 rand = "0.8"
 tauri = { version = "2", features = [] }
 ureq = { version = "2", default-features = false, features = ["tls"] }
