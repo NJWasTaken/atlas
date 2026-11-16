@@ -126,7 +126,22 @@ fn wait_for_health(url: &'static str, timeout: Duration) -> Result<(), String> {
 fn stop_children(children: &SharedChildren) {
     if let Ok(mut children) = children.lock() {
         for child in children.iter_mut().rev() {
-            let _ = child.kill();
+            #[cfg(unix)]
+            {
+                // Give Uvicorn/Node a chance to flush and close cleanly.
+                unsafe { libc::kill(child.id() as i32, libc::SIGTERM); }
+                let deadline = Instant::now() + Duration::from_secs(4);
+                while Instant::now() < deadline {
+                    match child.try_wait() {
+                        Ok(Some(_)) => break,
+                        Ok(None) => thread::sleep(Duration::from_millis(100)),
+                        Err(_) => break,
+                    }
+                }
+            }
+            if child.try_wait().ok().flatten().is_none() {
+                let _ = child.kill();
+            }
             let _ = child.wait();
         }
         children.clear();
@@ -177,15 +192,19 @@ fn main() {
 
             let startup_window = window.clone();
             let app_handle = app.handle().clone();
+            let startup_children = Arc::clone(&children);
             thread::spawn(move || {
-                let api_ready = wait_for_health(
-                    "http://127.0.0.1:43121/health",
-                    Duration::from_secs(45),
-                );
-                let frontend_ready = wait_for_health(
-                    "http://127.0.0.1:43122",
-                    Duration::from_secs(45),
-                );
+                let api_probe = thread::spawn(|| {
+                    wait_for_health("http://127.0.0.1:43121/health", Duration::from_secs(45))
+                });
+                let frontend_probe = thread::spawn(|| {
+                    wait_for_health("http://127.0.0.1:43122", Duration::from_secs(45))
+                });
+                let api_ready = api_probe.join().unwrap_or_else(|_| Err("API health check thread panicked".into()));
+                let frontend_ready = frontend_probe.join().unwrap_or_else(|_| Err("frontend health check thread panicked".into()));
+                if api_ready.is_err() || frontend_ready.is_err() {
+                    stop_children(&startup_children);
+                }
                 let _ = app_handle.run_on_main_thread(move || {
                     load_frontend_when_ready(startup_window, api_ready, frontend_ready);
                 });
