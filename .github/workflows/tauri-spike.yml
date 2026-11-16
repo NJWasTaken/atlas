@@ -61,3 +61,6 @@ jobs:
       - name: Check Tauri shell
         working-directory: desktop-tauri
         run: cargo check
+      - name: Test Tauri runtime helpers
+        working-directory: desktop-tauri
+        run: cargo test
