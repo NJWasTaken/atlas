@@ -42,7 +42,11 @@ with tempfile.TemporaryDirectory(prefix="atlas-tauri-smoke-") as data_dir, tempf
     })
     api_log = open(Path(logs_dir) / "api.log", "wb")
     web_log = open(Path(logs_dir) / "web.log", "wb")
-    api_process = subprocess.Popen([str(api)], env=env, stdout=api_log, stderr=subprocess.STDOUT)
+    creation_flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+    api_process = subprocess.Popen(
+        [str(api)], env=env, stdout=api_log, stderr=subprocess.STDOUT,
+        creationflags=creation_flags, start_new_session=(os.name != "nt"),
+    )
     web_env = env.copy()
     web_env.update({
         "HOSTNAME": "127.0.0.1",
@@ -63,6 +67,7 @@ with tempfile.TemporaryDirectory(prefix="atlas-tauri-smoke-") as data_dir, tempf
         web_process = subprocess.Popen(
             [str(node), str(server)], env=web_env,
             stdout=web_log, stderr=subprocess.STDOUT,
+            creationflags=creation_flags, start_new_session=(os.name != "nt"),
         )
         deadline = time.monotonic() + 60
         while time.monotonic() < deadline and not healthy("http://127.0.0.1:43122"):
@@ -77,12 +82,33 @@ with tempfile.TemporaryDirectory(prefix="atlas-tauri-smoke-") as data_dir, tempf
         print("Runtime smoke test passed: API healthy, frontend healthy, isolated SQLite profile created.")
     finally:
         for process in (web_process, api_process):
-            if process is not None and process.poll() is None:
-                process.terminate()
+            if process is None or process.poll() is not None:
+                continue
+            try:
+                if os.name == "nt":
+                    # Terminate the complete process tree; Windows children may inherit
+                    # file handles and keep SQLite/log files locked after the parent exits.
+                    subprocess.run(
+                        ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                        check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                        timeout=10,
+                    )
+                else:
+                    import signal
+                    os.killpg(process.pid, signal.SIGTERM)
+                process.wait(timeout=8)
+            except (OSError, subprocess.TimeoutExpired):
                 try:
-                    process.wait(timeout=8)
-                except subprocess.TimeoutExpired:
-                    process.kill()
+                    if os.name == "nt":
+                        subprocess.run(
+                            ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                            check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            timeout=10,
+                        )
+                    else:
+                        process.kill()
                     process.wait(timeout=5)
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
         api_log.close()
         web_log.close()
