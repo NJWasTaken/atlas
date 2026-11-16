@@ -13,6 +13,8 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 This is the active implementation order. Reorder it only when new product constraints or release blockers justify doing so.
 
+0. [ ] **Tauri desktop migration (current architectural initiative)** — replace Electron with Tauri/Rust while retaining the existing FastAPI sidecar and Next.js standalone frontend initially. Benchmark the current cold-start stages, build a Rust-managed runtime for both existing services, preserve user data and lifecycle behavior, and validate Windows/macOS/Linux before changing the release pipeline. The isolated shell spike lives in `desktop-tauri/`; it is not a distributable app yet.
+
 1. [ ] **Desktop UX polish and roadmap accuracy** — remove Electron's default menu bar while retaining native window controls; gracefully stop bundled services on app exit and during Windows uninstall; configure platform icon/installer branding; verify install, relaunch, uninstall, and data persistence. (Implementation in PR #24; end-to-end lifecycle validation remains.)
 2. [ ] **Efficient private PDF delivery** — add authenticated HTTP Range responses (206, Content-Range, Accept-Ranges, correct length/cache headers), switch PDF.js to URL-based loading, and test range boundaries, ownership, and browser behavior.
 3. [ ] **Large-document reader performance** — audit virtualization, lazy text extraction, canvas/text-layer lifecycle, cancellation, and memory cleanup; stress-test large and mixed-dimension PDFs while preserving annotations and reading behavior.
@@ -133,7 +135,7 @@ Keep these follow-up PRs separate and do not add a paid object-storage dependenc
 
 ## Desktop application and release engineering
 
-**Product decision:** ship Atlas as an Electron desktop application with a bundled local API and frontend. End users should not need Node.js, Python, Docker, PostgreSQL, or a cloud-storage account.
+**Current production implementation:** Electron desktop application with a bundled local API and frontend. **Migration direction:** evaluate Tauri/Rust as the desktop shell while keeping the existing FastAPI backend and Next.js standalone frontend unchanged for the first phase. End users should not need Node.js, Python, Docker, PostgreSQL, or a cloud-storage account.
 
 - [x] Add the Electron main/preload process with hardened BrowserWindow defaults, local-origin navigation restrictions, validated external-link handling, startup diagnostics, and clean child-process shutdown.
 - [x] Bundle the Next.js standalone server and a platform-specific FastAPI sidecar; verify startup and health checks on Windows, macOS, and Linux through successful installer launches.
@@ -145,6 +147,8 @@ Keep these follow-up PRs separate and do not add a paid object-storage dependenc
 - [x] Add a manually versioned release workflow that builds Windows, macOS, and Linux installers and publishes them to GitHub Releases. Configure macOS signing/notarisation only when repository secrets are present.
 - [ ] Document desktop installation, data locations, upgrade behavior, backup/restore, uninstall behavior, and troubleshooting.
 - [ ] Validate clean install, relaunch, app upgrade, and uninstall/reinstall while confirming SQLite data and PDFs persist.
+- [ ] Record Electron startup timings for API spawn/readiness, frontend spawn/readiness, and window navigation on a clean Windows install; compare against the Tauri prototype.
+- [ ] Implement Tauri-managed startup and graceful shutdown for the existing FastAPI executable and bundled Node/Next.js runtime before deprecating Electron.
 
 ## My Universe
 
