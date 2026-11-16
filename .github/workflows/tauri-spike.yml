@@ -58,9 +58,9 @@ jobs:
           tar -xJf node-v22.16.0-linux-x64.tar.xz
           cp node-v22.16.0-linux-x64/bin/node desktop-tauri/resources/runtime/node
           chmod +x desktop-tauri/resources/runtime/node desktop-tauri/resources/runtime/atlas-api
-      - name: Check Tauri shell
+      - name: Compile runnable Tauri desktop binary
         working-directory: desktop-tauri
-        run: cargo check
+        run: cargo build --release
       - name: Test Tauri runtime helpers
         working-directory: desktop-tauri
         run: cargo test
