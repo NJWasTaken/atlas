@@ -100,6 +100,21 @@ jobs:
           python -c "import base64,pathlib; p=pathlib.Path('icons/icon.png'); p.write_bytes(base64.b64decode(p.read_text().strip(), validate=True))"
           python -c "import pathlib; p=pathlib.Path('icons/icon.png'); assert p.read_bytes().startswith(bytes.fromhex('89504e470d0a1a0a')), 'Invalid PNG icon'"
 
+      - name: Generate Windows Tauri icon
+        if: runner.os == 'Windows'
+        working-directory: desktop-tauri
+        shell: pwsh
+        run: |
+          $png = [Convert]::FromBase64String((Get-Content -Raw icons/icon.png).Trim())
+          [IO.File]::WriteAllBytes("icons/icon.decoded.png", $png)
+          Add-Type -AssemblyName System.Drawing
+          $bitmap = [Drawing.Bitmap]::FromFile((Resolve-Path "icons/icon.decoded.png"))
+          try {
+            $icon = [Drawing.Icon]::FromHandle($bitmap.GetHicon())
+            $stream = [IO.File]::Create("icons/icon.ico")
+            try { $icon.Save($stream) } finally { $stream.Dispose(); $icon.Dispose() }
+          } finally { $bitmap.Dispose() }
+
       - name: Compile Tauri desktop binary
         working-directory: desktop-tauri
         run: cargo build --release
