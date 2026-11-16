@@ -1,35 +1,44 @@
 # Atlas Tauri migration spike
 
-This is an isolated Tauri v2 shell prototype. It does not replace the shipped Electron application and is not included in the release workflow.
+This is an isolated Tauri v2 runtime prototype. The shipped Electron app remains the production desktop app.
 
-## Current scope
+## Current prototype
 
-- Compile a minimal Rust/Tauri desktop shell.
-- Establish the native window configuration and application identifier.
-- Keep the existing Electron application as the production desktop app while the migration is evaluated.
-- Preserve FastAPI and the existing Next.js standalone server as the first migration target; neither backend nor frontend is being rewritten in this spike.
+- Rust/Tauri owns the native window and application lifecycle.
+- Rust creates/loads a persistent per-install JWT secret in the Tauri app-data directory.
+- Rust starts the existing FastAPI sidecar and the existing Next.js standalone server concurrently.
+- The frontend uses the same local API origin and port as the Electron runtime.
+- The startup screen is displayed immediately while both services become healthy.
+- Rust owns both child processes and terminates/waits for them when the app exits.
+- Existing FastAPI, Next.js UI, SQLite schema and PDF storage are intentionally unchanged.
 
-## Next integration steps
+## Runtime resources
 
-1. Measure the current Electron cold-start stages on a clean Windows install: process launch, FastAPI health, Next.js health, first window paint, and first interactive screen.
-2. Add Rust-managed process supervision for the existing bundled FastAPI executable and a bundled Node runtime running the existing Next.js standalone server.
-3. Start both services concurrently, expose a lightweight local startup page, and navigate to the existing frontend once both health checks pass.
-4. Implement graceful shutdown and forced cleanup for both child processes.
-5. Verify the existing SQLite database, PDFs, instance secret, and user-data directory remain unchanged.
-6. Add Windows/macOS/Linux packaging only after the runtime lifecycle works on all three platforms.
+Before running the prototype, populate `desktop/runtime/` with:
+
+- `atlas-api` (Linux/macOS) or `atlas-api.exe` (Windows), built from `backend/desktop_entry.py`.
+- `node` (Linux/macOS) or `node.exe` (Windows), from the matching official Node.js 22 LTS distribution.
+- `frontend/server.js` and the rest of the Next.js standalone output under `frontend/`.
+
+The Tauri bundle resource map includes these runtime paths. The current repository does not yet automate the Node runtime download or produce cross-platform Tauri installers; that is the next build-pipeline task.
 
 ## Build locally
 
-Install the Rust toolchain and the platform prerequisites from the Tauri v2 prerequisites guide, then:
+Install the Rust toolchain and platform prerequisites from the Tauri v2 prerequisites guide. Populate runtime resources as described above, then:
 
 ```sh
 cd desktop-tauri
+cargo fmt --all -- --check
 cargo check
 cargo tauri dev
 ```
 
-The prototype window currently displays a static shell page. It intentionally does not start the Atlas services yet. Do not distribute it or treat it as a replacement installer.
+The prototype is not yet a distributable replacement for Electron. Do not remove or change the Electron release workflow until Windows, macOS and Linux Tauri builds, user-data migration/compatibility, and lifecycle tests pass.
 
-## Why this is staged
+## Important design constraints
 
-The current Electron app launches a Python API sidecar, waits for its health endpoint, launches the Next.js standalone Node server, waits again, and only then creates the application window. We need measurements before attributing the delay to Electron itself. Tauri changes the desktop shell and WebView runtime, but retaining the current Next.js server still means shipping and starting Node. The first goal is to remove Electron without changing the backend or frontend behavior.
+- Do not run a second database or move the existing app-data directory during this spike.
+- The same SQLite database, PDF directory, and `instance.secret` must remain in a stable user-data location.
+- Services bind to loopback only.
+- No user-installed Node, Python, Docker, PostgreSQL, or external storage service is required in the final installer.
+- Keep startup and shutdown logs so cold-start and lifecycle behavior can be compared with Electron.
