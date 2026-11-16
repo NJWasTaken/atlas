@@ -171,10 +171,12 @@ fn main() {
             let window = app.get_webview_window("main").expect("main window configured");
             let resource_dir = app.path().resource_dir()?;
             let user_data = electron_compatible_user_data_dir()?;
+            let startup_started = Instant::now();
             let secret = persisted_secret(&user_data)?;
 
             // Spawn both local services immediately; neither waits for the other.
             let api = spawn_api(&resource_dir, &user_data, &secret)?;
+            eprintln!("[Atlas Tauri startup] API process spawned: {}ms", startup_started.elapsed().as_millis());
             let frontend = match spawn_frontend(&resource_dir) {
                 Ok(child) => child,
                 Err(error) => {
@@ -184,6 +186,7 @@ fn main() {
                     return Err(error.into());
                 }
             };
+            eprintln!("[Atlas Tauri startup] frontend process spawned: {}ms", startup_started.elapsed().as_millis());
             {
                 let mut running = children.lock().map_err(|_| io::Error::other("service process lock poisoned"))?;
                 running.push(api);
@@ -201,12 +204,15 @@ fn main() {
                     wait_for_health("http://127.0.0.1:43122", Duration::from_secs(45))
                 });
                 let api_ready = api_probe.join().unwrap_or_else(|_| Err("API health check thread panicked".into()));
+                eprintln!("[Atlas Tauri startup] API health result at {}ms", startup_started.elapsed().as_millis());
                 let frontend_ready = frontend_probe.join().unwrap_or_else(|_| Err("frontend health check thread panicked".into()));
+                eprintln!("[Atlas Tauri startup] both health checks completed at {}ms", startup_started.elapsed().as_millis());
                 if api_ready.is_err() || frontend_ready.is_err() {
                     stop_children(&startup_children);
                 }
                 let _ = app_handle.run_on_main_thread(move || {
                     load_frontend_when_ready(startup_window, api_ready, frontend_ready);
+                    eprintln!("[Atlas Tauri startup] frontend navigation requested");
                 });
             });
 
