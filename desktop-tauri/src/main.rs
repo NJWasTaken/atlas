@@ -82,7 +82,23 @@ fn persisted_secret(user_data: &Path) -> io::Result<String> {
 }
 
 fn runtime_path(resource_dir: &Path, filename: &str) -> PathBuf {
-    resource_dir.join("runtime").join(filename)
+    let bundled = resource_dir.join("runtime").join(filename);
+    if bundled.exists() {
+        return bundled;
+    }
+
+    // CI prototype artifacts place the executable and runtime directory side by
+    // side. Packaged Tauri bundles resolve resources through resource_dir().
+    if let Ok(executable) = std::env::current_exe() {
+        if let Some(parent) = executable.parent() {
+            let adjacent = parent.join("runtime").join(filename);
+            if adjacent.exists() {
+                return adjacent;
+            }
+        }
+    }
+
+    bundled
 }
 
 fn spawn_api(resource_dir: &Path, user_data: &Path, secret: &str) -> io::Result<Child> {
