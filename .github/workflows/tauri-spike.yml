@@ -103,17 +103,22 @@ jobs:
       - name: Generate Windows Tauri icon
         if: runner.os == 'Windows'
         working-directory: desktop-tauri
-        shell: pwsh
+        shell: bash
         run: |
-          $png = [Convert]::FromBase64String((Get-Content -Raw icons/icon.png).Trim())
-          [IO.File]::WriteAllBytes("icons/icon.decoded.png", $png)
-          Add-Type -AssemblyName System.Drawing
-          $bitmap = [Drawing.Bitmap]::FromFile((Resolve-Path "icons/icon.decoded.png"))
-          try {
-            $icon = [Drawing.Icon]::FromHandle($bitmap.GetHicon())
-            $stream = [IO.File]::Create("icons/icon.ico")
-            try { $icon.Save($stream) } finally { $stream.Dispose(); $icon.Dispose() }
-          } finally { $bitmap.Dispose() }
+          python -m pip install pillow
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          source = Path("icons/icon.png")
+          with Image.open(source) as image:
+              image.convert("RGBA").save(
+                  "icons/icon.ico",
+                  format="ICO",
+                  sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
+              )
+          PY
+          python -c "import pathlib; p=pathlib.Path('icons/icon.ico'); assert p.is_file() and p.stat().st_size > 0, 'ICO generation failed'"
 
       - name: Compile Tauri desktop binary
         working-directory: desktop-tauri
