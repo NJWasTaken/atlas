@@ -2,8 +2,7 @@
 
 use rand::{rngs::OsRng, RngCore};
 use std::{
-    fs,
-    io,
+    fs, io,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{Arc, Mutex},
@@ -46,9 +45,7 @@ fn electron_compatible_user_data_dir() -> io::Result<PathBuf> {
     {
         let root = std::env::var_os("XDG_CONFIG_HOME")
             .map(PathBuf::from)
-            .or_else(|| {
-                std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config"))
-            })
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
             .ok_or_else(|| {
                 io::Error::new(
                     io::ErrorKind::NotFound,
@@ -113,11 +110,7 @@ fn spawn_api(resource_dir: &Path, user_data: &Path, secret: &str) -> io::Result<
 fn spawn_frontend(resource_dir: &Path) -> io::Result<Child> {
     let node = runtime_path(
         resource_dir,
-        if cfg!(windows) {
-            "node.exe"
-        } else {
-            "node"
-        },
+        if cfg!(windows) { "node.exe" } else { "node" },
     );
     let server = runtime_path(resource_dir, "frontend").join("server.js");
     Command::new(node)
@@ -277,7 +270,6 @@ fn main() {
     });
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -312,7 +304,11 @@ mod tests {
 
     #[test]
     fn user_data_directory_keeps_electron_application_name() {
-        let path = electron_compatible_user_data_dir().expect("platform user-data path should resolve");
-        assert_eq!(path.file_name().and_then(|name| name.to_str()), Some("Atlas"));
+        let path =
+            electron_compatible_user_data_dir().expect("platform user-data path should resolve");
+        assert_eq!(
+            path.file_name().and_then(|name| name.to_str()),
+            Some("Atlas")
+        );
     }
 }
