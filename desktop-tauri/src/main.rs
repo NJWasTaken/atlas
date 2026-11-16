@@ -19,6 +19,37 @@ const WEB_ORIGIN: &str = "http://127.0.0.1:43122";
 
 type SharedChildren = Arc<Mutex<Vec<Child>>>;
 
+
+fn electron_compatible_user_data_dir() -> io::Result<PathBuf> {
+    // Match Electron's app.setName("Atlas") + app.getPath("userData") locations.
+    // This is intentionally not Tauri's identifier-derived app_data_dir: using
+    // that would silently create a second, empty profile after migration.
+    #[cfg(target_os = "windows")]
+    {
+        let root = std::env::var_os("APPDATA")
+            .map(PathBuf::from)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "APPDATA is not set"))?;
+        return Ok(root.join("Atlas"));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let home = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "HOME is not set"))?;
+        return Ok(home.join("Library").join("Application Support").join("Atlas"));
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let root = std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Neither XDG_CONFIG_HOME nor HOME is set"))?;
+        return Ok(root.join("Atlas"));
+    }
+}
+
 fn persisted_secret(user_data: &Path) -> io::Result<String> {
     fs::create_dir_all(user_data)?;
     let secret_path = user_data.join("instance.secret");
@@ -124,7 +155,7 @@ fn main() {
         .setup(move |app| {
             let window = app.get_webview_window("main").expect("main window configured");
             let resource_dir = app.path().resource_dir()?;
-            let user_data = app.path().app_data_dir()?;
+            let user_data = electron_compatible_user_data_dir()?;
             let secret = persisted_secret(&user_data)?;
 
             // Spawn both local services immediately; neither waits for the other.
