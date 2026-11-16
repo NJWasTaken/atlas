@@ -128,9 +128,13 @@ fn spawn_frontend(resource_dir: &Path) -> io::Result<Child> {
         resource_dir,
         if cfg!(windows) { "node.exe" } else { "node" },
     );
-    let server = runtime_path(resource_dir, "frontend").join("server.js");
+    let frontend_dir = runtime_path(resource_dir, "frontend");
+    let server = frontend_dir.join("server.js");
     Command::new(node)
         .arg(server)
+        // Next.js resolves its production .next build directory relative to
+        // the process working directory, not the server.js file location.
+        .current_dir(&frontend_dir)
         .env("HOSTNAME", "127.0.0.1")
         .env("PORT", WEB_PORT.to_string())
         .env("NEXT_PUBLIC_API_URL", format!("{API_ORIGIN}/api/v1"))
