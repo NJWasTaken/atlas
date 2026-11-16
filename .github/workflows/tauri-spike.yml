@@ -58,6 +58,11 @@ jobs:
           tar -xJf node-v22.16.0-linux-x64.tar.xz
           cp node-v22.16.0-linux-x64/bin/node desktop-tauri/resources/runtime/node
           chmod +x desktop-tauri/resources/runtime/node desktop-tauri/resources/runtime/atlas-api
+      - name: Decode Tauri build icon
+        working-directory: desktop-tauri
+        run: |
+          printf '%s' "$(cat icons/icon.png)" | base64 --decode > icons/icon.decoded.png
+          mv icons/icon.decoded.png icons/icon.png
       - name: Compile runnable Tauri desktop binary
         working-directory: desktop-tauri
         run: cargo build --release
