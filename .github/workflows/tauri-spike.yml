@@ -136,7 +136,8 @@ jobs:
           cp -R desktop-tauri/resources/runtime/. desktop-tauri/target/release/runtime/
 
       - name: Verify staged frontend build
-        run: python -c "from pathlib import Path; p=Path('desktop-tauri/target/release/runtime/frontend/.next/BUILD_ID'); assert p.is_file(), f'Missing staged Next.js build: {p}'"
+        run: >-
+          python -c 'from pathlib import Path; p=Path("desktop-tauri/target/release/runtime/frontend/.next/BUILD_ID"); assert p.is_file(), f"Missing staged Next.js build: {p}"'
 
       - name: Upload Tauri prototype
         uses: actions/upload-artifact@v4
