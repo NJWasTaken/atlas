@@ -101,16 +101,27 @@ fn runtime_path(resource_dir: &Path, filename: &str) -> PathBuf {
     bundled
 }
 
+fn open_child_log(user_data: &Path, filename: &str) -> io::Result<fs::File> {
+    let log_dir = user_data.join("logs");
+    fs::create_dir_all(&log_dir)?;
+    fs::OpenOptions::new().create(true).append(true).open(log_dir.join(filename))
+}
+
+#[cfg(windows)]
+fn configure_hidden_console(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn configure_hidden_console(_command: &mut Command) {}
+
 fn spawn_api(resource_dir: &Path, user_data: &Path, secret: &str) -> io::Result<Child> {
-    let executable = runtime_path(
-        resource_dir,
-        if cfg!(windows) {
-            "atlas-api.exe"
-        } else {
-            "atlas-api"
-        },
-    );
-    Command::new(executable)
+    let executable = runtime_path(resource_dir, if cfg!(windows) { "atlas-api.exe" } else { "atlas-api" });
+    let log = open_child_log(user_data, "api.log")?;
+    let mut command = Command::new(&executable);
+    command
         .env("ATLAS_USER_DATA_DIR", user_data)
         .env("ATLAS_API_PORT", API_PORT.to_string())
         .env("JWT_SECRET", secret)
@@ -118,31 +129,40 @@ fn spawn_api(resource_dir: &Path, user_data: &Path, secret: &str) -> io::Result<
         .env("CORS_ORIGINS", WEB_ORIGIN)
         .env("ENVIRONMENT", "development")
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
+        .stdout(Stdio::from(log.try_clone()?))
+        .stderr(Stdio::from(log));
+    configure_hidden_console(&mut command);
+    command.spawn().map_err(|error| io::Error::new(
+        error.kind(),
+        format!("Failed to start API sidecar at {}: {error}", executable.display()),
+    ))
 }
 
-fn spawn_frontend(resource_dir: &Path) -> io::Result<Child> {
-    let node = runtime_path(
-        resource_dir,
-        if cfg!(windows) { "node.exe" } else { "node" },
-    );
+fn spawn_frontend(resource_dir: &Path, user_data: &Path) -> io::Result<Child> {
+    let node = runtime_path(resource_dir, if cfg!(windows) { "node.exe" } else { "node" });
     let frontend_dir = runtime_path(resource_dir, "frontend");
     let server = frontend_dir.join("server.js");
-    Command::new(node)
-        .arg(server)
-        // Next.js resolves its production .next build directory relative to
-        // the process working directory, not the server.js file location.
+    let log = open_child_log(user_data, "frontend.log")?;
+    let mut command = Command::new(&node);
+    command
+        .arg(&server)
+        // Next.js resolves .next relative to its working directory.
         .current_dir(&frontend_dir)
         .env("HOSTNAME", "127.0.0.1")
         .env("PORT", WEB_PORT.to_string())
         .env("NEXT_PUBLIC_API_URL", format!("{API_ORIGIN}/api/v1"))
         .env("NODE_ENV", "production")
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
+        .stdout(Stdio::from(log.try_clone()?))
+        .stderr(Stdio::from(log));
+    configure_hidden_console(&mut command);
+    command.spawn().map_err(|error| io::Error::new(
+        error.kind(),
+        format!(
+            "Failed to start frontend: node={}, server={}, cwd={}: {error}",
+            node.display(), server.display(), frontend_dir.display()
+        ),
+    ))
 }
 
 fn wait_for_health(url: &'static str, timeout: Duration) -> Result<(), String> {
@@ -224,7 +244,7 @@ fn main() {
                 "[Atlas Tauri startup] API process spawned: {}ms",
                 startup_started.elapsed().as_millis()
             );
-            let frontend = match spawn_frontend(&resource_dir) {
+            let frontend = match spawn_frontend(&resource_dir, &user_data) {
                 Ok(child) => child,
                 Err(error) => {
                     let mut api = api;
