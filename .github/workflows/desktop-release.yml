@@ -187,7 +187,7 @@ jobs:
           config_path = Path("tauri.conf.json")
           config = json.loads(config_path.read_text())
           config["version"] = version
-          config_path.write_text(json.dumps(config, indent=2) + "\\n")
+          config_path.write_text(json.dumps(config, indent=2) + "\n")
           cargo_path = Path("Cargo.toml")
           cargo = cargo_path.read_text()
           import re
