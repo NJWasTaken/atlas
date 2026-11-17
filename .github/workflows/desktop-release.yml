@@ -201,11 +201,19 @@ jobs:
         working-directory: desktop-tauri
         run: |
           python -c "import base64,pathlib; p=pathlib.Path('icons/icon.png'); p.write_bytes(base64.b64decode(p.read_text().strip(), validate=True))"
-          tauri icon icons/icon.png --output icons/generated
+          python -m pip install pillow
+          python - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          source = Path("icons/icon.png")
+          with Image.open(source) as image:
+              image.convert("RGBA").resize((1024, 1024), Image.Resampling.LANCZOS).save("icons/source-1024.png")
+          PY
+          tauri icon icons/source-1024.png --output icons/generated
 
       - name: Build Tauri installer
         working-directory: desktop-tauri
-        run: tauri build --bundles ${{ matrix.bundles }}
+        run: tauri build --ci --no-sign --bundles ${{ matrix.bundles }}
 
       - name: Verify installer outputs
         shell: bash
@@ -214,7 +222,7 @@ jobs:
           mkdir -p release-output
           case "${{ matrix.platform }}" in
             win)
-                            for installer in "$BUNDLE_DIR"/nsis/*.exe; do [ -f "$installer" ] && cp "$installer" release-output/; done
+              for installer in "$BUNDLE_DIR"/nsis/*.exe; do [ -f "$installer" ] && cp "$installer" release-output/; done
               test -n "$(find release-output -maxdepth 1 -name '*.exe' -print -quit)"
               ;;
             mac)
