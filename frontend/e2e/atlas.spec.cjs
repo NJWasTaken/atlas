@@ -285,7 +285,7 @@ test("student can create, edit and delete an exam from Academics and Overview", 
   await page.getByLabel("Exam title").fill("Overview exam");
   await page.getByLabel("Exam date").fill(localDate);
   await page.locator(".atlas-exam-form").getByRole("button",{name:"Add exam"}).click();
-  await page.getByRole("button",{name:"Overview"}).click();
+  await page.getByRole("button",{name:"Overview",exact:true}).click();
   await expect(page.locator(".atlas-overview-exam").filter({hasText:"Overview exam"})).toBeVisible();
   const examDayLabel = new Date(examDate).toLocaleDateString();
   await page.locator(".atlas-calendar-day[aria-label^='" + examDayLabel + "']").click();

@@ -1,0 +1,151 @@
+name: Tauri desktop spike
+
+on:
+  # Build the prototype for every branch update and PR update so artifacts
+  # always correspond to the exact source commit being tested.
+  push:
+    branches: [feat/tauri-desktop-spike]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tauri-prototype:
+    name: Tauri prototype (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-x64
+          - os: windows-2022
+            platform: windows-x64
+          - os: macos-15-intel
+            platform: macos-x64
+          - os: macos-15
+            platform: macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.16.0"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Tauri Linux prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential curl wget file \
+            libssl-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libwebkit2gtk-4.1-dev
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check formatting
+        working-directory: desktop-tauri
+        run: cargo fmt --all -- --check
+
+      - name: Prepare existing Atlas services for Tauri
+        env:
+          DATA_SEPARATOR: ${{ runner.os == 'Windows' && ';' || ':' }}
+        shell: bash
+        run: |
+          npm ci --prefix frontend
+          NEXT_PUBLIC_API_URL=http://127.0.0.1:43121/api/v1 npm --prefix frontend run build
+          python -m pip install -r backend/requirements-desktop.txt
+          python -m pip install pyinstaller
+          pyinstaller --clean --onefile --name atlas-api --paths backend \
+            --add-data "backend/migrations${DATA_SEPARATOR}migrations" \
+            --add-data "backend/alembic.ini${DATA_SEPARATOR}." \
+            --collect-all alembic --collect-all sqlalchemy --collect-all passlib --collect-all bcrypt \
+            --hidden-import passlib.handlers.bcrypt backend/desktop_entry.py
+          python - <<'PY'
+          from pathlib import Path
+          import shutil, sys
+          root = Path.cwd()
+          runtime = root / "desktop-tauri" / "resources" / "runtime"
+          (runtime / "frontend" / ".next").mkdir(parents=True, exist_ok=True)
+          api_name = "atlas-api.exe" if sys.platform == "win32" else "atlas-api"
+          shutil.copy2(root / "dist" / api_name, runtime / api_name)
+          standalone = root / "frontend" / ".next" / "standalone"
+          shutil.copytree(standalone, runtime / "frontend", dirs_exist_ok=True)
+          shutil.copytree(root / "frontend" / ".next" / "static",
+                          runtime / "frontend" / ".next" / "static", dirs_exist_ok=True)
+          public = root / "frontend" / "public"
+          if public.exists():
+              shutil.copytree(public, runtime / "frontend" / "public", dirs_exist_ok=True)
+          node = Path(shutil.which("node")).resolve()
+          shutil.copy2(node, runtime / ("node.exe" if sys.platform == "win32" else "node"))
+          if sys.platform != "win32":
+              (runtime / "node").chmod(0o755)
+              (runtime / "atlas-api").chmod(0o755)
+          PY
+
+      - name: Decode Tauri build icon
+        working-directory: desktop-tauri
+        run: |
+          python -c "import base64,pathlib; p=pathlib.Path('icons/icon.png'); p.write_bytes(base64.b64decode(p.read_text().strip(), validate=True))"
+          python -c "import pathlib; p=pathlib.Path('icons/icon.png'); assert p.read_bytes().startswith(bytes.fromhex('89504e470d0a1a0a')), 'Invalid PNG icon'"
+
+      - name: Generate Windows Tauri icon
+        if: runner.os == 'Windows'
+        working-directory: desktop-tauri
+        shell: bash
+        run: |
+          python -m pip install pillow
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          source = Path("icons/icon.png")
+          with Image.open(source) as image:
+              image.convert("RGBA").save(
+                  "icons/icon.ico",
+                  format="ICO",
+                  sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
+              )
+          PY
+          python -c "import pathlib; p=pathlib.Path('icons/icon.ico'); assert p.is_file() and p.stat().st_size > 0, 'ICO generation failed'"
+
+      - name: Compile Tauri desktop binary
+        working-directory: desktop-tauri
+        run: cargo build --release
+
+      - name: Test Tauri runtime helpers
+        working-directory: desktop-tauri
+        run: cargo test
+
+      - name: Smoke-test packaged API and frontend services
+        run: python .github/scripts/tauri-runtime-smoke.py desktop-tauri/resources/runtime
+
+      - name: Stage prototype runtime beside executable
+        shell: bash
+        run: |
+          mkdir -p desktop-tauri/target/release/runtime
+          cp -R desktop-tauri/resources/runtime/. desktop-tauri/target/release/runtime/
+
+      - name: Verify staged frontend build
+        run: >-
+          python -c 'from pathlib import Path; p=Path("desktop-tauri/target/release/runtime/frontend/.next/BUILD_ID"); assert p.is_file(), f"Missing staged Next.js build: {p}"'
+
+      - name: Upload Tauri prototype
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-tauri-${{ matrix.platform }}-prototype
+          path: |
+            desktop-tauri/target/release/atlas-tauri*
+            desktop-tauri/target/release/runtime/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7

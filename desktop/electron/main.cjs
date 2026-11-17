@@ -14,6 +14,11 @@ const API_ORIGIN = `http://127.0.0.1:${API_PORT}`;
 const WEB_ORIGIN = `http://127.0.0.1:${WEB_PORT}`;
 const children = [];
 let mainWindow;
+const startupStartedAt = performance.now();
+
+function logStartupStage(stage) {
+  console.info(`[Atlas startup] ${stage}: ${Math.round(performance.now() - startupStartedAt)}ms`);
+}
 
 function persistedSecret(userData) {
   const secretPath = path.join(userData, "instance.secret");
@@ -147,10 +152,15 @@ app.whenReady().then(async () => {
     const userData = app.getPath("userData");
     fs.mkdirSync(userData, { recursive: true });
     const api = startBackend(userData);
+    logStartupStage("API process spawned");
     await waitForHealth(`${API_ORIGIN}/health`, api, "Atlas API");
+    logStartupStage("API healthy");
     const frontend = startFrontend();
+    logStartupStage("frontend process spawned");
     await waitForHealth(WEB_ORIGIN, frontend, "Atlas frontend");
+    logStartupStage("frontend healthy");
     await createWindow();
+    logStartupStage("window navigation completed");
   } catch (error) {
     console.error(error);
     await dialog.showMessageBox({

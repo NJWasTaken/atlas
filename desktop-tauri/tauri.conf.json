@@ -1,0 +1,38 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Atlas",
+  "version": "0.1.0",
+  "identifier": "com.noeljose.atlas",
+  "build": {
+    "devUrl": "http://localhost:43122",
+    "frontendDist": "shell"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Atlas",
+        "width": 1440,
+        "height": 940,
+        "minWidth": 960,
+        "minHeight": 680,
+        "center": true,
+        "visible": false,
+        "backgroundColor": "#080d1d"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' http://127.0.0.1:43121 http://127.0.0.1:43122; connect-src ipc: http://127.0.0.1:43121 http://127.0.0.1:43122; img-src 'self' asset: http://127.0.0.1:43122 data: blob:; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": false,
+    "targets": "all",
+    "resources": {
+      "resources/runtime/": "runtime/"
+    },
+    "icon": [
+      "icons/icon.ico"
+    ]
+  }
+}
