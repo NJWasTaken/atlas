@@ -211,24 +211,33 @@ jobs:
         shell: bash
         run: |
           BUNDLE_DIR="desktop-tauri/target/release/bundle"
+          mkdir -p release-output
           case "${{ matrix.platform }}" in
-            win) test -n "$(find "$BUNDLE_DIR/nsis" -maxdepth 1 -name '*.exe' -print -quit)" ;;
-            mac) test -n "$(find "$BUNDLE_DIR/dmg" -maxdepth 1 -name '*.dmg' -print -quit)" ;;
+            win)
+              find "$BUNDLE_DIR/nsis" -maxdepth 1 -name '*.exe' -exec cp {} release-output/ \\;
+              test -n "$(find release-output -maxdepth 1 -name '*.exe' -print -quit)"
+              ;;
+            mac)
+              find "$BUNDLE_DIR/dmg" -maxdepth 1 -name '*.dmg' -exec cp {} release-output/ \\;
+              test -n "$(find release-output -maxdepth 1 -name '*.dmg' -print -quit)"
+              ;;
             linux)
-              test -n "$(find "$BUNDLE_DIR/appimage" -maxdepth 1 -iname '*.appimage' -print -quit)"
-              test -n "$(find "$BUNDLE_DIR/deb" -maxdepth 1 -name '*.deb' -print -quit)"
+              find "$BUNDLE_DIR/appimage" -maxdepth 1 -iname '*.appimage' -exec cp {} release-output/ \\;
+              find "$BUNDLE_DIR/deb" -maxdepth 1 -name '*.deb' -exec cp {} release-output/ \\;
+              test -n "$(find release-output -maxdepth 1 -iname '*.appimage' -print -quit)"
+              test -n "$(find release-output -maxdepth 1 -name '*.deb' -print -quit)"
               ;;
           esac
-          printf 'Atlas version: %s\nSource commit: %s\nPlatform: %s\\nArchitecture: %s\\n' \
+          printf 'Atlas version: %s\\nSource commit: %s\\nPlatform: %s\\nArchitecture: %s\\n' \
             "${{ needs.validate-manual-release.outputs.version }}" \
             "${{ needs.validate-manual-release.outputs.source_sha }}" \
-            "${{ matrix.platform }}" "${{ matrix.arch }}" > "$BUNDLE_DIR/build-info.txt"
+            "${{ matrix.platform }}" "${{ matrix.arch }}" > release-output/build-info.txt
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: atlas-${{ matrix.platform }}-${{ matrix.arch }}
-          path: desktop-tauri/target/release/bundle/
+          path: release-output/*
           if-no-files-found: error
           retention-days: 7
 
