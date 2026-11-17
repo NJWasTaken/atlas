@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (without the v prefix, e.g. 0.2.0)"
+        description: "Release version (without the v prefix, e.g. 0.3.0)"
         required: true
         type: string
       source_ref:
@@ -18,6 +18,11 @@ on:
         type: string
       prerelease:
         description: "Mark this release as a prerelease"
+        required: true
+        default: false
+        type: boolean
+      publish_release:
+        description: "Publish a GitHub Release after building installers (creates a tag)"
         required: true
         default: false
         type: boolean
@@ -81,22 +86,22 @@ jobs:
           - os: windows-2022
             platform: win
             arch: x64
-            target: nsis
+            bundles: nsis
             data_separator: ";"
           - os: macos-15-intel
             platform: mac
             arch: x64
-            target: dmg
+            bundles: dmg
             data_separator: ":"
           - os: macos-15
             platform: mac
             arch: arm64
-            target: dmg
+            bundles: dmg
             data_separator: ":"
           - os: ubuntu-24.04
             platform: linux
             arch: x64
-            target: "AppImage deb"
+            bundles: appimage,deb
             data_separator: ":"
     runs-on: ${{ matrix.os }}
     steps:
@@ -110,6 +115,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install Tauri Linux prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential curl wget file libssl-dev \
+            libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libwebkit2gtk-4.1-dev patchelf
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Install Tauri CLI
+        run: npm install --global @tauri-apps/cli@2
+
       - name: Build Next.js standalone server
         working-directory: frontend
         shell: bash
@@ -119,46 +141,135 @@ jobs:
           mkdir -p .next/standalone/.next
           cp -R .next/static .next/standalone/.next/static
           if [ -d public ]; then cp -R public .next/standalone/public; fi
-      - name: Build FastAPI sidecar
+
+      - name: Build FastAPI sidecar and stage complete Tauri runtime
+        env:
+          DATA_SEPARATOR: ${{ matrix.data_separator }}
         shell: bash
         run: |
           python -m pip install -r backend/requirements-desktop.txt
+          python -m pip install pyinstaller
           pyinstaller --clean --onefile --name atlas-api --paths backend \
-            --add-data "backend/migrations${{ matrix.data_separator }}migrations" \
-            --add-data "backend/alembic.ini${{ matrix.data_separator }}." \
-            --collect-all alembic --collect-all sqlalchemy --collect-all passlib --collect-all bcrypt --hidden-import passlib.handlers.bcrypt \
-            backend/desktop_entry.py
-          mkdir -p desktop/runtime
-          if [ -f dist/atlas-api.exe ]; then cp dist/atlas-api.exe desktop/runtime/atlas-api.exe; else cp dist/atlas-api desktop/runtime/atlas-api; fi
-          cp -R frontend/.next/standalone desktop/runtime/frontend
-      - name: Package installer
-        id: package
-        working-directory: desktop
+            --add-data "backend/migrations${DATA_SEPARATOR}migrations" \
+            --add-data "backend/alembic.ini${DATA_SEPARATOR}." \
+            --collect-all alembic --collect-all sqlalchemy --collect-all passlib --collect-all bcrypt \
+            --hidden-import passlib.handlers.bcrypt backend/desktop_entry.py
+
+          RUNTIME="desktop-tauri/resources/runtime"
+          mkdir -p "$RUNTIME/frontend"
+          if [ -f dist/atlas-api.exe ]; then
+            cp dist/atlas-api.exe "$RUNTIME/atlas-api.exe"
+          else
+            cp dist/atlas-api "$RUNTIME/atlas-api"
+            chmod 755 "$RUNTIME/atlas-api"
+          fi
+          cp -R frontend/.next/standalone/. "$RUNTIME/frontend/"
+          cp -R frontend/.next/static "$RUNTIME/frontend/.next/static"
+          if [ -d frontend/public ]; then cp -R frontend/public "$RUNTIME/frontend/public"; fi
+
+          NODE_BIN="$(command -v node)"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cp "$NODE_BIN" "$RUNTIME/node.exe"
+          else
+            cp "$NODE_BIN" "$RUNTIME/node"
+            chmod 755 "$RUNTIME/node"
+          fi
+
+          test -f "$RUNTIME/frontend/.next/BUILD_ID"
+          test -f "$RUNTIME/frontend/server.js"
+          test -f "$RUNTIME/atlas-api" -o -f "$RUNTIME/atlas-api.exe"
+          test -f "$RUNTIME/node" -o -f "$RUNTIME/node.exe"
+
+      - name: Set release version in Tauri manifests
+        working-directory: desktop-tauri
+        shell: bash
         env:
           RELEASE_VERSION: ${{ needs.validate-manual-release.outputs.version }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          version = os.environ["RELEASE_VERSION"]
+          config_path = Path("tauri.conf.json")
+          config = json.loads(config_path.read_text())
+          config["version"] = version
+          config["bundle"]["icon"] = [
+              "icons/generated/32x32.png",
+              "icons/generated/128x128.png",
+              "icons/generated/128x128@2x.png",
+              "icons/generated/icon.icns",
+              "icons/generated/icon.ico",
+          ]
+          config_path.write_text(json.dumps(config, indent=2) + "\n")
+          cargo_path = Path("Cargo.toml")
+          cargo = cargo_path.read_text()
+          import re
+          cargo, count = re.subn(r'(?m)^(version = ")[^"]+(")$', rf'\g<1>{version}\g<2>', cargo, count=1)
+          if count != 1:
+              raise SystemExit("Could not update Cargo package version")
+          cargo_path.write_text(cargo)
+          PY
+
+      - name: Generate platform icons
+        working-directory: desktop-tauri
         shell: bash
         run: |
-          npm install --no-audit --no-fund
-          npm version --no-git-tag-version --allow-same-version "$RELEASE_VERSION"
-          npx electron-builder --${{ matrix.platform }} ${{ matrix.target }} --${{ matrix.arch }} --publish never
-      - name: Write build provenance
-        working-directory: desktop
-        env:
-          RELEASE_VERSION: ${{ needs.validate-manual-release.outputs.version }}
-          SOURCE_SHA: ${{ needs.validate-manual-release.outputs.source_sha }}
+          python -c "import base64,pathlib; p=pathlib.Path('icons/icon.png'); p.write_bytes(base64.b64decode(p.read_text().strip(), validate=True))"
+          python -m pip install pillow
+          python - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          source = Path("icons/icon.png")
+          with Image.open(source) as image:
+              image.convert("RGBA").resize((1024, 1024), Image.Resampling.LANCZOS).save("icons/source-1024.png")
+          PY
+          tauri icon icons/source-1024.png --output icons/generated
+          for icon in 32x32.png 128x128.png 128x128@2x.png icon.icns icon.ico; do
+            test -f "icons/generated/$icon" || { echo "Missing generated icon: $icon"; exit 1; }
+          done
+
+      - name: Build Tauri installer
+        working-directory: desktop-tauri
+        run: tauri build --ci --no-sign --bundles ${{ matrix.bundles }}
+
+      - name: Verify installer outputs
         shell: bash
         run: |
-          printf 'Atlas version: %s\nSource commit: %s\nPlatform: %s\nArchitecture: %s\n' \
-            "$RELEASE_VERSION" "$SOURCE_SHA" "${{ matrix.platform }}" "${{ matrix.arch }}" > dist/build-info.txt
+          BUNDLE_DIR="desktop-tauri/target/release/bundle"
+          mkdir -p release-output
+          case "${{ matrix.platform }}" in
+            win)
+              for installer in "$BUNDLE_DIR"/nsis/*.exe; do [ -f "$installer" ] && cp "$installer" release-output/; done
+              test -n "$(find release-output -maxdepth 1 -name '*.exe' -print -quit)"
+              ;;
+            mac)
+                            for installer in "$BUNDLE_DIR"/dmg/*.dmg; do [ -f "$installer" ] && cp "$installer" release-output/; done
+              test -n "$(find release-output -maxdepth 1 -name '*.dmg' -print -quit)"
+              ;;
+            linux)
+                            for installer in "$BUNDLE_DIR"/appimage/*.AppImage "$BUNDLE_DIR"/appimage/*.appimage; do [ -f "$installer" ] && cp "$installer" release-output/; done
+                            for installer in "$BUNDLE_DIR"/deb/*.deb; do [ -f "$installer" ] && cp "$installer" release-output/; done
+              test -n "$(find release-output -maxdepth 1 -iname '*.appimage' -print -quit)"
+              test -n "$(find release-output -maxdepth 1 -name '*.deb' -print -quit)"
+              ;;
+          esac
+          {
+            echo "Atlas version: ${{ needs.validate-manual-release.outputs.version }}"
+            echo "Source commit: ${{ needs.validate-manual-release.outputs.source_sha }}"
+            echo "Platform: ${{ matrix.platform }}"
+            echo "Architecture: ${{ matrix.arch }}"
+          } > release-output/build-info.txt
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: atlas-${{ matrix.platform }}-${{ matrix.arch }}
-          path: desktop/dist/*
+          path: release-output/*
           if-no-files-found: error
           retention-days: 7
 
   publish:
+    if: ${{ inputs.publish_release }}
     needs: [validate-manual-release, build]
     runs-on: ubuntu-24.04
     permissions:
