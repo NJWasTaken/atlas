@@ -15,9 +15,11 @@ api_name = "atlas-api.exe" if os.name == "nt" else "atlas-api"
 node_name = "node.exe" if os.name == "nt" else "node"
 api = runtime / api_name
 node = runtime / node_name
-server = runtime / "frontend" / "server.js"
+frontend_dir = runtime / "frontend"
+server = frontend_dir / "server.js"
+build_id = frontend_dir / ".next" / "BUILD_ID"
 
-for required in (api, node, server):
+for required in (api, node, server, build_id):
     if not required.is_file():
         raise SystemExit(f"Missing staged runtime component: {required}")
 
@@ -65,7 +67,7 @@ with tempfile.TemporaryDirectory(prefix="atlas-tauri-smoke-") as data_dir, tempf
             raise RuntimeError("API sidecar did not become healthy within 60 seconds")
 
         web_process = subprocess.Popen(
-            [str(node), str(server)], env=web_env,
+            [str(node), str(server)], env=web_env, cwd=str(frontend_dir),
             stdout=web_log, stderr=subprocess.STDOUT,
             creationflags=creation_flags, start_new_session=(os.name != "nt"),
         )
