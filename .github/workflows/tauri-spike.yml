@@ -1,14 +1,10 @@
 name: Tauri desktop spike
 
 on:
+  # Run on every PR update targeting main. The Tauri artifact must always
+  # correspond to the exact PR head, including test-only and workflow changes.
   pull_request:
     branches: [main]
-    paths:
-      - "desktop-tauri/**"
-      - "backend/**"
-      - "frontend/**"
-      - ".github/workflows/tauri-spike.yml"
-      - ".github/scripts/tauri-runtime-smoke.py"
 
 permissions:
   contents: read
