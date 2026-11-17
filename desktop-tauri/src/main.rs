@@ -243,6 +243,11 @@ fn load_frontend_when_ready(
     }
     if let Err(error) = window.navigate(WEB_ORIGIN.parse().expect("valid local frontend URL")) {
         eprintln!("[Atlas Tauri] Could not open frontend: {error}");
+        let _ = window.show();
+        return;
+    }
+    if let Err(error) = window.show() {
+        eprintln!("[Atlas Tauri] Could not show application window: {error}");
     }
 }
 
@@ -255,6 +260,10 @@ fn main() {
             let window = app
                 .get_webview_window("main")
                 .expect("main window configured");
+            // Keep the startup shell hidden until both local services are healthy.
+            // This prevents WebView2/WebKit from briefly showing a connection error
+            // while the API and Next.js sidecar are still booting.
+            window.hide()?;
             let resource_dir = app.path().resource_dir()?;
             let user_data = electron_compatible_user_data_dir()?;
             let startup_started = Instant::now();
