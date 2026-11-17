@@ -1,8 +1,10 @@
 name: Tauri desktop spike
 
 on:
-  # Run on every PR update targeting main. The Tauri artifact must always
-  # correspond to the exact PR head, including test-only and workflow changes.
+  # Build the prototype for every branch update and PR update so artifacts
+  # always correspond to the exact source commit being tested.
+  push:
+    branches: [feat/tauri-desktop-spike]
   pull_request:
     branches: [main]
 
