@@ -177,6 +177,7 @@ jobs:
 
       - name: Set release version in Tauri manifests
         working-directory: desktop-tauri
+        shell: bash
         env:
           RELEASE_VERSION: ${{ needs.validate-manual-release.outputs.version }}
         run: |
@@ -187,6 +188,13 @@ jobs:
           config_path = Path("tauri.conf.json")
           config = json.loads(config_path.read_text())
           config["version"] = version
+          config["bundle"]["icon"] = [
+              "icons/generated/32x32.png",
+              "icons/generated/128x128.png",
+              "icons/generated/128x128@2x.png",
+              "icons/generated/icon.icns",
+              "icons/generated/icon.ico",
+          ]
           config_path.write_text(json.dumps(config, indent=2) + "\n")
           cargo_path = Path("Cargo.toml")
           cargo = cargo_path.read_text()
@@ -199,6 +207,7 @@ jobs:
 
       - name: Generate platform icons
         working-directory: desktop-tauri
+        shell: bash
         run: |
           python -c "import base64,pathlib; p=pathlib.Path('icons/icon.png'); p.write_bytes(base64.b64decode(p.read_text().strip(), validate=True))"
           python -m pip install pillow
@@ -210,6 +219,9 @@ jobs:
               image.convert("RGBA").resize((1024, 1024), Image.Resampling.LANCZOS).save("icons/source-1024.png")
           PY
           tauri icon icons/source-1024.png --output icons/generated
+          for icon in 32x32.png 128x128.png 128x128@2x.png icon.icns icon.ico; do
+            test -f "icons/generated/$icon" || { echo "Missing generated icon: $icon"; exit 1; }
+          done
 
       - name: Build Tauri installer
         working-directory: desktop-tauri
