@@ -21,6 +21,11 @@ on:
         required: true
         default: false
         type: boolean
+      publish_release:
+        description: "Publish a GitHub Release after building installers (creates a tag)"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -264,6 +269,7 @@ jobs:
           retention-days: 7
 
   publish:
+    if: ${{ inputs.publish_release }}
     needs: [validate-manual-release, build]
     runs-on: ubuntu-24.04
     permissions:
