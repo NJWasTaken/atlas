@@ -104,7 +104,10 @@ fn runtime_path(resource_dir: &Path, filename: &str) -> PathBuf {
 fn open_child_log(user_data: &Path, filename: &str) -> io::Result<fs::File> {
     let log_dir = user_data.join("logs");
     fs::create_dir_all(&log_dir)?;
-    fs::OpenOptions::new().create(true).append(true).open(log_dir.join(filename))
+    fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_dir.join(filename))
 }
 
 #[cfg(windows)]
@@ -118,7 +121,14 @@ fn configure_hidden_console(command: &mut Command) {
 fn configure_hidden_console(_command: &mut Command) {}
 
 fn spawn_api(resource_dir: &Path, user_data: &Path, secret: &str) -> io::Result<Child> {
-    let executable = runtime_path(resource_dir, if cfg!(windows) { "atlas-api.exe" } else { "atlas-api" });
+    let executable = runtime_path(
+        resource_dir,
+        if cfg!(windows) {
+            "atlas-api.exe"
+        } else {
+            "atlas-api"
+        },
+    );
     let log = open_child_log(user_data, "api.log")?;
     let mut command = Command::new(&executable);
     command
@@ -132,14 +142,22 @@ fn spawn_api(resource_dir: &Path, user_data: &Path, secret: &str) -> io::Result<
         .stdout(Stdio::from(log.try_clone()?))
         .stderr(Stdio::from(log));
     configure_hidden_console(&mut command);
-    command.spawn().map_err(|error| io::Error::new(
-        error.kind(),
-        format!("Failed to start API sidecar at {}: {error}", executable.display()),
-    ))
+    command.spawn().map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!(
+                "Failed to start API sidecar at {}: {error}",
+                executable.display()
+            ),
+        )
+    })
 }
 
 fn spawn_frontend(resource_dir: &Path, user_data: &Path) -> io::Result<Child> {
-    let node = runtime_path(resource_dir, if cfg!(windows) { "node.exe" } else { "node" });
+    let node = runtime_path(
+        resource_dir,
+        if cfg!(windows) { "node.exe" } else { "node" },
+    );
     let frontend_dir = runtime_path(resource_dir, "frontend");
     let server = frontend_dir.join("server.js");
     let log = open_child_log(user_data, "frontend.log")?;
@@ -156,13 +174,17 @@ fn spawn_frontend(resource_dir: &Path, user_data: &Path) -> io::Result<Child> {
         .stdout(Stdio::from(log.try_clone()?))
         .stderr(Stdio::from(log));
     configure_hidden_console(&mut command);
-    command.spawn().map_err(|error| io::Error::new(
-        error.kind(),
-        format!(
-            "Failed to start frontend: node={}, server={}, cwd={}: {error}",
-            node.display(), server.display(), frontend_dir.display()
-        ),
-    ))
+    command.spawn().map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!(
+                "Failed to start frontend: node={}, server={}, cwd={}: {error}",
+                node.display(),
+                server.display(),
+                frontend_dir.display()
+            ),
+        )
+    })
 }
 
 fn wait_for_health(url: &'static str, timeout: Duration) -> Result<(), String> {
