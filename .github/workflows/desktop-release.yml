@@ -191,7 +191,7 @@ jobs:
           cargo_path = Path("Cargo.toml")
           cargo = cargo_path.read_text()
           import re
-          cargo, count = re.subn(r'(?m)^(version = ")[^"]+(")$', rf'\\g<1>{version}\\g<2>', cargo, count=1)
+          cargo, count = re.subn(r'(?m)^(version = ")[^"]+(")$', rf'\g<1>{version}\g<2>', cargo, count=1)
           if count != 1:
               raise SystemExit("Could not update Cargo package version")
           cargo_path.write_text(cargo)
@@ -219,7 +219,7 @@ jobs:
               test -n "$(find "$BUNDLE_DIR/deb" -maxdepth 1 -name '*.deb' -print -quit)"
               ;;
           esac
-          printf 'Atlas version: %s\\nSource commit: %s\\nPlatform: %s\\nArchitecture: %s\\n' \
+          printf 'Atlas version: %s\nSource commit: %s\nPlatform: %s\\nArchitecture: %s\\n' \
             "${{ needs.validate-manual-release.outputs.version }}" \
             "${{ needs.validate-manual-release.outputs.source_sha }}" \
             "${{ matrix.platform }}" "${{ matrix.arch }}" > "$BUNDLE_DIR/build-info.txt"
