@@ -65,9 +65,9 @@ jobs:
           NEXT_PUBLIC_API_URL=http://127.0.0.1:43121/api/v1 npm --prefix frontend run build
           python -m pip install -r backend/requirements-desktop.txt
           python -m pip install pyinstaller
-          pyinstaller --clean --onefile --name atlas-api --paths backend \\
-            --add-data "backend/migrations${DATA_SEPARATOR}migrations" \\
           pyinstaller --clean --onefile --name atlas-api --paths backend --add-data "backend/migrations${DATA_SEPARATOR}migrations" --add-data "backend/alembic.ini${DATA_SEPARATOR}." --collect-all alembic --collect-all sqlalchemy --collect-all passlib --collect-all bcrypt --hidden-import passlib.handlers.bcrypt backend/desktop_entry.py
+          python - <<'PY'
+          from pathlib import Path
           import shutil, sys
           root = Path.cwd()
           runtime = root / "desktop-tauri" / "resources" / "runtime"
