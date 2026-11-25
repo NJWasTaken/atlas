@@ -16,6 +16,8 @@ on:
     branches: [main, feature/large-pdf-local-storage]
     paths:
       - "desktop/**"
+      - "desktop-tauri/**"
+      - ".github/scripts/tauri-runtime-smoke.py"
       - "backend/**"
       - "frontend/**"
       - ".github/workflows/desktop-ci.yml"
@@ -24,7 +26,7 @@ permissions:
   contents: read
 
 jobs:
-  package-linux:
+  integration:
     runs-on: ubuntu-24.04
     services:
       postgres:
