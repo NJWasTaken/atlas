@@ -123,7 +123,7 @@ jobs:
               raise SystemExit("Tauri icon generation missed: " + ", ".join(missing))
           PY
 
-      - name: Compile Tauri desktop binary
+      - name: Compile Tauri desktop application
         working-directory: desktop-tauri
         run: cargo build --release
 
@@ -144,7 +144,7 @@ jobs:
         run: >-
           python -c 'from pathlib import Path; p=Path("desktop-tauri/target/release/runtime/frontend/.next/BUILD_ID"); assert p.is_file(), f"Missing staged Next.js build: {p}"'
 
-      - name: Upload Tauri prototype
+      - name: Upload Tauri runtime check artifact
         uses: actions/upload-artifact@v4
         with:
           name: atlas-tauri-${{ matrix.platform }}-runtime-check
