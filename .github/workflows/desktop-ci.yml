@@ -5,6 +5,8 @@ on:
     branches: [main, feature/large-pdf-local-storage]
     paths:
       - "desktop/**"
+      - "desktop-tauri/**"
+      - ".github/scripts/tauri-runtime-smoke.py"
       - "backend/**"
       - "frontend/**"
       - ".github/workflows/desktop-ci.yml"
@@ -105,15 +107,7 @@ jobs:
         env:
           CI: true
         run: npx playwright test
-      - name: Package Electron application
-        working-directory: desktop
-        run: |
-          npm install --no-audit --no-fund
-          npx electron-builder --linux AppImage --publish never
-      - name: Upload desktop smoke artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: atlas-linux-desktop-smoke
-          path: desktop/dist/*
-          if-no-files-found: error
-          retention-days: 7
+      # Tauri compilation and packaged-runtime smoke coverage run in
+      # tauri-spike.yml on every pull request to main. This workflow keeps
+      # backend/frontend integration coverage without building the retired
+      # Electron release artifact.
