@@ -11,18 +11,18 @@ This backlog is based on the [README roadmap](../README.md#roadmap) and the impl
 
 ## Prioritized roadmap
 
-This is the active implementation order. Reorder it only when new product constraints or release blockers justify doing so.
+This is the active implementation order, aligned with the current product decisions and the PR sequence in the README.
 
-0. [ ] **Tauri desktop migration (current architectural initiative)** — replace Electron with Tauri/Rust while retaining the existing FastAPI sidecar and Next.js standalone frontend initially. Benchmark the current cold-start stages, build a Rust-managed runtime for both existing services, preserve user data and lifecycle behavior, and validate Windows/macOS/Linux before changing the release pipeline. The isolated shell spike lives in `desktop-tauri/`; it is not a distributable app yet.
-
-1. [ ] **Desktop UX polish and roadmap accuracy** — remove Electron's default menu bar while retaining native window controls; gracefully stop bundled services on app exit and during Windows uninstall; configure platform icon/installer branding; verify install, relaunch, uninstall, and data persistence. (Implementation in PR #24; end-to-end lifecycle validation remains.)
-2. [ ] **Efficient private PDF delivery** — add authenticated HTTP Range responses (206, Content-Range, Accept-Ranges, correct length/cache headers), switch PDF.js to URL-based loading, and test range boundaries, ownership, and browser behavior.
-3. [ ] **Large-document reader performance** — audit virtualization, lazy text extraction, canvas/text-layer lifecycle, cancellation, and memory cleanup; stress-test large and mixed-dimension PDFs while preserving annotations and reading behavior.
-4. [ ] **Local PDF storage operations** — handle disk-full/storage failures, document persistent storage configuration, and provide coordinated local PDF + database backup/restore guidance without a paid storage dependency.
-5. [ ] **My Universe** — implement personal notes and saved concepts/resources, then personal questions and retrieval/search.
-6. [ ] **Accessibility and responsive audit** — complete manual screen-reader, keyboard, reduced-motion, mobile-layout, and physical-device touch testing across all views.
-7. [ ] **Data export and backup/restore** — give users a dependable way to export their learning data and recover it.
-8. [ ] **Operational reliability and deployment** — improve performance, logging, error reporting, deployment, secrets management, database backup, and production monitoring.
+1. [ ] **Tauri desktop runtime reliability (PR 1)** — validate startup and health checks, process shutdown, SQLite migration compatibility, reuse of the legacy Atlas user-data profile, and clean install/upgrade/relaunch/uninstall behavior. The release workflow has switched to Tauri, but installed-app validation is not complete.
+2. [ ] **Configurable managed PDF storage (PR 2)** — add a native folder picker, Atlas-managed library directory, persisted configuration, and journalled copy/verify migration. Preserve the current profile-local directory as the default and never delete originals before verification.
+3. [ ] **Efficient private PDF delivery (PR 3)** — add authenticated HTTP Range responses (206, Content-Range, Accept-Ranges, correct length/cache headers), switch PDF.js to URL-based loading, and test range boundaries, ownership, and browser behavior.
+4. [ ] **Balanced Explore refinement (PR 4)** — improve document-library organisation, reading/annotation ergonomics, and large-document rendering/memory behaviour together. Validate representative real PDFs and preserve existing reading state and annotations.
+5. [ ] **My Universe foundations (PR 5)** — implement independent personal notes, saved concepts/resources/discoveries, personal questions, and contextual links to academic and Explore records.
+6. [ ] **My Universe connections and retrieval (PR 6)** — add explicit typed relationships, unified search, and a visual knowledge graph after the underlying items and links are stable.
+7. [ ] **Optional Spotify study companion (PR 7)** — explore playlist association with subjects/study activities and useful session controls. Spotify must remain optional and must never block core Atlas functionality.
+8. [ ] **Accessibility and responsive audit** — complete manual screen-reader, keyboard, reduced-motion, mobile-layout, and physical-device touch testing.
+9. [ ] **Data export and backup/restore** — provide dependable export and recovery for structured data and the PDF library as one coordinated data set.
+10. [ ] **Operational reliability and deployment** — improve performance, logging, error reporting, deployment, secrets management, database backup, and production monitoring.
 
 ## Recently completed
 
@@ -124,42 +124,60 @@ The next PR should finish the remaining reader work as one cohesive quality pass
 
 Keep freehand ink/area markup out of this PR unless the evaluation shows it is essential to the reading workflow; it is explicitly optional.
 
-## Next substantial change: zero-cost large PDF support
+## Explore follow-up sequence
 
-Keep these follow-up PRs separate and do not add a paid object-storage dependency.
+Explore remains a focused PDF reading room. The next work is ordered to protect the user's local documents first, then improve delivery and reading quality. Do not add a paid object-storage dependency.
 
-1. [ ] **Efficient private PDF delivery:** implement authenticated HTTP Range support (206 Partial Content, Content-Range, Accept-Ranges, correct length/cache headers) for locally stored files; switch PDF.js to URL-based loading rather than downloading the full file into an ArrayBuffer; test range boundaries, invalid ranges, ownership, and browser behavior.
-2. [ ] **Large-document reader performance:** audit page virtualization, lazy text extraction, canvas/text-layer lifecycle, cancellation of obsolete renders, and memory cleanup; stress-test with the 44 MB textbook and long/mixed-dimension PDFs while preserving annotations and reading behavior.
-3. [ ] **Local storage operations:** document/configure persistent PDF storage for deployment, handle disk-full and storage failures, and provide coordinated local PDF + PostgreSQL backup/restore guidance. No cloud storage service or recurring storage cost.
+1. [ ] **Managed PDF storage location:** add a native Tauri folder picker for the parent directory of an Atlas-managed library. Persist the selected location in desktop configuration, keep relative filenames in the database, and retain the current profile-local `pdfs/` directory as the default.
+2. [ ] **Safe library migration:** implement a durable migration journal; validate destination writability and free space; copy to staging; verify file sizes and SHA-256 checksums; update database/configuration only after successful verification; preserve originals until the new library is confirmed. Handle interrupted copies, missing drives, permission loss, and rollback.
+3. [ ] **Efficient private PDF delivery:** implement authenticated HTTP Range support (206 Partial Content, Content-Range, Accept-Ranges, correct length/cache headers) for local files; switch PDF.js to URL-based loading rather than downloading the full file into an ArrayBuffer; test range boundaries, invalid ranges, ownership, and browser behaviour.
+4. [ ] **Balanced reader and library refinement:** audit virtualization, lazy text extraction, canvas/text-layer lifecycle, cancellation, and memory cleanup; improve library organisation and reading navigation; stress-test large and mixed-dimension PDFs while preserving annotations and reading behaviour.
+5. [ ] **Real-world validation:** review representative PDFs, paper/sepia/dark theme contrast, long documents, screen-reader operation, and physical touch devices.
 
+Hosted/server deployments continue to use `ATLAS_PDF_STORAGE_DIR`; desktop folder selection must not silently change hosted storage semantics.
 
 ## Desktop application and release engineering
 
-**Current production implementation:** Electron desktop application with a bundled local API and frontend. **Migration direction:** evaluate Tauri/Rust as the desktop shell while keeping the existing FastAPI backend and Next.js standalone frontend unchanged for the first phase. End users should not need Node.js, Python, Docker, PostgreSQL, or a cloud-storage account.
+**Desktop target:** Tauri v2. PR #26 switched the manual desktop release workflow from Electron to Tauri installers. The Electron source remains in the repository as legacy code but is no longer the release path. A successful installer build is not the same as completed installed-app validation.
 
-- [x] Add the Electron main/preload process with hardened BrowserWindow defaults, local-origin navigation restrictions, validated external-link handling, startup diagnostics, and clean child-process shutdown.
-- [x] Bundle the Next.js standalone server and a platform-specific FastAPI sidecar; verify startup and health checks on Windows, macOS, and Linux through successful installer launches.
-- [x] Add a desktop runtime entry point that selects SQLite, stores the database and PDF directory under Electron `userData`, persists a generated per-install JWT secret, and runs Alembic migrations before serving requests.
-- [x] Add SQLite engine configuration with thread-safe connections and foreign-key enforcement; keep PostgreSQL as the default development and CI database.
-- [x] Ensure desktop mode uses a loopback-only API origin and no API key, JWT secret, local database, or uploaded PDF is bundled in the installer.
-- [ ] Add migration tests for a fresh desktop SQLite database and upgrades from the previous desktop schema; verify PDF metadata and files remain consistent.
-- [ ] Expand PR CI to cover frontend build, Playwright, backend tests, cross-platform Electron packaging smoke tests, and artifact inspection.
-- [x] Add a manually versioned release workflow that builds Windows, macOS, and Linux installers and publishes them to GitHub Releases. Configure macOS signing/notarisation only when repository secrets are present.
-- [ ] Document desktop installation, data locations, upgrade behavior, backup/restore, uninstall behavior, and troubleshooting.
-- [ ] Validate clean install, relaunch, app upgrade, and uninstall/reinstall while confirming SQLite data and PDFs persist.
-- [ ] Record Electron startup timings for API spawn/readiness, frontend spawn/readiness, and window navigation on a clean Windows install; compare against the Tauri prototype.
-- [ ] Implement Tauri-managed startup and graceful shutdown for the existing FastAPI executable and bundled Node/Next.js runtime before deprecating Electron.
+- [x] Add a Tauri v2 Rust shell that starts the existing FastAPI sidecar and bundled Node/Next.js standalone frontend.
+- [x] Reuse the legacy Electron `Atlas` user-data paths on Windows, macOS, and Linux to avoid silently creating a second profile.
+- [x] Configure desktop SQLite, per-connection foreign-key enforcement, per-install JWT secret persistence, and Alembic migrations before serving requests.
+- [x] Bind desktop services to loopback and bundle the API, Node runtime, and Next.js standalone assets.
+- [x] Switch the manual release workflow to Windows x64 NSIS, macOS Intel/Apple Silicon DMGs, and Linux x64 AppImage/DEB installers (PR #26). Installers are currently unsigned.
+- [x] Keep the startup shell visible during service startup and expose a visible failure title instead of leaving a hidden/blank window when health checks fail.
+- [x] Detect sidecar process exit during startup health checks and report it immediately rather than waiting for the full timeout.
+- [x] Avoid signalling a child process after it has already exited during shutdown.
+- [x] Extend the Tauri runtime smoke test to upgrade a database from revision `0008_pdf_annotation_styles` to the current head, create an account, restart the API against the same profile, and verify the account remains available.
+- [ ] Run and inspect the multi-platform Tauri CI on this PR; Rust helper tests and packaged API/frontend smoke tests must pass.
+- [ ] Validate clean install, relaunch, app upgrade, and uninstall/reinstall on Windows, macOS, and Linux.
+- [ ] Verify a real existing Electron profile retains SQLite data, PDFs, reading positions, bookmarks, and annotations after a Tauri upgrade.
+- [ ] Add failure/recovery tests for interrupted migrations, missing runtime resources, and corrupt or unavailable user data.
+- [ ] Document supported install paths, user-data locations, upgrade behavior, backup/restore, uninstall behavior, and troubleshooting (this PR updates the Tauri runtime guide; broader user-facing guidance remains).
+- [ ] Add coordinated database + PDF backup/restore and export.
+- [ ] Remove legacy Electron development/packaging code only after Tauri compatibility and release validation are complete.
 
 ## My Universe
 
-- [ ] Implement personal notes and saved resources/concepts.
-- [ ] Add personal questions and retrieval/search.
+My Universe is a full personal knowledge environment, separate from Explore's PDF reading room.
 
-## Release readiness and refinement
+- [ ] Implement independent notes with contextual links to subjects, topics, concepts, documents, and saved resources.
+- [ ] Implement saved concepts, topics, resources, and discoveries from Academics and Explore.
+- [ ] Add personal questions with open, investigating, answered, and revisit states.
+- [ ] Add explicit typed connections such as related to, prerequisite of, builds upon, contrasts with, example of, and applied in.
+- [ ] Add unified search and a useful personal knowledge home.
+- [ ] Add a visual knowledge graph after the underlying item and relationship model is stable.
+- [ ] Preserve source references when saving or linking PDF annotations; avoid duplicating passages as unrelated content.
+- [ ] Keep My Universe user-directed and explainable; no AI-generated organisation or built-in AI chatbot.
 
-- [ ] Add data export and backup/restore workflows.
-- [ ] Complete a full mobile-layout, keyboard-navigation, screen-reader, and reduced-motion audit across all views. The current PR adds live announcements for the newly hardened async states but does not claim full accessibility completion.
+## Integrations and release readiness
+
+- [ ] Build an optional Spotify study companion, starting with playlist association to subjects or study activities. Keep Spotify authentication and availability independent from core Atlas functionality.
+- [ ] Add playback/session controls only where supported by the current Spotify platform and useful to the study workflow.
+- [ ] Complete a full mobile-layout, keyboard-navigation, screen-reader, and reduced-motion audit across all views.
+- [ ] Add data export and backup/restore for the SQLite/PostgreSQL data and associated PDF files.
 - [ ] Add search across subjects, concepts, notes, and saved items as those modules become available.
 - [ ] Measure and improve performance, reliability, logging, and operational error reporting.
 - [ ] Define deployment, secrets management, database backup, and production monitoring requirements.
+- [ ] Keep built-in AI integrations and a proprietary chatbot out of scope.
 
