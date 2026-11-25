@@ -42,15 +42,15 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential curl wget file \
-            libssl-dev libgtk-3-dev libayatana-appindicator3-dev \
-            librsvg2-dev libwebkit2gtk-4.1-dev
+          sudo apt-get install -y build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libwebkit2gtk-4.1-dev
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
+
+      - name: Install Tauri CLI
+        run: npm install --global @tauri-apps/cli@2
 
       - name: Check formatting
         working-directory: desktop-tauri
@@ -65,11 +65,7 @@ jobs:
           NEXT_PUBLIC_API_URL=http://127.0.0.1:43121/api/v1 npm --prefix frontend run build
           python -m pip install -r backend/requirements-desktop.txt
           python -m pip install pyinstaller
-          pyinstaller --clean --onefile --name atlas-api --paths backend \
-            --add-data "backend/migrations${DATA_SEPARATOR}migrations" \
-            --add-data "backend/alembic.ini${DATA_SEPARATOR}." \
-            --collect-all alembic --collect-all sqlalchemy --collect-all passlib --collect-all bcrypt \
-            --hidden-import passlib.handlers.bcrypt backend/desktop_entry.py
+          pyinstaller --clean --onefile --name atlas-api --paths backend --add-data "backend/migrations${DATA_SEPARATOR}migrations" --add-data "backend/alembic.ini${DATA_SEPARATOR}." --collect-all alembic --collect-all sqlalchemy --collect-all passlib --collect-all bcrypt --hidden-import passlib.handlers.bcrypt backend/desktop_entry.py
           python - <<'PY'
           from pathlib import Path
           import shutil, sys
@@ -98,8 +94,7 @@ jobs:
           python -c "import base64,pathlib; p=pathlib.Path('icons/icon.png'); p.write_bytes(base64.b64decode(p.read_text().strip(), validate=True))"
           python -c "import pathlib; p=pathlib.Path('icons/icon.png'); assert p.read_bytes().startswith(bytes.fromhex('89504e470d0a1a0a')), 'Invalid PNG icon'"
 
-      - name: Generate Windows Tauri icon
-        if: runner.os == 'Windows'
+      - name: Generate Tauri platform icons
         working-directory: desktop-tauri
         shell: bash
         run: |
@@ -110,13 +105,24 @@ jobs:
 
           source = Path("icons/icon.png")
           with Image.open(source) as image:
-              image.convert("RGBA").save(
-                  "icons/icon.ico",
-                  format="ICO",
-                  sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
-              )
+              image.convert("RGBA").resize(
+                  (1024, 1024), Image.Resampling.LANCZOS
+              ).save("icons/source-1024.png")
           PY
-          python -c "import pathlib; p=pathlib.Path('icons/icon.ico'); assert p.is_file() and p.stat().st_size > 0, 'ICO generation failed'"
+          tauri icon icons/source-1024.png --output icons/generated
+          python - <<'PY'
+          from pathlib import Path
+          required = [
+              "32x32.png",
+              "128x128.png",
+              "128x128@2x.png",
+              "icon.icns",
+              "icon.ico",
+          ]
+          missing = [name for name in required if not (Path("icons/generated") / name).is_file()]
+          if missing:
+              raise SystemExit("Tauri icon generation missed: " + ", ".join(missing))
+          PY
 
       - name: Compile Tauri desktop binary
         working-directory: desktop-tauri
