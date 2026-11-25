@@ -51,7 +51,7 @@ Tauri v2 / Rust shell
 - The local startup shell remains visible during initialization. Startup failures keep the shell visible, set a failure title, and write diagnostics instead of leaving a hidden or blank window.
 - Rust owns both child processes. Unix shutdown sends SIGTERM, waits briefly, and force-kills a process that does not exit; Windows uses the child-process kill fallback.
 - Services bind only to loopback. The frontend communicates with the local API origin.
-- Runtime service logs are stored under the Atlas profile's `logs/` directory.
+- Startup diagnostics are appended to `logs/desktop.log`; the API and frontend write to `logs/api.log` and `logs/frontend.log` under the Atlas profile.
 - User data is intended to survive application updates and reinstalls unless the user explicitly removes it. Actual installer upgrade/uninstall behavior remains a release validation item.
 
 ### Build, release, and validation
