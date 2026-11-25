@@ -528,6 +528,10 @@ A visual knowledge graph is part of the longer-term My Universe experience, afte
 - Interface density.
 - Typography preferences.
 
+**Integrations**
+- Optional Spotify study companion.
+- Playlist associations for subjects or study activities.
+- Integration controls that do not affect core Atlas functionality.
 
 **Data management**
 - Export personal information.
@@ -576,11 +580,11 @@ The modules are designed around a few core workflows.
 ## Journey 4: Exploring something outside the syllabus
 
 1. Open Explore.
-2. Search for an interesting topic or ask a question.
-3. Investigate related concepts.
-4. Create an exploration session.
-5. Save useful discoveries.
-6. Connect them to existing knowledge in My Universe.
+2. Import or open a PDF that interests you.
+3. Read, search, bookmark, and annotate useful passages.
+4. Save a relevant discovery or source reference to My Universe.
+5. Add a note or question about the idea.
+6. Connect it to existing knowledge when a useful relationship becomes clear.
 
 ## Journey 5: Building a personal knowledge network
 
@@ -692,6 +696,8 @@ The current project uses the following technologies.
 | Language | TypeScript | Frontend type safety |
 | Styling | CSS | Visual design and layouts |
 | Icons | Lucide React | Interface icons |
+| Desktop shell | Tauri v2 / Rust | Native window and local service lifecycle |
+| Desktop database | SQLite | Local structured data |
 | Backend framework | FastAPI | REST API |
 | Backend language | Python | Application logic |
 | ORM | SQLAlchemy | Database interaction |
