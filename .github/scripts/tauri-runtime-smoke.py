@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import closing
 import os
 import secrets
 import signal
@@ -125,13 +126,13 @@ with tempfile.TemporaryDirectory(prefix="atlas-tauri-smoke-") as data_dir, tempf
             [sys.executable, "-m", "alembic", "upgrade", "0008_pdf_annotation_styles"],
             cwd=backend_dir, env=env, check=True, timeout=60,
         )
-        with sqlite3.connect(database_path) as connection:
+        with closing(sqlite3.connect(database_path)) as connection:
             revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
         if revision != "0008_pdf_annotation_styles":
             raise RuntimeError(f"Expected legacy schema 0008, found {revision}")
 
         api_process = start_api(env, api_log, creation_flags)
-        with sqlite3.connect(database_path) as connection:
+        with closing(sqlite3.connect(database_path)) as connection:
             revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
         if revision != "0009_explore_local_pdf_storage":
             raise RuntimeError(f"Packaged API did not upgrade the legacy schema: {revision}")
