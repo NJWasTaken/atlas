@@ -263,11 +263,7 @@ fn stop_children(children: &SharedChildren) {
     }
 }
 
-fn show_startup_failure(
-    window: &WebviewWindow,
-    error: &str,
-    user_data: Option<&Path>,
-) {
+fn show_startup_failure(window: &WebviewWindow, error: &str, user_data: Option<&Path>) {
     let message = format!("[Atlas Tauri] Startup failed: {error}");
     eprintln!("{message}");
     if let Some(user_data) = user_data {
@@ -370,11 +366,7 @@ fn main() {
                     let mut api = api;
                     let _ = api.kill();
                     let _ = api.wait();
-                    show_startup_failure(
-                        &window,
-                        &error.to_string(),
-                        Some(&user_data),
-                    );
+                    show_startup_failure(&window, &error.to_string(), Some(&user_data));
                     return Ok(());
                 }
             };
@@ -509,13 +501,8 @@ mod tests {
         let children = Arc::new(Mutex::new(vec![child]));
         let started = Instant::now();
 
-        let error = wait_for_health(
-            "http://127.0.0.1:1",
-            Duration::from_secs(10),
-            &children,
-            0,
-        )
-        .expect_err("an exited sidecar must not pass its health check");
+        let error = wait_for_health("http://127.0.0.1:1", Duration::from_secs(10), &children, 0)
+            .expect_err("an exited sidecar must not pass its health check");
 
         assert!(error.contains("exited before becoming healthy"));
         assert!(started.elapsed() < Duration::from_secs(3));
@@ -532,13 +519,8 @@ mod tests {
         let children = Arc::new(Mutex::new(vec![child]));
         let started = Instant::now();
 
-        let error = wait_for_health(
-            "http://127.0.0.1:1",
-            Duration::from_secs(10),
-            &children,
-            0,
-        )
-        .expect_err("an exited sidecar must not pass its health check");
+        let error = wait_for_health("http://127.0.0.1:1", Duration::from_secs(10), &children, 0)
+            .expect_err("an exited sidecar must not pass its health check");
 
         assert!(error.contains("exited before becoming healthy"));
         assert!(started.elapsed() < Duration::from_secs(3));
