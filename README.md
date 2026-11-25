@@ -634,6 +634,8 @@ This approach keeps the initial development and deployment manageable while pres
                   PostgreSQL
 ```
 
+**Desktop runtime:** Tauri v2 wraps the same Next.js frontend and FastAPI API in a local application. The Rust shell starts the bundled API and Next.js standalone server on loopback. Desktop structured data uses SQLite; PostgreSQL remains the development and CI database. The API stores PDFs in the Atlas-managed profile directory by default.
+
 ### Frontend
 
 The frontend is responsible for:
