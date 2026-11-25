@@ -455,6 +455,52 @@ mod tests {
         assert_eq!(path, Path::new("/opt/atlas/runtime/atlas-api"));
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn health_check_reports_a_sidecar_exit_without_waiting_for_timeout() {
+        let child = Command::new("sh")
+            .args(["-c", "exit 7"])
+            .spawn()
+            .expect("test sidecar should start");
+        let children = Arc::new(Mutex::new(vec![child]));
+        let started = Instant::now();
+
+        let error = wait_for_health(
+            "http://127.0.0.1:1",
+            Duration::from_secs(10),
+            &children,
+            0,
+        )
+        .expect_err("an exited sidecar must not pass its health check");
+
+        assert!(error.contains("exited before becoming healthy"));
+        assert!(started.elapsed() < Duration::from_secs(3));
+        stop_children(&children);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn health_check_reports_a_sidecar_exit_without_waiting_for_timeout() {
+        let child = Command::new("cmd")
+            .args(["/C", "exit", "7"])
+            .spawn()
+            .expect("test sidecar should start");
+        let children = Arc::new(Mutex::new(vec![child]));
+        let started = Instant::now();
+
+        let error = wait_for_health(
+            "http://127.0.0.1:1",
+            Duration::from_secs(10),
+            &children,
+            0,
+        )
+        .expect_err("an exited sidecar must not pass its health check");
+
+        assert!(error.contains("exited before becoming healthy"));
+        assert!(started.elapsed() < Duration::from_secs(3));
+        stop_children(&children);
+    }
+
     #[test]
     fn user_data_directory_keeps_electron_application_name() {
         let path =
