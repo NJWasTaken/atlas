@@ -500,7 +500,7 @@ Connections should be created and managed explicitly by the student.
 
 ### 4.5 Knowledge graph
 
-Visual knowledge graphs are explicitly out of scope. Personal items should remain accessible through focused lists and search rather than a graph canvas.
+A visual knowledge graph is part of the longer-term My Universe experience, after the foundational notes, saved items, questions, and explicit connections are in place. It is planned, not implemented.
 
 ---
 
@@ -701,7 +701,7 @@ The current project uses the following technologies.
 
 Additional technologies may be introduced as individual modules mature.
 
-The architecture should favour lightweight dependencies and avoid adding infrastructure without a clear requirement. Atlas is moving towards an Electron desktop distribution: a bundled Next.js frontend and FastAPI sidecar, SQLite for desktop structured data, and PDF files stored under the operating system's per-user application-data directory. PostgreSQL remains the development database.
+The architecture should favour lightweight dependencies and avoid adding infrastructure without a clear requirement. The desktop target is Tauri v2: a bundled Next.js frontend and FastAPI sidecar, SQLite for desktop structured data, and PDF files stored under the operating system's per-user Atlas application-data directory. PostgreSQL remains the development and CI database.
 
 ---
 
@@ -1005,139 +1005,114 @@ Privacy and security should be considered at the design stage rather than added 
 
 # Development Status
 
-Atlas is being developed incrementally.
-
-The product vision is broader than the current implementation. The following table distinguishes the intended features from the work that has actually been started.
-
-**Status definitions**
-
-- **Implemented:** A working implementation exists in the project.
-- **Partial:** The basic functionality exists, but the complete intended experience is not available.
-- **Planned:** Part of the product design, but not yet implemented.
-- **Future:** A longer-term enhancement.
+Atlas is being developed incrementally. The product vision is broader than the current implementation; this snapshot distinguishes working functionality from planned work.
 
 | Component | Status |
 |---|---|
-| Next.js application foundation | Implemented |
-| Dark celestial design foundation | Implemented |
-| User authentication | Implemented |
-| Subject CRUD | Implemented |
-| PostgreSQL integration | Implemented |
-| Docker database setup | Implemented |
-| Home dashboard | Partial |
-| Academic calendar | Partial |
-| Calendar day notes | Partial |
-| Rotating quotations and transitions | Partial |
-| Academics backend models | Partial |
-| Topic hierarchy | Partial |
-| Concept management | Partial |
-| Concept progress tracking | Partial |
-| Academic readiness | Partial |
-| Examination management | Partial |
-| Subject workspace UI | In progress |
-| Manual syllabus creation | Partial |
-| PDF syllabus extraction | Planned |
-| Syllabus review and confirmation | Planned |
-| Syllabus versioning | Planned |
-| Revision recommendation engine | Planned |
-| Prerequisite awareness | Future |
-| Refined PDF reading and annotation experience | In progress |
-| Exploration sessions | Planned |
-| My Universe | Planned |
-| Personal notes system | Planned |
-| Saved concepts and resources | Planned |
-| Knowledge connections | Planned |
-| Visual knowledge graph | Out of scope |
-| Data export and backup | Future |
+| Next.js application and celestial design foundation | Implemented |
+| Authentication and subject management | Implemented |
+| Home overview, calendar, date notes and quotations | Implemented |
+| Manual syllabus construction and PDF syllabus import/review | Implemented |
+| Syllabus versioning, concept review history and prerequisites | Implemented |
+| Academic readiness and examination management | Implemented |
+| Explore private PDF library and PDF.js reader | Implemented |
+| PDF bookmarks, annotations, editing and annotated-copy export | Implemented |
+| Large-document nearby-page virtualization | Implemented; further performance work planned |
+| FastAPI desktop sidecar and SQLite runtime | Implemented |
+| Tauri desktop release pipeline | Implemented; installed-app validation remains |
+| Tauri user-data compatibility with the legacy Atlas profile | Implemented in runtime; real upgrade validation remains |
+| Configurable managed PDF library location | Planned |
+| Efficient authenticated PDF byte-range delivery | Planned |
+| Balanced Explore library, reader and large-document refinement | In progress |
+| My Universe: notes, saved resources, questions and connections | Planned |
+| My Universe visual knowledge graph | Planned |
+| Optional Spotify study companion | Planned |
+| Data export, backup and restore | Planned |
+| Built-in AI integrations or chatbot | Out of scope |
 
-*This is a project-level status snapshot, not a claim that every partially implemented feature has been fully tested or production-hardened. Verify the current repository before treating an item as complete.*
+*Implemented does not mean every platform and real-world edge case has completed manual release validation. See [the architecture](docs/ARCHITECTURE.md) and [the active backlog](docs/TODO.md) for precise status.*
 
 ---
 
 # Roadmap
 
-The development roadmap prioritises a dependable academic foundation, a high-quality PDF reading experience, and personal knowledge management.
+The roadmap reflects the current product decisions:
 
-## Phase 1 — Foundation
+- **Reliability first.** Protect local data and make the desktop runtime predictable before expanding the product.
+- **Tauri v2** is the desktop target.
+- **Managed PDF storage.** Users will choose where Atlas keeps its managed PDF library; Atlas will own the directory structure and migration.
+- **Explore gets balanced investment** across the library experience, reading/annotation ergonomics, and large-document performance.
+- **My Universe is a full personal knowledge environment:** notes, saved concepts/resources, questions, explicit relationships, search, and eventually a visual graph.
+- **Spotify is an optional study companion.** It must never be required for Atlas to work.
+- **No built-in AI integrations or chatbot.** Atlas remains user-directed and explainable.
 
-- Establish the application structure.
-- Set up authentication.
-- Integrate PostgreSQL.
-- Create the primary navigation.
-- Establish the visual design system.
-- Implement the Home dashboard.
-- Implement subject management.
+## Phase 1 — Desktop reliability
 
-## Phase 2 — Academics
+- Validate Tauri startup, health checks, process shutdown, and diagnostics.
+- Verify SQLite migrations from the previous desktop schema.
+- Verify the legacy Atlas user-data directory is reused.
+- Test clean installation, relaunch, upgrade, and uninstall/reinstall on supported platforms.
+- Verify that databases, PDFs, reading positions, bookmarks, annotations, and the instance secret survive upgrades.
+- Reconcile desktop documentation with the shipped runtime and release workflow.
 
-- Complete the subject workspace.
-- Implement topic hierarchy management.
-- Implement concept management.
-- Implement concept progress tracking.
-- Implement academic readiness summaries.
-- Integrate examination management.
-- Support manual syllabus creation.
+## Phase 2 — Managed PDF storage
 
-## Phase 3 — Syllabus Intelligence
+- Add a native Tauri folder picker for the parent location of an Atlas-managed PDF library.
+- Keep the current profile-local PDF directory as the default.
+- Persist storage configuration outside the database.
+- Migrate existing PDFs using a journalled copy-and-verify workflow with checksums.
+- Preserve originals until the new library is verified and the database points to it safely.
+- Handle missing drives, permission changes, insufficient space, interrupted copies, and recovery.
+- Keep hosted/server storage configured through `ATLAS_PDF_STORAGE_DIR`.
 
-- Implement PDF upload.
-- Extract text from syllabus documents.
-- Detect headings and hierarchy.
-- Preserve page references.
-- Flag uncertain extraction results.
-- Build the syllabus review interface.
-- Allow users to confirm and save extracted structures.
-- Introduce syllabus versioning.
+## Phase 3 — Explore reliability and experience
 
-## Phase 4 — Revision and Academic Intelligence
+- Implement authenticated HTTP Range delivery and URL-based PDF.js loading.
+- Audit rendering lifecycle, lazy text extraction, cancellation, and memory cleanup.
+- Improve document library organisation and navigation.
+- Refine reading and annotation interactions without broadening Explore into a second knowledge-management system.
+- Validate long, mixed-dimension and representative real-world PDFs.
+- Complete manual screen-reader and physical touch-device checks.
 
-- Develop explainable revision recommendations.
-- Improve examination-aware revision suggestions.
-- Introduce review history.
-- Explore spaced-repetition scheduling.
-- Introduce prerequisite relationships.
-- Improve academic progress visualisation.
+## Phase 4 — My Universe
 
-## Phase 5 — Explore PDF reader
+- Implement independent notes and contextual links to subjects, concepts, documents, and saved resources.
+- Add saved concepts, topics, resources, and discoveries.
+- Add personal questions with investigation/revisit states.
+- Add explicit typed relationships between knowledge items.
+- Add unified search and a useful personal knowledge home.
+- Introduce a visual knowledge graph after the underlying data model and retrieval workflows are dependable.
 
-- Refine the private PDF library and reading surface.
-- Improve rendering performance for long documents.
-- Add selection-first, colour-coded PDF annotations and anchored comments.\n- Add a locked highlighter/underline mode for repeated marking.
-- Build a navigable annotation review panel.
-- Export annotations into a copy of the PDF.
-- Complete keyboard, touch, accessibility, and reading-theme refinement.
+## Phase 5 — Integrations and refinement
 
-## Phase 6 — My Universe
+- Add an optional Spotify study companion, beginning with playlists associated with study activities or subjects.
+- Keep Spotify authentication and availability separate from core Atlas functionality.
+- Add playback/session controls only where supported and useful.
+- Complete accessibility, responsive UX, performance, and data portability work.
 
-- Build the personal knowledge repository.
-- Implement notes and saved items.
-- Introduce personal questions.
+## Implementation sequence
 
-## Phase 7 — Refinement
+| PR | Focus |
+|---|---|
+| 1 | Tauri desktop runtime reliability and migration validation |
+| 2 | Configurable managed PDF storage and safe migration |
+| 3 | Authenticated PDF byte-range delivery |
+| 4 | Balanced Explore performance, library and reader refinement |
+| 5 | My Universe foundations: notes, saved items and questions |
+| 6 | My Universe connections, graph and unified search |
+| 7 | Optional Spotify study companion |
 
-- Improve search across the application.
-- Introduce data export and backup.
-- Improve mobile experience.
-- Improve accessibility.
-- Add automated testing.
-- Improve performance and reliability.
-- Evaluate deployment and production requirements.
+## Desktop application
 
----
+Tauri v2 is the desktop release target. The release workflow builds Windows x64 NSIS, macOS Intel and Apple Silicon DMGs, and Linux x64 AppImage/DEB installers. The bundled application consists of:
 
+- A Rust/Tauri native shell that manages the window and local service lifecycle.
+- A bundled FastAPI sidecar.
+- A bundled Node runtime and Next.js standalone frontend.
+- SQLite for desktop structured data.
+- An Atlas-managed PDF directory under the per-user application-data profile.
 
-## Desktop application (in development)
-
-The desktop target is an Electron application that runs Atlas locally:
-
-- Electron manages the application window and starts the local services.
-- The existing Next.js frontend is bundled as a standalone server.
-- A bundled FastAPI sidecar provides the API.
-- Desktop structured data uses SQLite; PostgreSQL remains the development and CI database.
-- Explore PDFs are stored under the OS-specific Atlas application-data directory. SQLite stores document metadata and relative paths.
-- Database files, PDFs, and the generated per-install authentication secret stay outside the installation directory so updates do not replace user data.
-
-The desktop app is intended to work without Docker, PostgreSQL, a separately installed Python runtime, or a cloud-storage subscription. Installer and release automation are in development; do not treat desktop builds as supported releases until the release-readiness checklist is complete.
+The Tauri runtime intentionally reuses the legacy Electron `Atlas` profile location to avoid creating a second empty profile after migration. The release workflow has switched to Tauri, but clean-install, real upgrade, relaunch, and uninstall/reinstall checks remain release-readiness requirements. Installers are currently unsigned. See [desktop-tauri/README.md](desktop-tauri/README.md) for build and validation details.
 
 # Running Locally
 
