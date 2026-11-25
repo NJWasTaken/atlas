@@ -323,6 +323,7 @@ fn main() {
                     show_startup_failure(
                         &window,
                         &format!("could not locate bundled resources: {error}"),
+                        None,
                     );
                     return Ok(());
                 }
@@ -333,6 +334,7 @@ fn main() {
                     show_startup_failure(
                         &window,
                         &format!("could not resolve Atlas user data: {error}"),
+                        None,
                     );
                     return Ok(());
                 }
@@ -368,7 +370,11 @@ fn main() {
                     let mut api = api;
                     let _ = api.kill();
                     let _ = api.wait();
-                    show_startup_failure(&window, &error.to_string());
+                    show_startup_failure(
+                        &window,
+                        &error.to_string(),
+                        Some(&user_data),
+                    );
                     return Ok(());
                 }
             };
