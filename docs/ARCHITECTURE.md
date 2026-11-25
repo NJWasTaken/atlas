@@ -73,9 +73,11 @@ Browser (Next.js / React / TypeScript)
   └─ frontend/lib/api.ts ── HTTP /api/v1 ── FastAPI
                                               ├─ auth and ownership checks
                                               ├─ SQLAlchemy models and sessions
-                                              └─ PostgreSQL
-                                                   ├─ users, subjects, day_notes
-                                                   └─ topics (with optional source page refs), concepts (with optional source page refs), progress, exams
+                                              └─ database selected by runtime
+                                                   ├─ PostgreSQL (development and CI)
+                                                   └─ SQLite (Tauri desktop)
+                                                        ├─ users, subjects, day_notes
+                                                        └─ topics, concepts, progress, exams
 
 FastAPI ── optional API Ninjas request ── quotation endpoints
 Docker Compose ── local PostgreSQL service
