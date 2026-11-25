@@ -1,8 +1,7 @@
-name: Tauri desktop spike
+name: Tauri desktop CI
 
 on:
-  # Build the prototype for every branch update and PR update so artifacts
-  # always correspond to the exact source commit being tested.
+  # Compile and smoke-test the Tauri desktop runtime for every PR to main.
   push:
     branches: [feat/tauri-desktop-spike]
   pull_request:
@@ -12,8 +11,8 @@ permissions:
   contents: read
 
 jobs:
-  tauri-prototype:
-    name: Tauri prototype (${{ matrix.platform }})
+  tauri-runtime:
+    name: Tauri runtime (${{ matrix.platform }})
     strategy:
       fail-fast: false
       matrix:
@@ -148,7 +147,7 @@ jobs:
       - name: Upload Tauri prototype
         uses: actions/upload-artifact@v4
         with:
-          name: atlas-tauri-${{ matrix.platform }}-prototype
+          name: atlas-tauri-${{ matrix.platform }}-runtime-check
           path: |
             desktop-tauri/target/release/atlas-tauri*
             desktop-tauri/target/release/runtime/
