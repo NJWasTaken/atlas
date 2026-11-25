@@ -24,6 +24,7 @@ The profile contains:
 - `atlas.sqlite3` — local structured data.
 - `pdfs/` — managed Explore PDF files.
 - `instance.secret` — generated per-install authentication secret.
+- `logs/desktop.log` — startup failures and shell diagnostics.
 - `logs/api.log` and `logs/frontend.log` — bundled service logs.
 
 The FastAPI entry point creates the profile directories, configures SQLite and the PDF directory, and runs Alembic migrations to the current head before serving requests. The Tauri runtime must not silently switch to a second profile or delete user data during updates.
