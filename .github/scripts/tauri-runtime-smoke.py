@@ -83,14 +83,18 @@ def start_api(env: dict[str, str], log, creation_flags: int) -> subprocess.Popen
         [str(api)], env=env, stdout=log, stderr=subprocess.STDOUT,
         creationflags=creation_flags, start_new_session=(os.name != "nt"),
     )
-    deadline = time.monotonic() + 60
-    while time.monotonic() < deadline and not healthy("http://127.0.0.1:43121/health"):
-        if process.poll() is not None:
-            raise RuntimeError(f"API sidecar exited early with code {process.returncode}")
-        time.sleep(0.25)
-    if not healthy("http://127.0.0.1:43121/health"):
-        raise RuntimeError("API sidecar did not become healthy within 60 seconds")
-    return process
+    try:
+        deadline = time.monotonic() + 60
+        while time.monotonic() < deadline and not healthy("http://127.0.0.1:43121/health"):
+            if process.poll() is not None:
+                raise RuntimeError(f"API sidecar exited early with code {process.returncode}")
+            time.sleep(0.25)
+        if not healthy("http://127.0.0.1:43121/health"):
+            raise RuntimeError("API sidecar did not become healthy within 60 seconds")
+        return process
+    except Exception:
+        stop_process(process)
+        raise
 
 
 with tempfile.TemporaryDirectory(prefix="atlas-tauri-smoke-") as data_dir, tempfile.TemporaryDirectory(prefix="atlas-tauri-logs-") as logs_dir:
