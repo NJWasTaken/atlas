@@ -204,7 +204,9 @@ fn wait_for_health(
                 .ok_or_else(|| format!("service process for {url} is unavailable"))?;
             match child.try_wait() {
                 Ok(Some(status)) => {
-                    return Err(format!("service for {url} exited before becoming healthy ({status})"));
+                    return Err(format!(
+                        "service for {url} exited before becoming healthy ({status})"
+                    ));
                 }
                 Ok(None) => {}
                 Err(error) => {
@@ -302,14 +304,20 @@ fn main() {
             let resource_dir = match app.path().resource_dir() {
                 Ok(path) => path,
                 Err(error) => {
-                    show_startup_failure(&window, &format!("could not locate bundled resources: {error}"));
+                    show_startup_failure(
+                        &window,
+                        &format!("could not locate bundled resources: {error}"),
+                    );
                     return Ok(());
                 }
             };
             let user_data = match electron_compatible_user_data_dir() {
                 Ok(path) => path,
                 Err(error) => {
-                    show_startup_failure(&window, &format!("could not resolve Atlas user data: {error}"));
+                    show_startup_failure(
+                        &window,
+                        &format!("could not resolve Atlas user data: {error}"),
+                    );
                     return Ok(());
                 }
             };
@@ -317,7 +325,10 @@ fn main() {
             let secret = match persisted_secret(&user_data) {
                 Ok(secret) => secret,
                 Err(error) => {
-                    show_startup_failure(&window, &format!("could not read or create the installation secret: {error}"));
+                    show_startup_failure(
+                        &window,
+                        &format!("could not read or create the installation secret: {error}"),
+                    );
                     return Ok(());
                 }
             };
@@ -358,7 +369,10 @@ fn main() {
                         let _ = frontend.wait();
                         let _ = api.kill();
                         let _ = api.wait();
-                        show_startup_failure(&window, "the service process manager could not be initialized");
+                        show_startup_failure(
+                            &window,
+                            "the service process manager could not be initialized",
+                        );
                         return Ok(());
                     }
                 };
