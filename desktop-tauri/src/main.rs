@@ -2,7 +2,8 @@
 
 use rand::{rngs::OsRng, RngCore};
 use std::{
-    fs, io,
+    fs,
+    io::{self, Write},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{Arc, Mutex},
@@ -262,11 +263,21 @@ fn stop_children(children: &SharedChildren) {
     }
 }
 
-fn show_startup_failure(window: &WebviewWindow, error: &str) {
-    eprintln!("[Atlas Tauri] Startup failed: {error}");
+fn show_startup_failure(
+    window: &WebviewWindow,
+    error: &str,
+    user_data: Option<&Path>,
+) {
+    let message = format!("[Atlas Tauri] Startup failed: {error}");
+    eprintln!("{message}");
+    if let Some(user_data) = user_data {
+        if let Ok(mut log) = open_child_log(user_data, "desktop.log") {
+            let _ = writeln!(log, "{message}");
+        }
+    }
     let _ = window.set_title("Atlas — Startup failed");
     // The bundled shell remains visible so the user never gets a hidden or
-    // permanently blank window. API/frontend logs live under <Atlas data>/logs.
+    // permanently blank window. Detailed startup errors are appended to desktop.log.
     if let Err(show_error) = window.show() {
         eprintln!("[Atlas Tauri] Could not show startup failure: {show_error}");
     }
@@ -276,13 +287,18 @@ fn load_frontend_when_ready(
     window: WebviewWindow,
     api_result: Result<(), String>,
     web_result: Result<(), String>,
+    user_data: PathBuf,
 ) {
     if let Err(error) = api_result.and(web_result) {
-        show_startup_failure(&window, &error);
+        show_startup_failure(&window, &error, Some(&user_data));
         return;
     }
     if let Err(error) = window.navigate(WEB_ORIGIN.parse().expect("valid local frontend URL")) {
-        show_startup_failure(&window, &format!("could not open frontend: {error}"));
+        show_startup_failure(
+            &window,
+            &format!("could not open frontend: {error}"),
+            Some(&user_data),
+        );
         return;
     }
     if let Err(error) = window.show() {
@@ -328,6 +344,7 @@ fn main() {
                     show_startup_failure(
                         &window,
                         &format!("could not read or create the installation secret: {error}"),
+                        Some(&user_data),
                     );
                     return Ok(());
                 }
@@ -337,7 +354,7 @@ fn main() {
             let api = match spawn_api(&resource_dir, &user_data, &secret) {
                 Ok(child) => child,
                 Err(error) => {
-                    show_startup_failure(&window, &error.to_string());
+                    show_startup_failure(&window, &error.to_string(), Some(&user_data));
                     return Ok(());
                 }
             };
@@ -372,6 +389,7 @@ fn main() {
                         show_startup_failure(
                             &window,
                             "the service process manager could not be initialized",
+                            Some(&user_data),
                         );
                         return Ok(());
                     }
@@ -381,6 +399,7 @@ fn main() {
             }
 
             let startup_window = window.clone();
+            let startup_user_data = user_data.clone();
             let app_handle = app.handle().clone();
             let startup_children = Arc::clone(&children);
             thread::spawn(move || {
@@ -420,7 +439,12 @@ fn main() {
                     stop_children(&startup_children);
                 }
                 let _ = app_handle.run_on_main_thread(move || {
-                    load_frontend_when_ready(startup_window, api_ready, frontend_ready);
+                    load_frontend_when_ready(
+                        startup_window,
+                        api_ready,
+                        frontend_ready,
+                        startup_user_data,
+                    );
                     eprintln!("[Atlas Tauri startup] frontend navigation requested");
                 });
             });
