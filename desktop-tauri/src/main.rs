@@ -164,7 +164,9 @@ fn spawn_frontend(resource_dir: &Path, user_data: &Path) -> io::Result<Child> {
     let log = open_child_log(user_data, "frontend.log")?;
     let mut command = Command::new(&node);
     command
-        .arg(&server)
+        .arg("server.js")
+        // Use a relative entrypoint: Node on Windows mishandles the absolute
+        // drive-letter path supplied by the bundled runtime in this launch path.
         // Next.js resolves .next relative to its working directory.
         .current_dir(&frontend_dir)
         .env("HOSTNAME", "127.0.0.1")
