@@ -167,7 +167,10 @@ fn spawn_frontend(resource_dir: &Path, user_data: &Path) -> io::Result<Child> {
     let node = fs::canonicalize(&node).map_err(|error| {
         io::Error::new(
             error.kind(),
-            format!("Could not resolve bundled Node executable {}: {error}", node.display()),
+            format!(
+                "Could not resolve bundled Node executable {}: {error}",
+                node.display()
+            ),
         )
     })?;
     let frontend_dir = fs::canonicalize(&frontend_dir).map_err(|error| {
@@ -183,7 +186,10 @@ fn spawn_frontend(resource_dir: &Path, user_data: &Path) -> io::Result<Child> {
     if !server.is_file() {
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
-            format!("Bundled Next.js server entrypoint is missing: {}", server.display()),
+            format!(
+                "Bundled Next.js server entrypoint is missing: {}",
+                server.display()
+            ),
         ));
     }
 
