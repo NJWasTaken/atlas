@@ -160,14 +160,52 @@ fn spawn_frontend(resource_dir: &Path, user_data: &Path) -> io::Result<Child> {
         if cfg!(windows) { "node.exe" } else { "node" },
     );
     let frontend_dir = runtime_path(resource_dir, "frontend");
+
+    // Resolve the bundled paths before handing them to a child process. This
+    // avoids drive-relative paths (for example, "D:") on Windows and makes
+    // missing/corrupt bundle resources fail with a useful diagnostic.
+    let node = fs::canonicalize(&node).map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!("Could not resolve bundled Node executable {}: {error}", node.display()),
+        )
+    })?;
+    let frontend_dir = fs::canonicalize(&frontend_dir).map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!(
+                "Could not resolve bundled frontend directory {}: {error}",
+                frontend_dir.display()
+            ),
+        )
+    })?;
     let server = frontend_dir.join("server.js");
+    if !server.is_file() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("Bundled Next.js server entrypoint is missing: {}", server.display()),
+        ));
+    }
+
+    let mut diagnostics = open_child_log(user_data, "desktop.log")?;
+    writeln!(diagnostics, "[Atlas Tauri] frontend launch")?;
+    writeln!(diagnostics, "  node={}", node.display())?;
+    writeln!(diagnostics, "  frontend_dir={}", frontend_dir.display())?;
+    writeln!(diagnostics, "  server={}", server.display())?;
+    writeln!(diagnostics, "  server_is_file={}", server.is_file())?;
+    if let Ok(cwd) = std::env::current_dir() {
+        writeln!(diagnostics, "  desktop_cwd={}", cwd.display())?;
+    }
+
     let log = open_child_log(user_data, "frontend.log")?;
     let mut command = Command::new(&node);
     command
-        .arg("server.js")
-        // Use a relative entrypoint: Node on Windows mishandles the absolute
-        // drive-letter path supplied by the bundled runtime in this launch path.
-        // Next.js resolves .next relative to its working directory.
+        // Use eval as the entrypoint so Node does not try to realpath the
+        // Windows drive-relative main argument before executing the script.
+        // Requiring the script from the canonical working directory preserves
+        // Next.js standalone's expected relative asset resolution.
+        .arg("-e")
+        .arg("console.log('[Atlas frontend] cwd=' + process.cwd()); require('./server.js');")
         .current_dir(&frontend_dir)
         .env("HOSTNAME", "127.0.0.1")
         .env("PORT", WEB_PORT.to_string())
