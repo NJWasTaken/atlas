@@ -4,7 +4,7 @@ This document describes the code and behavior currently present in the repositor
 
 ## Product and current scope
 
-Atlas is intended to connect university coursework with independent learning and a personal knowledge space. The implemented application is an early, single-page workspace with bearer-token authentication and a FastAPI/PostgreSQL backend.
+Atlas is intended to connect university coursework with independent learning and a personal knowledge space. The implemented application is an early, single-page workspace with bearer-token authentication and a FastAPI backend. PostgreSQL is used for development and CI; the Tauri desktop runtime uses SQLite.
 
 The current working slice includes:
 
@@ -15,52 +15,55 @@ The current working slice includes:
 - Daily and random quotations from API Ninjas when configured, with curated fallbacks, a six-hour in-process cache for the daily quote, fresh provider requests for each random-quote interaction, and last-known-quote fallback so provider outages do not block the Overview.
 - A dark celestial visual treatment and a reduced-motion-aware animated background.
 
-Explore is intentionally a focused PDF reading room, not a general research or knowledge-management workspace. Users can upload PDFs or import them from a public HTTP(S) URL (50 MB limit); new PDF bytes are stored as files on the backend host under `ATLAS_PDF_STORAGE_DIR`, while PostgreSQL stores metadata and relative storage paths. Legacy database-backed PDFs remain readable. Documents are accessible only to their owner. The bundled PDF.js reader currently provides continuous scrolling, visible-page tracking, page navigation, page thumbnails, document outline, in-document text search, zoom/fit controls, durable reading progress, bookmarks, text selection, page-relative highlight overlays, page-linked annotations, and focus mode. Annotation rectangles are persisted as normalized page-relative coordinates in `ExploreAnnotation`; the current data model also stores an optional quoted passage and an annotation comment. These are Atlas-side overlays and do not modify the original PDF. Password-protected PDFs and scanned-document OCR are not supported. The reader's current selection-first toolbar supports highlight, underline, and strike-through marks in yellow, green, blue, and pink, plus an optional comment anchored to the selected passage. The annotation list supports page navigation, deletion, search, type/colour filters, and inline comment editing. New annotations must include selected text and page-relative rectangles; standalone/page notes are rejected by the API, while legacy page-only notes are retained as comment-type annotations. Locked highlighter and underline modes apply the selected colour to each new text selection. Reader themes (paper, sepia, dark) affect the reading canvas without rewriting source PDF bytes. Only the current page and four neighbouring pages on either side mount canvas/text layers; lightweight placeholders preserve the continuous scroll track. A separate export endpoint uses pypdf to embed stored passage marks as standard PDF Highlight, Underline, and StrikeOut annotations in a downloadable copy; the stored original remains unchanged. The UI is styled as a quiet reading surface with a collapsible sidebar and focus mode. Annotation type and color are persisted on each record by migration `0008_pdf_annotation_styles`; the original PDF remains unchanged. The current renderer is a custom PDF.js canvas/text-layer implementation with intersection-observer page rendering. Canvas/text layers mount for the current page and four pages either side; page dimensions are measured for a wider nearby window so placeholders for mixed portrait, landscape, and tall pages better preserve scroll geometry as the reader moves. A 120-page mixed-size fixture exercises long-document navigation, and separate fixtures cover documents with and without outlines. Reading progress is restored from the document record. Annotation create, update, and delete failures retain the attempted operation and expose an accessible retry action rather than discarding the user's work. Editing covers mark type, colour, and comment. Paper, sepia, and dark preferences are stored per document; these themes style the reading surround and deliberately do not filter source-page pixels, avoiding contrast loss on PDFs with varied page backgrounds. The reader exposes semantic navigation tabs, keyboard tab switching, live page status, visible focus, touch-sized controls, responsive layout refinements, and reduced-motion styling. Lector was evaluated but not adopted: its current installation guidance expects `pdfjs-dist` `^5.5.207`, while Atlas currently uses `6.4.299`, and Lector tracks [an open PDF.js 6.x compatibility request](https://github.com/anaralabs/lector/issues/142). Its [installation guide](https://anara.com/lector/docs/installation) currently documents the 5.5.x peer dependency. Revisit only after the dependency versions align and a feature-parity migration spike succeeds. Remaining manual validation includes representative real-world PDFs, screen-reader use, and physical touch devices. Topic workspaces, standalone notes, whiteboards, knowledge graphs, web research capture, and AI chat are explicit non-goals. Topic workspaces, standalone notes, whiteboards, knowledge graphs, web research capture, and AI chat are explicit non-goals. My Universe remains a placeholder. Syllabus PDFs can be uploaded, parsed into an editable draft, and explicitly confirmed into the subject's topic/concept tree. Structural syllabus changes create version snapshots that can be inspected and restored. Concept check-ins are recorded as review history and receive a simple next-review interval based on understanding and recall. Saving a check-in refreshes subject readiness and Overview data without clearing the currently selected concept or its review panel. There is no OCR for scanned PDFs, adaptive spaced-repetition algorithm, personal knowledge repository, AI gateway, or data export yet.
+Explore is intentionally a focused PDF reading room, not a general research or knowledge-management workspace. Users can upload PDFs or import them from a public HTTP(S) URL (50 MB limit); new PDF bytes are stored as files on the backend host under `ATLAS_PDF_STORAGE_DIR`, while the configured database (PostgreSQL in development/CI, SQLite in Tauri desktop) stores metadata and relative storage paths. Legacy database-backed PDFs remain readable. Documents are accessible only to their owner. The bundled PDF.js reader currently provides continuous scrolling, visible-page tracking, page navigation, page thumbnails, document outline, in-document text search, zoom/fit controls, durable reading progress, bookmarks, text selection, page-relative highlight overlays, page-linked annotations, and focus mode. Annotation rectangles are persisted as normalized page-relative coordinates in `ExploreAnnotation`; the current data model also stores an optional quoted passage and an annotation comment. These are Atlas-side overlays and do not modify the original PDF. Password-protected PDFs and scanned-document OCR are not supported. The reader's current selection-first toolbar supports highlight, underline, and strike-through marks in yellow, green, blue, and pink, plus an optional comment anchored to the selected passage. The annotation list supports page navigation, deletion, search, type/colour filters, and inline comment editing. New annotations must include selected text and page-relative rectangles; standalone/page notes are rejected by the API, while legacy page-only notes are retained as comment-type annotations. Locked highlighter and underline modes apply the selected colour to each new text selection. Reader themes (paper, sepia, dark) affect the reading canvas without rewriting source PDF bytes. Only the current page and four neighbouring pages on either side mount canvas/text layers; lightweight placeholders preserve the continuous scroll track. A separate export endpoint uses pypdf to embed stored passage marks as standard PDF Highlight, Underline, and StrikeOut annotations in a downloadable copy; the stored original remains unchanged. The UI is styled as a quiet reading surface with a collapsible sidebar and focus mode. Annotation type and color are persisted on each record by migration `0008_pdf_annotation_styles`; the original PDF remains unchanged. The current renderer is a custom PDF.js canvas/text-layer implementation with intersection-observer page rendering. Canvas/text layers mount for the current page and four pages either side; page dimensions are measured for a wider nearby window so placeholders for mixed portrait, landscape, and tall pages better preserve scroll geometry as the reader moves. A 120-page mixed-size fixture exercises long-document navigation, and separate fixtures cover documents with and without outlines. Reading progress is restored from the document record. Annotation create, update, and delete failures retain the attempted operation and expose an accessible retry action rather than discarding the user's work. Editing covers mark type, colour, and comment. Paper, sepia, and dark preferences are stored per document; these themes style the reading surround and deliberately do not filter source-page pixels, avoiding contrast loss on PDFs with varied page backgrounds. The reader exposes semantic navigation tabs, keyboard tab switching, live page status, visible focus, touch-sized controls, responsive layout refinements, and reduced-motion styling. Lector was evaluated but not adopted: its current installation guidance expects `pdfjs-dist` `^5.5.207`, while Atlas currently uses `6.4.299`, and Lector tracks [an open PDF.js 6.x compatibility request](https://github.com/anaralabs/lector/issues/142). Its [installation guide](https://anara.com/lector/docs/installation) currently documents the 5.5.x peer dependency. Revisit only after the dependency versions align and a feature-parity migration spike succeeds. Remaining manual validation includes representative real-world PDFs, screen-reader use, and physical touch devices. Topic workspaces, standalone notes, whiteboards, web research capture, and AI chat are explicit Explore non-goals. My Universe is a separate planned personal knowledge environment; its notes, saved resources, questions, explicit connections, and visual knowledge graph are not implemented yet. My Universe remains a placeholder. Syllabus PDFs can be uploaded, parsed into an editable draft, and explicitly confirmed into the subject's topic/concept tree. Structural syllabus changes create version snapshots that can be inspected and restored. Concept check-ins are recorded as review history and receive a simple next-review interval based on understanding and recall. Saving a check-in refreshes subject readiness and Overview data without clearing the currently selected concept or its review panel. There is no OCR for scanned PDFs, adaptive spaced-repetition algorithm, personal knowledge repository, AI gateway, or data export yet.
 
 
-## Desktop runtime architecture (target)
+## Desktop runtime architecture
 
-Atlas is moving to an Electron desktop distribution because Explore owns local PDF files and the application should work without a hosted storage service. Electron is the application shell, not a replacement for the existing web UI or API.
+**Desktop target:** Tauri v2. PR #26 switched the manual release workflow from Electron to Tauri installers. This makes Tauri the release target, but does not by itself prove that every installer has passed clean-install, upgrade, relaunch, and uninstall validation. The Electron source remains in the repository as legacy code; it is no longer the desktop release path.
 
 ```text
-Electron main process
-  ├─ launches packaged FastAPI sidecar on loopback
-  │    ├─ SQLite database: <userData>/atlas.sqlite3
-  │    ├─ PDFs: <userData>/pdfs/
-  │    └─ bundled Alembic revisions
-  ├─ launches the Next.js standalone server on loopback
-  └─ opens a hardened BrowserWindow
+Tauri v2 / Rust shell
+  ├─ starts FastAPI sidecar on 127.0.0.1:43121
+  │    ├─ SQLite: <Atlas user data>/atlas.sqlite3
+  │    ├─ PDFs: <Atlas user data>/pdfs/
+  │    └─ Alembic migrations applied before serving
+  ├─ starts bundled Node + Next.js standalone server on 127.0.0.1:43122
+  └─ displays the bundled startup shell, then navigates to the local frontend
        └─ Next.js / React UI ── HTTP ── FastAPI
 ```
 
 ### Desktop persistence
 
 - Desktop mode uses SQLite; development and CI continue to use PostgreSQL by default. The API and ORM remain shared.
-- SQLite must use `check_same_thread=False` for FastAPI's threaded request handling and enable foreign-key enforcement on every connection.
-- The database and PDF directory live under Electron's `app.getPath("userData")`, never inside the installation directory, application bundle, or `app.asar`. Updates must not overwrite user data.
-- `ATLAS_PDF_STORAGE_DIR` points to the persistent `pdfs` directory. The database stores document metadata and relative paths; PDF bytes remain ordinary local files.
-- Desktop startup applies Alembic migrations before accepting requests. `create_all()` is not a schema-upgrade mechanism.
-- A per-install random JWT secret is generated once and persisted with restrictive file permissions. It is never committed or embedded in the installer.
-- Backups coordinate the SQLite database and PDF directory. A database-only backup is incomplete.
+- SQLite uses `check_same_thread=False` for FastAPI's threaded request handling and enables foreign-key enforcement on every connection.
+- Tauri deliberately reuses the legacy Electron `Atlas` profile location rather than Tauri's identifier-derived application-data directory: `%APPDATA%/Atlas` on Windows, `~/Library/Application Support/Atlas` on macOS, and `$XDG_CONFIG_HOME/Atlas` (falling back to `~/.config/Atlas`) on Linux.
+- The profile contains `atlas.sqlite3`, the managed `pdfs/` directory, `instance.secret`, and service logs under `logs/`. User data stays outside the installation and resource directories.
+- `backend/desktop_entry.py` configures the database and PDF directory from `ATLAS_USER_DATA_DIR`, then applies Alembic migrations to head before starting Uvicorn.
+- A per-install random JWT secret is generated once and persisted in the profile. It is never committed or embedded in the installer.
+- PDF storage currently defaults to the profile's `pdfs/` directory. A user-selectable managed library location, migration journal, copy verification, and recovery flow are planned; they are not implemented yet.
+- Database and PDF files form one logical backup set. A database-only backup is incomplete.
 
 ### Process lifecycle and security
 
-- Electron launches the API and Next.js server as child processes, waits for health checks, and terminates both on quit.
-- Services bind only to loopback. The desktop shell exposes no remote debugging port.
-- BrowserWindow uses `contextIsolation`, `sandbox`, and disabled `nodeIntegration`. No privileged filesystem or process APIs are exposed to page JavaScript.
-- Navigation is restricted to the local Atlas origin; validated external links open through the operating system.
-- Startup failures produce useful diagnostics instead of leaving a blank window.
-- User data survives application updates and reinstallations unless the user explicitly removes it.
+- Rust starts the API and Next.js services concurrently and checks both local health endpoints before navigating to the frontend.
+- Health checks also inspect the child process handles so an early sidecar exit is reported immediately rather than waiting for the full startup timeout.
+- The local startup shell remains visible during initialization. Startup failures keep the shell visible, set a failure title, and write diagnostics instead of leaving a hidden or blank window.
+- Rust owns both child processes. Unix shutdown sends SIGTERM, waits briefly, and force-kills a process that does not exit; Windows uses the child-process kill fallback.
+- Services bind only to loopback. The frontend communicates with the local API origin.
+- Startup diagnostics are appended to `logs/desktop.log`; the API and frontend write to `logs/api.log` and `logs/frontend.log` under the Atlas profile.
+- User data is intended to survive application updates and reinstalls unless the user explicitly removes it. Actual installer upgrade/uninstall behavior remains a release validation item.
 
-### Build and release model
+### Build, release, and validation
 
-- Pull requests and pushes to `main` run backend tests, TypeScript/production build, Playwright browser tests, and desktop packaging smoke checks.
-- Version tags (`v*`) build platform-specific installers for Windows, macOS, and Linux and attach them to a GitHub Release.
-- macOS signing/notarisation is conditional on configured secrets; unsigned artifacts are not represented as notarised.
+- The manual desktop release workflow builds Windows x64 NSIS, macOS Intel and Apple Silicon DMGs, and Linux x64 AppImage/DEB installers.
+- Installers are currently unsigned; macOS signing/notarisation must not be implied unless the relevant release credentials and steps are configured.
+- The Tauri CI workflow compiles the shell across Linux, Windows, and macOS runners, runs Rust helper tests, and smoke-tests the staged API/frontend runtime.
+- The runtime smoke test creates a SQLite database at the previous desktop migration revision, launches the packaged API to upgrade it to head, creates an account, restarts the API against the same profile, and verifies the account remains available.
+- The smoke test does not replace manual validation of a real installed app or a real pre-Tauri user profile. Clean install, installer upgrade, uninstall/reinstall, and PDF/annotation preservation remain release checks.
 - Release artifacts must not contain user databases, uploaded PDFs, local environment files, or signing secrets.
-- PostgreSQL remains the supported developer/test database; SQLite desktop behavior receives its own migration and persistence tests.
 
-This section records the target runtime. Items in `docs/TODO.md` remain implementation work; it is not a claim that installers are already production-ready.
+This describes the current Tauri implementation and distinguishes automated runtime checks from the still-pending installed-app validation.
 
 ## System shape
 
@@ -70,9 +73,11 @@ Browser (Next.js / React / TypeScript)
   └─ frontend/lib/api.ts ── HTTP /api/v1 ── FastAPI
                                               ├─ auth and ownership checks
                                               ├─ SQLAlchemy models and sessions
-                                              └─ PostgreSQL
-                                                   ├─ users, subjects, day_notes
-                                                   └─ topics (with optional source page refs), concepts (with optional source page refs), progress, exams
+                                              └─ database selected by runtime
+                                                   ├─ PostgreSQL (development and CI)
+                                                   └─ SQLite (Tauri desktop)
+                                                        ├─ users, subjects, day_notes
+                                                        └─ topics, concepts, progress, exams
 
 FastAPI ── optional API Ninjas request ── quotation endpoints
 Docker Compose ── local PostgreSQL service
@@ -160,7 +165,7 @@ Daily/random quote requests are proxied by the backend to API Ninjas when config
 
 ## Explore PDF storage
 
-New Explore library PDFs are stored on the backend host's local filesystem (default: `backend/data/pdfs`, configurable through `ATLAS_PDF_STORAGE_DIR`). PostgreSQL stores document metadata, reading position, bookmarks, and annotations. Existing documents with database-backed PDF bytes remain readable. The storage directory must be on persistent disk and included in local backups. No paid object-storage service is required. The current file endpoint still returns the complete PDF; authenticated byte-range delivery and PDF.js URL loading are tracked as the next substantial Explore change.
+New Explore library PDFs are stored on the backend host's local filesystem (default: `backend/data/pdfs`, configurable through `ATLAS_PDF_STORAGE_DIR`). In Tauri desktop mode, `backend/desktop_entry.py` sets this to `<Atlas user data>/pdfs`. SQLite/PostgreSQL stores document metadata, reading position, bookmarks, and annotations; file-backed documents store relative filenames. Existing documents with database-backed PDF bytes remain readable. No paid object-storage service is required. The current file endpoint still returns the complete PDF; authenticated byte-range delivery and PDF.js URL loading are the next Explore reliability change. A native folder picker and safe migration to a user-selected managed library directory are planned, but not implemented.
 
 ## Configuration and local development
 
@@ -253,6 +258,16 @@ This list covers the tracked project source, documentation, and configuration fi
 | `app/routers/overview.py` | User-scoped recent learning activity, continue-learning candidates, revision suggestions, and upcoming exam summary. |
 | `app/explore_models.py` | Private PDF documents, page bookmarks, and page-linked annotations. |\n| `app/explore_schemas.py` | Validated PDF document, bookmark, and annotation request/response contracts. |\n| `app/routers/explore.py` | Private PDF upload/URL import (50 MB limit), local-filesystem storage for new PDFs, legacy database-backed file compatibility, document listing/delivery, reading progress, bookmarks, and page-linked annotations with ownership checks. |
 
+### `desktop-tauri/`
+
+| File | Responsibility |
+|---|---|
+| `Cargo.toml` | Rust dependencies and Tauri desktop package metadata. |
+| `src/main.rs` | Tauri window lifecycle, legacy Atlas profile resolution, per-install secret persistence, sidecar startup/health checks, diagnostics, and process shutdown. |
+| `tauri.conf.json` | Tauri window, security policy, bundled runtime resources, and installer configuration. |
+| `shell/index.html` | Local startup shell shown while the API and frontend become healthy. |
+| `README.md` | Desktop runtime, user-data compatibility, build instructions, and validation status. |
+
 ### `frontend/`
 
 | File | Responsibility |
@@ -285,4 +300,4 @@ This list covers the tracked project source, documentation, and configuration fi
 - The backend suite includes API, configuration, quote-cache, migration-adoption, and PostgreSQL integration coverage. GitHub Actions validates the SQLite and PostgreSQL migration chains and runs Playwright browser flows after the frontend typecheck/build. The existing-database adoption helper remains an explicit operator action requiring a verified backup; it has not been run against a user database.
 - The Overview provides monthly and weekly calendar views, date notes, exam events, recent learning activity, revision nudges, and upcoming exams; it is not a general-purpose event planner.
 - Home, Academics, and the calendar expose explicit loading/error/retry feedback for their primary data requests. This is a focused reliability pass, not yet a complete accessibility or responsive audit of every control and screen.
-- Explore intentionally excludes discovery sessions, standalone notes, contextual prompts, learning paths, academic links, knowledge graphs, whiteboards, web research capture, and AI handoff. Annotation editing/filtering, standard-PDF annotation export, long-document virtualization, and full accessibility/touch refinement remain future work. My Universe, scanned-PDF OCR, adaptive spaced repetition, direct AI integrations, and data export are also not implemented.
+- Explore intentionally excludes standalone notes, whiteboards, web research capture, and AI handoff; My Universe is the separate home for personal knowledge. The current reader has annotation editing/filtering, standard-PDF annotation export, and nearby-page virtualization, while real-world PDF sampling and manual screen-reader/touch validation remain open. My Universe, scanned-PDF OCR, adaptive spaced repetition, direct AI integrations, user-configurable managed PDF storage, and data export are not implemented.

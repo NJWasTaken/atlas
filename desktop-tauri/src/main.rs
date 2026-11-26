@@ -2,7 +2,8 @@
 
 use rand::{rngs::OsRng, RngCore};
 use std::{
-    fs, io,
+    fs,
+    io::{self, Write},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{Arc, Mutex},
@@ -159,12 +160,58 @@ fn spawn_frontend(resource_dir: &Path, user_data: &Path) -> io::Result<Child> {
         if cfg!(windows) { "node.exe" } else { "node" },
     );
     let frontend_dir = runtime_path(resource_dir, "frontend");
+
+    // Resolve the bundled paths before handing them to a child process. This
+    // avoids drive-relative paths (for example, "D:") on Windows and makes
+    // missing/corrupt bundle resources fail with a useful diagnostic.
+    let node = fs::canonicalize(&node).map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!(
+                "Could not resolve bundled Node executable {}: {error}",
+                node.display()
+            ),
+        )
+    })?;
+    let frontend_dir = fs::canonicalize(&frontend_dir).map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!(
+                "Could not resolve bundled frontend directory {}: {error}",
+                frontend_dir.display()
+            ),
+        )
+    })?;
     let server = frontend_dir.join("server.js");
+    if !server.is_file() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!(
+                "Bundled Next.js server entrypoint is missing: {}",
+                server.display()
+            ),
+        ));
+    }
+
+    let mut diagnostics = open_child_log(user_data, "desktop.log")?;
+    writeln!(diagnostics, "[Atlas Tauri] frontend launch")?;
+    writeln!(diagnostics, "  node={}", node.display())?;
+    writeln!(diagnostics, "  frontend_dir={}", frontend_dir.display())?;
+    writeln!(diagnostics, "  server={}", server.display())?;
+    writeln!(diagnostics, "  server_is_file={}", server.is_file())?;
+    if let Ok(cwd) = std::env::current_dir() {
+        writeln!(diagnostics, "  desktop_cwd={}", cwd.display())?;
+    }
+
     let log = open_child_log(user_data, "frontend.log")?;
     let mut command = Command::new(&node);
     command
-        .arg(&server)
-        // Next.js resolves .next relative to its working directory.
+        // Use eval as the entrypoint so Node does not try to realpath the
+        // Windows drive-relative main argument before executing the script.
+        // Requiring the script from the canonical working directory preserves
+        // Next.js standalone's expected relative asset resolution.
+        .arg("-e")
+        .arg("console.log('[Atlas frontend] cwd=' + process.cwd()); require('./server.js');")
         .current_dir(&frontend_dir)
         .env("HOSTNAME", "127.0.0.1")
         .env("PORT", WEB_PORT.to_string())
@@ -187,9 +234,34 @@ fn spawn_frontend(resource_dir: &Path, user_data: &Path) -> io::Result<Child> {
     })
 }
 
-fn wait_for_health(url: &'static str, timeout: Duration) -> Result<(), String> {
+fn wait_for_health(
+    url: &'static str,
+    timeout: Duration,
+    children: &SharedChildren,
+    child_index: usize,
+) -> Result<(), String> {
     let started = Instant::now();
     while started.elapsed() < timeout {
+        {
+            let mut running = children
+                .lock()
+                .map_err(|_| "service process lock poisoned".to_owned())?;
+            let child = running
+                .get_mut(child_index)
+                .ok_or_else(|| format!("service process for {url} is unavailable"))?;
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    return Err(format!(
+                        "service for {url} exited before becoming healthy ({status})"
+                    ));
+                }
+                Ok(None) => {}
+                Err(error) => {
+                    return Err(format!("could not inspect service for {url}: {error}"));
+                }
+            }
+        }
+
         if ureq::get(url)
             .timeout(Duration::from_millis(700))
             .call()
@@ -208,18 +280,23 @@ fn wait_for_health(url: &'static str, timeout: Duration) -> Result<(), String> {
 fn stop_children(children: &SharedChildren) {
     if let Ok(mut children) = children.lock() {
         for child in children.iter_mut().rev() {
-            #[cfg(unix)]
-            {
-                // Give Uvicorn/Node a chance to flush and close cleanly.
-                unsafe {
-                    libc::kill(child.id() as i32, libc::SIGTERM);
-                }
-                let deadline = Instant::now() + Duration::from_secs(4);
-                while Instant::now() < deadline {
-                    match child.try_wait() {
-                        Ok(Some(_)) => break,
-                        Ok(None) => thread::sleep(Duration::from_millis(100)),
-                        Err(_) => break,
+            // Do not signal an already-reaped process: its PID may have been
+            // reused by an unrelated process.
+            if child.try_wait().ok().flatten().is_none() {
+                #[cfg(unix)]
+                {
+                    // Give Uvicorn/Node a chance to flush and close cleanly.
+                    // Fall back to Child::kill below if graceful shutdown stalls.
+                    unsafe {
+                        libc::kill(child.id() as i32, libc::SIGTERM);
+                    }
+                    let deadline = Instant::now() + Duration::from_secs(4);
+                    while Instant::now() < deadline {
+                        match child.try_wait() {
+                            Ok(Some(_)) => break,
+                            Ok(None) => thread::sleep(Duration::from_millis(100)),
+                            Err(_) => break,
+                        }
                     }
                 }
             }
@@ -232,18 +309,38 @@ fn stop_children(children: &SharedChildren) {
     }
 }
 
+fn show_startup_failure(window: &WebviewWindow, error: &str, user_data: Option<&Path>) {
+    let message = format!("[Atlas Tauri] Startup failed: {error}");
+    eprintln!("{message}");
+    if let Some(user_data) = user_data {
+        if let Ok(mut log) = open_child_log(user_data, "desktop.log") {
+            let _ = writeln!(log, "{message}");
+        }
+    }
+    let _ = window.set_title("Atlas — Startup failed");
+    // The bundled shell remains visible so the user never gets a hidden or
+    // permanently blank window. Detailed startup errors are appended to desktop.log.
+    if let Err(show_error) = window.show() {
+        eprintln!("[Atlas Tauri] Could not show startup failure: {show_error}");
+    }
+}
+
 fn load_frontend_when_ready(
     window: WebviewWindow,
     api_result: Result<(), String>,
     web_result: Result<(), String>,
+    user_data: PathBuf,
 ) {
     if let Err(error) = api_result.and(web_result) {
-        eprintln!("[Atlas Tauri] Startup failed: {error}");
+        show_startup_failure(&window, &error, Some(&user_data));
         return;
     }
     if let Err(error) = window.navigate(WEB_ORIGIN.parse().expect("valid local frontend URL")) {
-        eprintln!("[Atlas Tauri] Could not open frontend: {error}");
-        let _ = window.show();
+        show_startup_failure(
+            &window,
+            &format!("could not open frontend: {error}"),
+            Some(&user_data),
+        );
         return;
     }
     if let Err(error) = window.show() {
@@ -260,17 +357,51 @@ fn main() {
             let window = app
                 .get_webview_window("main")
                 .expect("main window configured");
-            // Keep the startup shell hidden until both local services are healthy.
-            // This prevents WebView2/WebKit from briefly showing a connection error
-            // while the API and Next.js sidecar are still booting.
-            window.hide()?;
-            let resource_dir = app.path().resource_dir()?;
-            let user_data = electron_compatible_user_data_dir()?;
+            // Keep the local startup shell visible while the sidecars boot. If a
+            // service fails, the user can still see the failure state and log hint.
+            let resource_dir = match app.path().resource_dir() {
+                Ok(path) => path,
+                Err(error) => {
+                    show_startup_failure(
+                        &window,
+                        &format!("could not locate bundled resources: {error}"),
+                        None,
+                    );
+                    return Ok(());
+                }
+            };
+            let user_data = match electron_compatible_user_data_dir() {
+                Ok(path) => path,
+                Err(error) => {
+                    show_startup_failure(
+                        &window,
+                        &format!("could not resolve Atlas user data: {error}"),
+                        None,
+                    );
+                    return Ok(());
+                }
+            };
             let startup_started = Instant::now();
-            let secret = persisted_secret(&user_data)?;
+            let secret = match persisted_secret(&user_data) {
+                Ok(secret) => secret,
+                Err(error) => {
+                    show_startup_failure(
+                        &window,
+                        &format!("could not read or create the installation secret: {error}"),
+                        Some(&user_data),
+                    );
+                    return Ok(());
+                }
+            };
 
             // Spawn both local services immediately; neither waits for the other.
-            let api = spawn_api(&resource_dir, &user_data, &secret)?;
+            let api = match spawn_api(&resource_dir, &user_data, &secret) {
+                Ok(child) => child,
+                Err(error) => {
+                    show_startup_failure(&window, &error.to_string(), Some(&user_data));
+                    return Ok(());
+                }
+            };
             eprintln!(
                 "[Atlas Tauri startup] API process spawned: {}ms",
                 startup_started.elapsed().as_millis()
@@ -281,7 +412,8 @@ fn main() {
                     let mut api = api;
                     let _ = api.kill();
                     let _ = api.wait();
-                    return Err(error.into());
+                    show_startup_failure(&window, &error.to_string(), Some(&user_data));
+                    return Ok(());
                 }
             };
             eprintln!(
@@ -289,22 +421,49 @@ fn main() {
                 startup_started.elapsed().as_millis()
             );
             {
-                let mut running = children
-                    .lock()
-                    .map_err(|_| io::Error::other("service process lock poisoned"))?;
+                let mut running = match children.lock() {
+                    Ok(running) => running,
+                    Err(_) => {
+                        let mut api = api;
+                        let mut frontend = frontend;
+                        let _ = frontend.kill();
+                        let _ = frontend.wait();
+                        let _ = api.kill();
+                        let _ = api.wait();
+                        show_startup_failure(
+                            &window,
+                            "the service process manager could not be initialized",
+                            Some(&user_data),
+                        );
+                        return Ok(());
+                    }
+                };
                 running.push(api);
                 running.push(frontend);
             }
 
             let startup_window = window.clone();
+            let startup_user_data = user_data.clone();
             let app_handle = app.handle().clone();
             let startup_children = Arc::clone(&children);
             thread::spawn(move || {
-                let api_probe = thread::spawn(|| {
-                    wait_for_health("http://127.0.0.1:43121/health", Duration::from_secs(45))
+                let api_children = Arc::clone(&startup_children);
+                let frontend_children = Arc::clone(&startup_children);
+                let api_probe = thread::spawn(move || {
+                    wait_for_health(
+                        "http://127.0.0.1:43121/health",
+                        Duration::from_secs(45),
+                        &api_children,
+                        0,
+                    )
                 });
-                let frontend_probe = thread::spawn(|| {
-                    wait_for_health("http://127.0.0.1:43122", Duration::from_secs(45))
+                let frontend_probe = thread::spawn(move || {
+                    wait_for_health(
+                        "http://127.0.0.1:43122",
+                        Duration::from_secs(45),
+                        &frontend_children,
+                        1,
+                    )
                 });
                 let api_ready = api_probe
                     .join()
@@ -324,7 +483,12 @@ fn main() {
                     stop_children(&startup_children);
                 }
                 let _ = app_handle.run_on_main_thread(move || {
-                    load_frontend_when_ready(startup_window, api_ready, frontend_ready);
+                    load_frontend_when_ready(
+                        startup_window,
+                        api_ready,
+                        frontend_ready,
+                        startup_user_data,
+                    );
                     eprintln!("[Atlas Tauri startup] frontend navigation requested");
                 });
             });
@@ -371,6 +535,42 @@ mod tests {
     fn runtime_resources_are_resolved_under_runtime_directory() {
         let path = runtime_path(Path::new("/opt/atlas"), "atlas-api");
         assert_eq!(path, Path::new("/opt/atlas/runtime/atlas-api"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn health_check_reports_a_sidecar_exit_without_waiting_for_timeout() {
+        let child = Command::new("sh")
+            .args(["-c", "exit 7"])
+            .spawn()
+            .expect("test sidecar should start");
+        let children = Arc::new(Mutex::new(vec![child]));
+        let started = Instant::now();
+
+        let error = wait_for_health("http://127.0.0.1:1", Duration::from_secs(10), &children, 0)
+            .expect_err("an exited sidecar must not pass its health check");
+
+        assert!(error.contains("exited before becoming healthy"));
+        assert!(started.elapsed() < Duration::from_secs(3));
+        stop_children(&children);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn health_check_reports_a_sidecar_exit_without_waiting_for_timeout() {
+        let child = Command::new("cmd")
+            .args(["/C", "exit", "7"])
+            .spawn()
+            .expect("test sidecar should start");
+        let children = Arc::new(Mutex::new(vec![child]));
+        let started = Instant::now();
+
+        let error = wait_for_health("http://127.0.0.1:1", Duration::from_secs(10), &children, 0)
+            .expect_err("an exited sidecar must not pass its health check");
+
+        assert!(error.contains("exited before becoming healthy"));
+        assert!(started.elapsed() < Duration::from_secs(3));
+        stop_children(&children);
     }
 
     #[test]

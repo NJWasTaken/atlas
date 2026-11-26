@@ -1,7 +1,7 @@
 [package]
 name = "atlas-tauri"
 version = "0.1.0"
-description = "Atlas desktop shell migration spike"
+description = "Atlas desktop application shell"
 authors = ["Atlas contributors"]
 edition = "2021"
 
